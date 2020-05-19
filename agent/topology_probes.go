@@ -30,6 +30,7 @@ import (
 	"github.com/skydive-project/skydive/topology/probes/bess"
 	"github.com/skydive-project/skydive/topology/probes/blockdev"
 	"github.com/skydive-project/skydive/topology/probes/docker"
+	"github.com/skydive-project/skydive/topology/probes/hardware"
 	"github.com/skydive-project/skydive/topology/probes/libvirt"
 	"github.com/skydive-project/skydive/topology/probes/lldp"
 	"github.com/skydive-project/skydive/topology/probes/lxd"
@@ -39,14 +40,15 @@ import (
 	"github.com/skydive-project/skydive/topology/probes/opencontrail"
 	"github.com/skydive-project/skydive/topology/probes/ovn"
 	"github.com/skydive-project/skydive/topology/probes/ovsdb"
+	"github.com/skydive-project/skydive/topology/probes/procs"
 	"github.com/skydive-project/skydive/topology/probes/runc"
 	"github.com/skydive-project/skydive/topology/probes/socketinfo"
 	"github.com/skydive-project/skydive/topology/probes/vpp"
-	"github.com/skydive-project/skydive/topology/probes/hardware"
 )
 
 func registerStaticProbes() {
 	blockdev.Register()
+	procs.Register()
 	netlink.Register()
 	docker.Register()
 	lldp.Register()
@@ -65,6 +67,8 @@ func NewTopologyProbe(name string, ctx tp.Context, bundle *probe.Bundle) (probe.
 	switch name {
 	case "blockdev":
 		return blockdev.NewProbe(ctx, bundle)
+	case "procs":
+		return procs.NewProbe(ctx, bundle)
 	case "netlink":
 		return netlink.NewProbe(ctx, bundle)
 	case "netns":
@@ -140,25 +144,31 @@ func NewTopologyProbeBundle(g *graph.Graph, hostNode *graph.Node) (*probe.Bundle
 	}
 
 	probeList := []string{"hardware"}
-	if runtime.GOOS == "linux" {
-		probeList = append(probeList, "netlink", "netns")
-	}
+	/*
+		* Do not add netlink by default
+		if runtime.GOOS == "linux" {
+			probeList = append(probeList, "netlink", "netns")
+		}
+	*/
 
 	probeList = append(probeList, config.GetStringSlice("agent.topology.probes")...)
 	logging.GetLogger().Infof("Topology probes: %v", probeList)
 
 	if runtime.GOOS == "linux" {
-		nlHandler, err := NewTopologyProbe("netlink", ctx, bundle)
-		if err != nil {
-			return nil, err
-		}
-		bundle.AddHandler("netlink", nlHandler)
+		/*
+				* Do not add netlink by default
+					nlHandler, err := NewTopologyProbe("netlink", ctx, bundle)
+					if err != nil {
+						return nil, err
+					}
+					bundle.AddHandler("netlink", nlHandler)
 
-		nsHandler, err := NewTopologyProbe("netns", ctx, bundle)
-		if err != nil {
-			return nil, err
-		}
-		bundle.AddHandler("netns", nsHandler)
+			nsHandler, err := NewTopologyProbe("netns", ctx, bundle)
+			if err != nil {
+				return nil, err
+			}
+			bundle.AddHandler("netns", nsHandler)
+		*/
 	}
 
 	for _, t := range probeList {
