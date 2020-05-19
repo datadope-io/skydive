@@ -140,25 +140,31 @@ func NewTopologyProbeBundle(g *graph.Graph, hostNode *graph.Node) (*probe.Bundle
 	}
 
 	probeList := []string{"hardware"}
-	if runtime.GOOS == "linux" {
-		probeList = append(probeList, "netlink", "netns")
-	}
+	/*
+		* Do not add netlink by default
+		if runtime.GOOS == "linux" {
+			probeList = append(probeList, "netlink", "netns")
+		}
+	*/
 
 	probeList = append(probeList, config.GetStringSlice("agent.topology.probes")...)
 	logging.GetLogger().Infof("Topology probes: %v", probeList)
 
 	if runtime.GOOS == "linux" {
-		nlHandler, err := NewTopologyProbe("netlink", ctx, bundle)
-		if err != nil {
-			return nil, err
-		}
-		bundle.AddHandler("netlink", nlHandler)
+		/*
+				* Do not add netlink by default
+					nlHandler, err := NewTopologyProbe("netlink", ctx, bundle)
+					if err != nil {
+						return nil, err
+					}
+					bundle.AddHandler("netlink", nlHandler)
 
-		nsHandler, err := NewTopologyProbe("netns", ctx, bundle)
-		if err != nil {
-			return nil, err
-		}
-		bundle.AddHandler("netns", nsHandler)
+			nsHandler, err := NewTopologyProbe("netns", ctx, bundle)
+			if err != nil {
+				return nil, err
+			}
+			bundle.AddHandler("netns", nsHandler)
+		*/
 	}
 
 	for _, t := range probeList {

@@ -42,6 +42,8 @@ import (
 	"github.com/skydive-project/skydive/topology/probes/ovnk8s"
 	"github.com/skydive-project/skydive/topology/probes/ovsdb"
 	"github.com/skydive-project/skydive/topology/probes/peering"
+	"github.com/skydive-project/skydive/topology/probes/proccon"
+	"github.com/skydive-project/skydive/topology/probes/procpeering"
 )
 
 func registerStaticProbes() {
@@ -106,6 +108,8 @@ func NewTopologyProbeBundleFromConfig(g *graph.Graph) (*probe.Bundle, error) {
 	}
 	bundle.AddHandler("fabric", fabricProbe)
 	bundle.AddHandler("peering", peering.NewProbe(g))
+	bundle.AddHandler("proccon", proccon.NewProbe(g))
+	bundle.AddHandler("procpeering", procpeering.NewProbe(g))
 
 	for _, t := range list {
 		if bundle.GetHandler(t) != nil {
