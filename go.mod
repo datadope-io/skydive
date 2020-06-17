@@ -7,6 +7,8 @@ require (
 	github.com/VerizonDigital/vflow v0.0.0-20190111005900-eb30d936249e
 	github.com/abbot/go-http-auth v0.4.0
 	github.com/aktau/github-release v0.7.2
+	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
+	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/avast/retry-go v2.5.0+incompatible
 	github.com/bennyscetbun/jsongo v0.0.0-20190110163710-9624bef8c57b // indirect
 	github.com/casbin/casbin v0.0.0-20181031010332-5ff5a6f5e38a
@@ -57,6 +59,7 @@ require (
 	github.com/lxc/lxd v0.0.0-20200330183600-518f06676866
 	github.com/mailru/easyjson v0.7.1
 	github.com/mattn/go-runewidth v0.0.0-20160315040712-d6bea18f7897 // indirect
+	github.com/mattn/go-zglob v0.0.1 // indirect
 	github.com/mattn/goveralls v0.0.2
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/hashstructure v0.0.0-20170116052023-ab25296c0f51
@@ -90,6 +93,7 @@ require (
 	github.com/tchap/zapext v0.0.0-20180117141735-e61c0c882339
 	github.com/tebeka/go2xunit v1.4.10
 	github.com/tebeka/selenium v0.0.0-20170314201507-657e45ec600f
+	github.com/thoas/go-funk v0.6.0 // indirect
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80 // indirect
 	github.com/vishvananda/netlink v1.0.0
 	github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df

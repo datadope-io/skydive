@@ -52,28 +52,35 @@ const (
 // It implements the probe.Handler interface.
 type ProbeHandler struct {
 	Ctx      probes.Context
-	software []Software
-	interval int
+	software []SWGroup
+	interval time.Duration
 	// procGroups used to store last seen software groups
-	procGroups map[string]Proc
+	procGroups map[string]NodeData
+	// deleteThreshold is the duration after a SWGroup without new data is deleted
+	deleteThreshold time.Duration
 }
 
-// Proc is the metadata associated to the node
+// NodeData contains connections and listeners for all the process mathing a regexp.
+// Is the data sent to the analyzer as Metadata
 // easyjson:json
 // gendecoder
-type Proc struct {
+type NodeData struct {
 	Name string
 	// Software "class", defined in the config
 	SubType   string
 	TCPListen []Endpoint
 	TCPConn   []Endpoint
+	// LastSeen stores the last time a proc of the group was seen on the OS
+	LastSeen time.Time
 }
 
-// Software is the expressións used to map OS processes to know software
-type Software struct {
+// SWGroup is the expressións used to map OS processes to know software
+type SWGroup struct {
 	Name   string
 	Class  string
 	Regexp *regexp.Regexp
+	// Ignore avoids adding this software to the NodeData
+	Ignore bool
 }
 
 // SoftwareConfig is the dict used in the config to define software
@@ -81,6 +88,7 @@ type SoftwareConfig struct {
 	Name   string
 	Class  string
 	Regexp string
+	Ignore bool
 }
 
 // Endpoint define an local or remote IP endpoint
@@ -101,7 +109,7 @@ type IPs struct {
 
 // appendConnections adds endpoints to the proc basend on the connection info and local ips
 // The main purpose of procName is to recognize the origin proc for the othersSW group
-func (p *ProbeHandler) appendConnections(proc *Proc, procName string, conn []net.ConnectionStat, localIps IPs) error {
+func (p *ProbeHandler) appendConnections(proc *NodeData, procName string, conn []net.ConnectionStat, localIps IPs) error {
 	// Only process LISTEN and ESTABLISHED connections.
 	// Get listen ports to avoid storing established connections to that listen port
 	listenPorts := map[uint32]interface{}{}
@@ -158,7 +166,7 @@ func (p *ProbeHandler) Do(ctx context.Context, wg *sync.WaitGroup) error {
 		defer wg.Done()
 
 		// update the graph each five seconds
-		ticker := time.NewTicker(time.Duration(p.interval) * time.Second)
+		ticker := time.NewTicker(p.interval)
 		defer ticker.Stop()
 
 		for {
@@ -169,6 +177,9 @@ func (p *ProbeHandler) Do(ctx context.Context, wg *sync.WaitGroup) error {
 			case <-ticker.C:
 				// TODO: Subscribe to new connections instead of polling?
 				// ../socketinfo/socket_info_ebpf.go
+				//
+				// TODO instead of get procs and then connections.
+				// Get connections and then filter procs?
 
 				// Get the list of current procs
 				// TODO how to handle containers? Here we got local process + procs insider containers
@@ -177,7 +188,7 @@ func (p *ProbeHandler) Do(ctx context.Context, wg *sync.WaitGroup) error {
 					p.Ctx.Logger.Error("getting process list")
 				}
 
-				currentGroups := map[string]Proc{}
+				currentGroups := map[string]NodeData{}
 
 				// Get hosts IPs to create endpoints when listeners listens in all interfaces
 				localIps, err := p.getLocalIps()
@@ -209,12 +220,18 @@ func (p *ProbeHandler) Do(ctx context.Context, wg *sync.WaitGroup) error {
 					for _, sw := range p.software {
 						// TODO does this work with jboss? Or we have to take all the children once we discover the parent? Which proc have the listeners attached?
 						if sw.Regexp.MatchString(cmdline) {
-							// If match, create, or update, an entry in currentGroups
+							if sw.Ignore {
+								continue L1
+							}
+
+							// If match, create/update an entry in currentGroups
 							swGroup, exists := currentGroups[sw.Name]
 							if !exists {
 								swGroup.Name = sw.Name
 								swGroup.SubType = sw.Class
 							}
+
+							swGroup.LastSeen = time.Now()
 
 							err = p.appendConnections(&swGroup, procName, conn, localIps)
 							if err != nil {
@@ -232,6 +249,7 @@ func (p *ProbeHandler) Do(ctx context.Context, wg *sync.WaitGroup) error {
 					if !exists {
 						swGroup.Name = othersSW
 					}
+					swGroup.LastSeen = time.Now()
 
 					err = p.appendConnections(&swGroup, procName, conn, localIps)
 					if err != nil {
@@ -253,18 +271,19 @@ func (p *ProbeHandler) Do(ctx context.Context, wg *sync.WaitGroup) error {
 				}
 
 				// Delete old nodes (nodes in p.procGroups not in currentGroups)
-				// TODO: only delete after after some time, to avoid flapping
-				p.Ctx.Graph.Lock()
+				// Only delete after after some time, to avoid flapping
 				for k, v := range p.procGroups {
-					if _, exists := currentGroups[k]; !exists {
+					if _, exists := currentGroups[k]; !exists && time.Since(v.LastSeen) > p.deleteThreshold {
+						p.Ctx.Logger.Debugf("delete node '%v'. lastseen=%v", v.Name, v.LastSeen)
+						p.Ctx.Graph.Lock()
 						p.Ctx.Graph.DelNodes(graph.Metadata{
 							"Name":    v.Name,
 							"SubType": v.SubType,
 							"Type":    softwareType,
 						})
+						p.Ctx.Graph.Unlock()
 					}
 				}
-				p.Ctx.Graph.Unlock()
 
 				p.procGroups = currentGroups
 			}
@@ -304,7 +323,7 @@ func (p *ProbeHandler) getLocalIps() (IPs, error) {
 
 // addProc create a new node owned by the root node with the process
 // name and connection info, or update metadata if it already exists
-func (p *ProbeHandler) addProc(proc Proc) error {
+func (p *ProbeHandler) addProc(proc NodeData) error {
 	// lock the graph for modification
 	p.Ctx.Graph.Lock()
 	// release the graph lock
@@ -355,6 +374,8 @@ func NewProbe(ctx probes.Context, bundle *probe.Bundle) (probe.Handler, error) {
 		return nil, fmt.Errorf("agent.topology.procs.interval should be defined and not 0")
 	}
 
+	deleteCount := ctx.Config.GetInt("agent.topology.procs.delete_count")
+
 	configSW := ctx.Config.Get("agent.topology.procs.software")
 	softwareConfig := []SoftwareConfig{}
 	if err := mapstructure.Decode(configSW, &softwareConfig); err != nil {
@@ -362,23 +383,26 @@ func NewProbe(ctx probes.Context, bundle *probe.Bundle) (probe.Handler, error) {
 	}
 
 	// Convert and verify config regexp expressions to regexp values
-	software := []Software{}
+	software := []SWGroup{}
 	for _, v := range softwareConfig {
 		r, err := regexp.Compile(v.Regexp)
 		if err != nil {
 			return nil, fmt.Errorf("invalid regexp for software %v: %v", v.Name, err)
 		}
-		software = append(software, Software{
+
+		software = append(software, SWGroup{
 			Name:   v.Name,
 			Class:  v.Class,
 			Regexp: r,
+			Ignore: v.Ignore,
 		})
 	}
 
 	p := &ProbeHandler{
-		Ctx:      ctx,
-		software: software,
-		interval: interval,
+		Ctx:             ctx,
+		software:        software,
+		interval:        time.Duration(interval) * time.Second,
+		deleteThreshold: time.Duration(interval) * time.Duration(deleteCount) * time.Second,
 	}
 
 	return probes.NewProbeWrapper(p), nil
@@ -389,7 +413,7 @@ func NewProbe(ctx probes.Context, bundle *probe.Bundle) (probe.Handler, error) {
 // the Getter interface functions will be generated by the gendecoder generator.
 // See the first line and the tag at the struct declaration.
 func MetadataDecoder(raw json.RawMessage) (getter.Getter, error) {
-	var proc Proc
+	var proc NodeData
 	if err := json.Unmarshal(raw, &proc); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal proc data '%s': %s", string(raw), err)
 	}
