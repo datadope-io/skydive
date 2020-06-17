@@ -66,34 +66,37 @@ func (obj *Endpoint) GetField(key string) (interface{}, error) {
 	return nil, getter.ErrFieldNotFound
 }
 
-func (obj *Proc) GetFieldBool(key string) (bool, error) {
+func (obj *NodeData) GetFieldBool(key string) (bool, error) {
 	return false, getter.ErrFieldNotFound
 }
 
-func (obj *Proc) GetFieldInt64(key string) (int64, error) {
+func (obj *NodeData) GetFieldInt64(key string) (int64, error) {
 	return 0, getter.ErrFieldNotFound
 }
 
-func (obj *Proc) GetFieldString(key string) (string, error) {
+func (obj *NodeData) GetFieldString(key string) (string, error) {
 	switch key {
 	case "Name":
 		return string(obj.Name), nil
 	case "SubType":
 		return string(obj.SubType), nil
+	case "LastSeen":
+		return obj.LastSeen.String(), nil
 	}
 	return "", getter.ErrFieldNotFound
 }
 
-func (obj *Proc) GetFieldKeys() []string {
+func (obj *NodeData) GetFieldKeys() []string {
 	return []string{
 		"Name",
 		"SubType",
 		"TCPListen",
 		"TCPConn",
+		"LastSeen",
 	}
 }
 
-func (obj *Proc) MatchBool(key string, predicate getter.BoolPredicate) bool {
+func (obj *NodeData) MatchBool(key string, predicate getter.BoolPredicate) bool {
 	first := key
 	index := strings.Index(key, ".")
 	if index != -1 {
@@ -121,7 +124,7 @@ func (obj *Proc) MatchBool(key string, predicate getter.BoolPredicate) bool {
 	return false
 }
 
-func (obj *Proc) MatchInt64(key string, predicate getter.Int64Predicate) bool {
+func (obj *NodeData) MatchInt64(key string, predicate getter.Int64Predicate) bool {
 	first := key
 	index := strings.Index(key, ".")
 	if index != -1 {
@@ -150,7 +153,7 @@ func (obj *Proc) MatchInt64(key string, predicate getter.Int64Predicate) bool {
 	return false
 }
 
-func (obj *Proc) MatchString(key string, predicate getter.StringPredicate) bool {
+func (obj *NodeData) MatchString(key string, predicate getter.StringPredicate) bool {
 	if b, err := obj.GetFieldString(key); err == nil {
 		return predicate(b)
 	}
@@ -183,7 +186,7 @@ func (obj *Proc) MatchString(key string, predicate getter.StringPredicate) bool 
 	return false
 }
 
-func (obj *Proc) GetField(key string) (interface{}, error) {
+func (obj *NodeData) GetField(key string) (interface{}, error) {
 	if s, err := obj.GetFieldString(key); err == nil {
 		return s, nil
 	}

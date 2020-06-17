@@ -17,7 +17,7 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjsonF2260f45DecodeGithubComSkydiveProjectSkydiveTopologyProbesProcs(in *jlexer.Lexer, out *Proc) {
+func easyjsonF2260f45DecodeGithubComSkydiveProjectSkydiveTopologyProbesProcs(in *jlexer.Lexer, out *NodeData) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -86,6 +86,10 @@ func easyjsonF2260f45DecodeGithubComSkydiveProjectSkydiveTopologyProbesProcs(in 
 				}
 				in.Delim(']')
 			}
+		case "LastSeen":
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.LastSeen).UnmarshalJSON(data))
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -96,7 +100,7 @@ func easyjsonF2260f45DecodeGithubComSkydiveProjectSkydiveTopologyProbesProcs(in 
 		in.Consumed()
 	}
 }
-func easyjsonF2260f45EncodeGithubComSkydiveProjectSkydiveTopologyProbesProcs(out *jwriter.Writer, in Proc) {
+func easyjsonF2260f45EncodeGithubComSkydiveProjectSkydiveTopologyProbesProcs(out *jwriter.Writer, in NodeData) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -142,30 +146,35 @@ func easyjsonF2260f45EncodeGithubComSkydiveProjectSkydiveTopologyProbesProcs(out
 			out.RawByte(']')
 		}
 	}
+	{
+		const prefix string = ",\"LastSeen\":"
+		out.RawString(prefix)
+		out.Raw((in.LastSeen).MarshalJSON())
+	}
 	out.RawByte('}')
 }
 
 // MarshalJSON supports json.Marshaler interface
-func (v Proc) MarshalJSON() ([]byte, error) {
+func (v NodeData) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
 	easyjsonF2260f45EncodeGithubComSkydiveProjectSkydiveTopologyProbesProcs(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
-func (v Proc) MarshalEasyJSON(w *jwriter.Writer) {
+func (v NodeData) MarshalEasyJSON(w *jwriter.Writer) {
 	easyjsonF2260f45EncodeGithubComSkydiveProjectSkydiveTopologyProbesProcs(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
-func (v *Proc) UnmarshalJSON(data []byte) error {
+func (v *NodeData) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
 	easyjsonF2260f45DecodeGithubComSkydiveProjectSkydiveTopologyProbesProcs(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
-func (v *Proc) UnmarshalEasyJSON(l *jlexer.Lexer) {
+func (v *NodeData) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjsonF2260f45DecodeGithubComSkydiveProjectSkydiveTopologyProbesProcs(l, v)
 }
 func easyjsonF2260f45DecodeGithubComSkydiveProjectSkydiveTopologyProbesProcs1(in *jlexer.Lexer, out *Endpoint) {
