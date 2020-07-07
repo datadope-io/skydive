@@ -41,7 +41,9 @@ func NewESConfig(name ...string) es.Config {
 		path += "elasticsearch"
 	}
 
-	cfg.ElasticHost = config.GetString(path + ".host")
+	cfg.ElasticHost = config.GetStringSlice(path + ".hosts")
+	cfg.InsecureSkipVerify = config.GetBool(path + ".ssl_insecure")
+	cfg.Auth = config.GetStringMapString(path + ".auth")
 	cfg.BulkMaxDelay = config.GetInt(path + ".bulk_maxdelay")
 
 	cfg.EntriesLimit = config.GetInt(path + ".index_entries_limit")
