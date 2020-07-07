@@ -19,9 +19,10 @@ package elasticsearch
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
-	"net/url"
+	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -29,7 +30,6 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	elastic "github.com/olivere/elastic/v7"
-	esconfig "github.com/olivere/elastic/v7/config"
 
 	"github.com/skydive-project/skydive/common"
 	"github.com/skydive-project/skydive/graffiti/filters"
@@ -40,17 +40,21 @@ import (
 const (
 	schemaVersion  = "12"
 	indexPrefix    = "skydive"
-	minimalVersion = "5.5"
+	minimalVersion = "7.0"
 )
 
 // Config describes configuration for elasticsearch
 type Config struct {
-	ElasticHost  string
-	BulkMaxDelay int
-	EntriesLimit int
-	AgeLimit     int
-	IndicesLimit int
-	NoSniffing   bool
+	ElasticHost        []string
+	InsecureSkipVerify bool
+	Auth               map[string]string
+	BulkMaxDelay       int
+	EntriesLimit       int
+	AgeLimit           int
+	IndicesLimit       int
+	NoSniffing         bool
+	SniffingScheme     string
+	NoHealthcheck      bool
 }
 
 // ClientInterface describes the mechanism API of ElasticSearch database client
@@ -77,7 +81,7 @@ type Index struct {
 // Client describes a ElasticSearch client connection
 type Client struct {
 	sync.RWMutex
-	url           *url.URL
+	hosts         []string
 	esClient      *elastic.Client
 	bulkProcessor *elastic.BulkProcessor
 	started       atomic.Value
@@ -85,6 +89,30 @@ type Client struct {
 	indices       map[string]Index
 	rollService   *rollIndexService
 	listeners     []storage.EventListener
+}
+
+// TraceLogger implements the oliviere/elastic Logger interface to be used with trace messages
+type TraceLogger struct{}
+
+// Printf sends elastic trace messages to skydive logger Debug
+func (l TraceLogger) Printf(format string, v ...interface{}) {
+	logging.GetLogger().Debugf(format, v)
+}
+
+// InfoLogger implements the oliviere/elastic Logger interface to be used with info messages
+type InfoLogger struct{}
+
+// Printf sends elastic info messages to skydive logger Info
+func (l InfoLogger) Printf(format string, v ...interface{}) {
+	logging.GetLogger().Infof(format, v)
+}
+
+// ErrorLogger implements the oliviere/elastic Logger interface to be used with error mesages
+type ErrorLogger struct{}
+
+// Printf sends elastic error messages to skydive logger Error
+func (l ErrorLogger) Printf(format string, v ...interface{}) {
+	logging.GetLogger().Errorf(format, v)
 }
 
 var (
@@ -162,19 +190,30 @@ func (c *Client) createIndices() error {
 }
 
 func (c *Client) start() error {
-	esConfig, err := esconfig.Parse(c.url.String())
-	if err != nil {
-		return err
+	httpClient := http.DefaultClient
+
+	if c.cfg.InsecureSkipVerify {
+		logging.GetLogger().Warning("Skipping SSL certificates verification")
+
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		httpClient = &http.Client{Transport: tr}
 	}
 
-	if c.cfg.NoSniffing {
-		esConfig.Sniff = new(bool)
-		*esConfig.Sniff = false
-	}
-
-	esClient, err := elastic.NewClientFromConfig(esConfig)
+	esClient, err := elastic.NewClient(
+		elastic.SetHttpClient(httpClient),
+		elastic.SetURL(c.hosts...),
+		elastic.SetBasicAuth(c.cfg.Auth["username"], c.cfg.Auth["password"]),
+		elastic.SetSniff(!c.cfg.NoSniffing),
+		elastic.SetScheme(c.cfg.SniffingScheme),
+		elastic.SetHealthcheck(!c.cfg.NoHealthcheck),
+		elastic.SetTraceLog(TraceLogger{}),
+		elastic.SetInfoLog(InfoLogger{}),
+		elastic.SetErrorLog(ErrorLogger{}),
+	)
 	if err != nil {
-		return err
+		return fmt.Errorf("creating elasticsearch client: %s", err)
 	}
 	c.esClient = esClient
 
@@ -195,14 +234,22 @@ func (c *Client) start() error {
 		FlushInterval(time.Duration(c.cfg.BulkMaxDelay) * time.Second).
 		Do(context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("creating elasticsearch bulk processor: %s", err)
 	}
 
 	c.bulkProcessor = bulkProcessor
 
-	vt, err := esClient.ElasticsearchVersion(c.url.String())
+	// Get the version from the first working node
+	// Return error if all nodes are failing
+	var vt string
+	for _, host := range c.hosts {
+		vt, err = esClient.ElasticsearchVersion(host)
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
-		return fmt.Errorf("Unable to get the version: %s", vt)
+		return fmt.Errorf("Unable to get the version: %s", err)
 	}
 
 	v, err := version.NewVersion(vt)
@@ -419,19 +466,6 @@ func (c *Client) Started() bool {
 	return c.started.Load() == true
 }
 
-func urlFromHost(host string) (*url.URL, error) {
-	urlStr := host
-	if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
-		urlStr = "http://" + urlStr
-	}
-
-	url, err := url.Parse(urlStr)
-	if err != nil || url.Port() == "" {
-		return nil, ErrBadConfig(fmt.Sprintf("wrong url format, %s", urlStr))
-	}
-	return url, nil
-}
-
 // GetClient returns the elastic client object
 func (c *Client) GetClient() *elastic.Client {
 	return c.esClient
@@ -446,11 +480,6 @@ func (c *Client) AddEventListener(listener storage.EventListener) {
 
 // NewClient creates a new ElasticSearch client based on configuration
 func NewClient(indices []Index, cfg Config, electionService common.MasterElectionService) (*Client, error) {
-	url, err := urlFromHost(cfg.ElasticHost)
-	if err != nil {
-		return nil, err
-	}
-
 	indicesMap := make(map[string]Index, 0)
 	rollIndices := []Index{}
 	for _, index := range indices {
@@ -462,7 +491,7 @@ func NewClient(indices []Index, cfg Config, electionService common.MasterElectio
 	}
 
 	client := &Client{
-		url:     url,
+		hosts:   cfg.ElasticHost,
 		cfg:     cfg,
 		indices: indicesMap,
 	}
