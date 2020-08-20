@@ -91,22 +91,21 @@ func (l *simpleLinker) GetABLinks(n *graph.Node) (edges []*graph.Edge) {
 			logging.GetLogger().Errorf("incorrect metadata format for TCPConn in node '%v': %v", n.Host, c)
 		}
 		// Only find using the hash with ip and port, ignore process as it will be different in the other side of the connection
-		nodes, _ := l.probe.listenIndexer.Get(cc["IP"], cc["Port"])
+		nodes, _ := l.probe.listenIndexer.Get(cc["IP"], cc["port"])
 
 		// Create link from our node to the listener
 		for _, n2 := range nodes {
 			edges = append(edges, l.probe.graph.CreateEdge("", n, n2, graph.Metadata{
 				"RelationType": "tcp_conn",
-				"Destination":  fmt.Sprintf("%v:%v", cc["IP"], cc["Port"]),
+				"Destination":  fmt.Sprintf("%v:%v", cc["IP"], cc["port"]),
 				// We do not have the origin connection info, it is not stored in the node metadata
-				// TODO: Add direction to the edge?
 			}, graph.TimeUTC()))
 		}
 
 		// Show an error if we find more than one listener
 		// TODO how to handle this?
 		if len(nodes) > 1 {
-			logging.GetLogger().Errorf("node '%v' connection %v has found more than one listener endpoint: %v", n.Host, c, nodes)
+			logging.GetLogger().Errorf("node '%+v' connection %v has found more than one listener endpoint: %v", n, c, nodes)
 		}
 	}
 
@@ -133,7 +132,7 @@ func connectionsEndpointHasher(n *graph.Node) map[string]interface{} {
 			logging.GetLogger().Errorf("incorrect metadata format for TCPConn in node %v: %v", n.Host, v)
 		}
 		// Only create the hash with ip and port, ignore process as it will be different in the other side of the connection
-		kv[graph.Hash(vv["IP"], vv["Port"])] = fmt.Sprintf("%v:%v", vv["IP"], vv["Port"])
+		kv[graph.Hash(vv["IP"], vv["port"])] = fmt.Sprintf("%v:%v", vv["IP"], vv["port"])
 	}
 
 	return kv
@@ -154,7 +153,7 @@ func listenEndpointHasher(n *graph.Node) map[string]interface{} {
 			logging.GetLogger().Errorf("incorrect metadata format for TCPListen in node %v: %v", n.Host, v)
 		}
 		// Only create the hash with ip and port, ignore process as it will be different in the other side of the connection
-		kv[graph.Hash(vv["IP"], vv["Port"])] = nil
+		kv[graph.Hash(vv["IP"], vv["port"])] = nil
 	}
 
 	return kv
