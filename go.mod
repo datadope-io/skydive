@@ -101,7 +101,6 @@ require (
 	github.com/weaveworks/tcptracer-bpf v0.0.0-20170817155301-e080bd747dc6
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.uber.org/zap v1.10.0
-	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550 // indirect
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
 	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5
 	golang.org/x/tools v0.0.0-20191017151554-a3bc800455d5
