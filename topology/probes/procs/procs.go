@@ -98,7 +98,7 @@ type Endpoint struct {
 	// Proc have the name of the process owning this endpoint. Useful to know the owner in the othersSW group
 	Proc string
 	IP   string
-	Port uint32
+	Port uint32 `json:"port"`
 }
 
 // IPs stores a list of IPs divided by version
