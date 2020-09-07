@@ -34,6 +34,7 @@ type DescendantsTraversalExtension struct {
 type DescendantsGremlinTraversalStep struct {
 	context  traversal.GremlinTraversalContext
 	maxDepth int64
+	extended bool
 }
 
 // NewDescendantsTraversalExtension returns a new graph traversal extension
@@ -63,6 +64,8 @@ func (e *DescendantsTraversalExtension) ParseStep(t traversal.Token, p traversal
 	paramErr := fmt.Errorf("Descendants requires 1 number as parameter : %v", p.Params)
 
 	maxDepth := int64(1)
+	extended := false
+
 	switch len(p.Params) {
 	case 0:
 	case 1:
@@ -71,14 +74,26 @@ func (e *DescendantsTraversalExtension) ParseStep(t traversal.Token, p traversal
 			return nil, paramErr
 		}
 		maxDepth = depth
+	case 2:
+		depth, ok := p.Params[0].(int64)
+		if !ok {
+			return nil, paramErr
+		}
+		maxDepth = depth
+
+		extended, ok = p.Params[1].(bool)
+		if !ok {
+			return nil, paramErr
+		}
+		maxDepth = depth
 	default:
 		return nil, paramErr
 	}
 
-	return &DescendantsGremlinTraversalStep{context: p, maxDepth: maxDepth}, nil
+	return &DescendantsGremlinTraversalStep{context: p, maxDepth: maxDepth, extended: extended}, nil
 }
 
-func getDescendants(g *graph.Graph, parents []*graph.Node, descendants *[]*graph.Node, currDepth, maxDepth int64, visited map[graph.Identifier]bool) {
+func getDescendants(g *graph.Graph, parents []*graph.Node, descendants *[]*graph.Node, currDepth, maxDepth int64, extended bool, visited map[graph.Identifier]bool) {
 	var ld []*graph.Node
 	for _, parent := range parents {
 		if _, ok := visited[parent.ID]; !ok {
@@ -91,7 +106,13 @@ func getDescendants(g *graph.Graph, parents []*graph.Node, descendants *[]*graph
 	if maxDepth == 0 || currDepth < maxDepth {
 		for _, parent := range parents {
 			children := g.LookupChildren(parent, nil, topology.OwnershipMetadata())
-			getDescendants(g, children, descendants, currDepth+1, maxDepth, visited)
+			getDescendants(g, children, descendants, currDepth+1, maxDepth, extended, visited)
+
+			if extended {
+				// Add also nodes with an "ownership_shared" edge as descendants
+				children = g.LookupChildren(parent, nil, graph.Metadata{"RelationType": "ownership_shared"})
+				getDescendants(g, children, descendants, currDepth+1, maxDepth, extended, visited)
+			}
 		}
 	}
 }
@@ -103,7 +124,7 @@ func (d *DescendantsGremlinTraversalStep) Exec(last traversal.GraphTraversalStep
 	switch tv := last.(type) {
 	case *traversal.GraphTraversalV:
 		tv.GraphTraversal.RLock()
-		getDescendants(tv.GraphTraversal.Graph, tv.GetNodes(), &descendants, 0, d.maxDepth, make(map[graph.Identifier]bool))
+		getDescendants(tv.GraphTraversal.Graph, tv.GetNodes(), &descendants, 0, d.maxDepth, d.extended, make(map[graph.Identifier]bool))
 		tv.GraphTraversal.RUnlock()
 
 		return traversal.NewGraphTraversalV(tv.GraphTraversal, descendants), nil
