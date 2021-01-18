@@ -51,7 +51,8 @@ const (
 // ProbeHandler describes a memory probe handler.
 // It implements the probe.Handler interface.
 type ProbeHandler struct {
-	Ctx      probes.Context
+	Ctx probes.Context
+	*graph.EventHandler
 	software []SWGroup
 	interval time.Duration
 	// procGroups used to store last seen software groups
@@ -281,6 +282,8 @@ func (p *ProbeHandler) Do(ctx context.Context, wg *sync.WaitGroup) error {
 							"SubType": v.SubType,
 							"Type":    softwareType,
 						})
+						// TODO what parameter should be passed?
+						//p.NotifyEvent(graph.NodeDeleted, node)
 						p.Ctx.Graph.Unlock()
 					}
 				}
@@ -325,6 +328,7 @@ func (p *ProbeHandler) getLocalIps() (IPs, error) {
 // name and connection info, or update metadata if it already exists
 func (p *ProbeHandler) addProc(proc NodeData) error {
 	// lock the graph for modification
+	// TODO lock the graph the whole function?
 	p.Ctx.Graph.Lock()
 	// release the graph lock
 	defer p.Ctx.Graph.Unlock()
@@ -354,10 +358,12 @@ func (p *ProbeHandler) addProc(proc NodeData) error {
 		if err != nil {
 			return fmt.Errorf("unable to add the new node to the graph: %s", err)
 		}
+		p.NotifyEvent(graph.NodeAdded, node)
 	} else {
 		// Update metadata
 		// TODO is this operation costly? Maybe is better to store old state and just send changes?
 		p.Ctx.Graph.SetMetadata(node, metadata)
+		p.NotifyEvent(graph.NodeUpdated, node)
 	}
 
 	if !topology.HaveOwnershipLink(p.Ctx.Graph, p.Ctx.RootNode, node) {
@@ -400,6 +406,7 @@ func NewProbe(ctx probes.Context, bundle *probe.Bundle) (probe.Handler, error) {
 
 	p := &ProbeHandler{
 		Ctx:             ctx,
+		EventHandler:    graph.NewEventHandler(100),
 		software:        software,
 		interval:        time.Duration(interval) * time.Second,
 		deleteThreshold: time.Duration(interval) * time.Duration(deleteCount) * time.Second,
@@ -425,5 +432,6 @@ func MetadataDecoder(raw json.RawMessage) (getter.Getter, error) {
 func Register() {
 	// register the MemoryDecoder so that the graph knows how to decode the
 	// Memory metadata field.
-	graph.NodeMetadataDecoders["Memory"] = MetadataDecoder
+	// TODO what to implement here?
+	graph.NodeMetadataDecoders["Procs"] = MetadataDecoder
 }

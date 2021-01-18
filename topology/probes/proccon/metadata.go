@@ -28,6 +28,8 @@ import (
 	"github.com/skydive-project/skydive/graffiti/graph"
 )
 
+// TODO tenemos que implementar esto? Que funcion tiene?
+
 // Metadata describe the metadata of a docker container
 // easyjson:json
 // gendecoder

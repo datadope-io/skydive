@@ -25,7 +25,7 @@ import (
 	tp "github.com/skydive-project/skydive/topology/probes"
 )
 
-// NewProbe returns a new topology Docker probe
+// NewProbe returns a new topology Proccon probe
 func NewProbe(ctx tp.Context, bundle *probe.Bundle) (probe.Handler, error) {
 	return nil, common.ErrNotImplemented
 }

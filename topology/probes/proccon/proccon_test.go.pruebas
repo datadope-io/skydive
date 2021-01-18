@@ -1,0 +1,121 @@
+package proccon
+
+import (
+	"bytes"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
+	"testing"
+	"time"
+
+	"github.com/skydive-project/skydive/graffiti/filters"
+	"github.com/skydive-project/skydive/graffiti/graph"
+)
+
+type GraphMock struct {
+	t     *testing.T
+	nodes []*graph.Node
+}
+
+func (g GraphMock) GetNodes(m graph.ElementMatcher) []*graph.Node {
+	filter, err := m.Filter()
+	if err != nil {
+		g.t.Fatalf("GetNodes mock, filter: %v", err)
+	}
+
+	expectedFilter := filters.TermStringFilter{
+		Key:   "Cmdline",
+		Value: "nc -kl 8000",
+	}
+
+	recvFilter := filter.BoolFilter.Filters[0].TermStringFilter
+
+	if *recvFilter != expectedFilter {
+		g.t.Fatalf("Filter incorrectly setted. Expected: %+v. Received: %+v", expectedFilter, *recvFilter)
+	}
+
+	return g.nodes
+}
+
+type ProcconMock struct {
+	Probe
+}
+
+func TestUno(t *testing.T) {
+	p := ProcconMock{}
+
+	// node that will be returned by the GetNodes function
+	n := graph.CreateNode("id", nil, graph.Time(time.Now()), "host", "type")
+	p.graph = GraphMock{
+		t,
+		[]*graph.Node{n},
+	}
+
+	jsonStr := []byte(`
+{
+  "metrics": [
+    {
+      "fields": {
+        "conn": "",
+        "listen": "192.168.1.36:8000,192.168.1.22:8000,172.30.0.1:8000,172.20.0.1:8000,172.17.0.1:8000,192.168.255.10:8000"
+      },
+      "name": "procstat_test",
+      "tags": {
+        "cmdline": "nc -kl 8000",
+        "host": "archer",
+        "process_name": "nc"
+      },
+      "timestamp": 1603890543
+    }
+  ]
+}`)
+
+	req, err := http.NewRequest("POST", "/", bytes.NewBuffer(jsonStr))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+
+	p.ServeHTTP(rr, req)
+
+	// Check HTTP 200 and empty body
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
+	}
+
+	expected := ``
+	if rr.Body.String() != expected {
+		t.Errorf("handler returned unexpected body: got %v want %v",
+			rr.Body.String(), expected)
+	}
+
+	// Check call to GetNodes is correct
+	expectedListen := []string{
+		"192.168.1.36:8000",
+		"192.168.1.22:8000",
+		"172.30.0.1:8000",
+		"172.20.0.1:8000",
+		"172.17.0.1:8000",
+		"192.168.255.10:8000",
+	}
+	actualListen, err := n.Metadata.GetField("TCPListen")
+	if err != nil {
+		t.Fatalf("Node not updated correctly, error getting 'listen' field: %s", err)
+	}
+
+	expectedConn := []string{}
+	actualConn, err := n.Metadata.GetField("TCPConn")
+	if err != nil {
+		t.Fatalf("Node not updated correctly, error getting 'conn' field: %s", err)
+	}
+
+	if !reflect.DeepEqual(expectedListen, actualListen) {
+		t.Errorf("Node not updated, error on 'listen' field. Got: %v. Want: %v", actualListen, expectedListen)
+	}
+
+	if !reflect.DeepEqual(expectedConn, actualConn) {
+		t.Errorf("Node not updated, error on 'conn' field. Got: %v. Want: %v", actualConn, expectedConn)
+	}
+}

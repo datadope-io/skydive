@@ -21,10 +21,16 @@ import (
 	"fmt"
 
 	"github.com/skydive-project/skydive/graffiti/graph"
-	"github.com/skydive-project/skydive/logging"
+	"github.com/skydive-project/skydive/graffiti/logging"
+	"github.com/skydive-project/skydive/topology/probes/proccon"
 )
 
-// Probe describes graph peering based on MAC address and graph events
+const (
+	// RelationTypeConnection value for edges connecting two software nodes connected by TCP
+	RelationTypeConnection = "tcp_conn"
+)
+
+// Probe describes graph peering based on TCP connections
 type Probe struct {
 	graph.DefaultGraphListener
 	graph         *graph.Graph
@@ -33,8 +39,10 @@ type Probe struct {
 	linker        *graph.ResourceLinker
 }
 
-// Start the MAC peering resolver probe
+// Start the TCP peering resolver probe
 func (p *Probe) Start() error {
+	logging.GetLogger().Debug("TCP connections peering")
+
 	err := p.listenIndexer.Start()
 	if err != nil {
 		return fmt.Errorf("starting listenIndexer: %v", err)
@@ -55,6 +63,7 @@ func (p *Probe) Start() error {
 
 // Stop the probe
 func (p *Probe) Stop() {
+	logging.GetLogger().Debug("TCP connections peering")
 	p.listenIndexer.Stop()
 	p.connIndexer.Stop()
 	p.linker.Stop()
@@ -62,50 +71,43 @@ func (p *Probe) Stop() {
 
 // OnError implements the LinkerEventListener interface
 func (p *Probe) OnError(err error) {
-	// TODO having errors: "(*Probe).OnError  archer: Edge ID conflict"
 	logging.GetLogger().Error(err)
 }
 
-// Prueba linker custom
 type simpleLinker struct {
 	probe *Probe
 }
 
-// TODO podríamos tener problemas por linkear IPs privadas reutilizadas.
-// Por ejemplo, muchos hosts pueden tener configurada la IP 172.17.0.1 para la interfaz
-// de docker.
-// Cosas que estuviesen conectando localmente a esa IP podrían acabar enganchando a
-// cualquier host que tuviese docker con esa interfaz
-
 // GetABLinks get nodes with new connections and have to return edges to listeners
-func (l *simpleLinker) GetABLinks(n *graph.Node) (edges []*graph.Edge) {
-	tcpConn, err := n.Metadata.GetField("TCPConn")
+func (l *simpleLinker) GetABLinks(nodeConnection *graph.Node) (edges []*graph.Edge) {
+	tcpConnIface, err := nodeConnection.Metadata.GetField(proccon.MetadataTCPConnKey)
 	if err != nil {
-		logging.GetLogger().Debugf("incorrect node '%v' metadata, expecting TCPConn key: %v", n.Host, err)
+		logging.GetLogger().Debugf("incorrect node '%v' metadata, expecting TCPConn key: %v", nodeConnection, err)
+	}
+
+	tcpConn, ok := tcpConnIface.(map[string]proccon.ProcInfo)
+	if !ok {
+		return []*graph.Edge{}
 	}
 
 	// Iterate over node connections and try to find a listener match
-	for _, c := range tcpConn.([]interface{}) {
-		cc, ok := c.(map[string]interface{})
-		if !ok {
-			logging.GetLogger().Errorf("incorrect metadata format for TCPConn in node '%v': %v", n.Host, c)
-		}
+	for outgoingConn := range tcpConn { // cambiado de string a interface
 		// Only find using the hash with ip and port, ignore process as it will be different in the other side of the connection
-		nodes, _ := l.probe.listenIndexer.Get(cc["IP"], cc["port"])
+		nodesListeners, _ := l.probe.listenIndexer.Get(outgoingConn)
 
 		// Create link from our node to the listener
-		for _, n2 := range nodes {
-			edges = append(edges, l.probe.graph.CreateEdge("", n, n2, graph.Metadata{
-				"RelationType": "tcp_conn",
-				"Destination":  fmt.Sprintf("%v:%v", cc["IP"], cc["port"]),
-				// We do not have the origin connection info, it is not stored in the node metadata
+		for _, nodeListener := range nodesListeners {
+			logging.GetLogger().Debugf("Match %s -> %s (%s)", nodeName(nodeConnection), outgoingConn, nodeName(nodeListener))
+			edges = append(edges, l.probe.graph.CreateEdge("", nodeConnection, nodeListener, graph.Metadata{
+				"RelationType": RelationTypeConnection,
+				"Destination":  outgoingConn,
+				// We do not have the origin connection info, it is not stored in the node metadata, we only store the destination endpoint
 			}, graph.TimeUTC()))
 		}
 
 		// Show an error if we find more than one listener
-		// TODO how to handle this?
-		if len(nodes) > 1 {
-			logging.GetLogger().Errorf("node '%+v' connection %v has found more than one listener endpoint: %v", n, c, nodes)
+		if len(nodesListeners) > 1 {
+			logging.GetLogger().Warningf("node '%+v' connection %v has found more than one listener endpoint: %v", nodeName(nodeConnection), outgoingConn, nodesListeners)
 		}
 	}
 
@@ -119,44 +121,53 @@ func (l *simpleLinker) GetBALinks(n *graph.Node) (edges []*graph.Edge) {
 
 // connectionsEndpointHasher creates an index of outgoing connections
 func connectionsEndpointHasher(n *graph.Node) map[string]interface{} {
-	tcpConnIface, err := n.Metadata.GetField("TCPConn")
+	tcpConnIface, err := n.Metadata.GetField(proccon.MetadataTCPConnKey)
 	if err != nil {
 		return nil
 	}
-	tcpConn := tcpConnIface.([]interface{})
+	tcpConn, ok := tcpConnIface.(map[string]proccon.ProcInfo)
+	if !ok {
+		return map[string]interface{}{}
+	}
 
 	kv := make(map[string]interface{}, len(tcpConn))
-	for _, v := range tcpConn {
-		vv, ok := v.(map[string]interface{})
-		if !ok {
-			logging.GetLogger().Errorf("incorrect metadata format for TCPConn in node %v: %v", n.Host, v)
-		}
+	for k := range tcpConn {
 		// Only create the hash with ip and port, ignore process as it will be different in the other side of the connection
-		kv[graph.Hash(vv["IP"], vv["port"])] = fmt.Sprintf("%v:%v", vv["IP"], vv["port"])
+		kv[graph.Hash(k)] = k
 	}
+
+	logging.GetLogger().Debugf("Connection index for node %s: %v", nodeName(n), kv)
 
 	return kv
 }
 
 // listenEndpointHasher creates an index of listeners
 func listenEndpointHasher(n *graph.Node) map[string]interface{} {
-	tcpListenIface, err := n.Metadata.GetField("TCPListen")
+	tcpListenIface, err := n.Metadata.GetField(proccon.MetadataListenEndpointKey)
 	if err != nil {
 		return nil
 	}
-	tcpListen := tcpListenIface.([]interface{})
+	tcpListen := tcpListenIface.(map[string]proccon.ProcInfo)
 
 	kv := make(map[string]interface{}, len(tcpListen))
-	for _, v := range tcpListen {
-		vv, ok := v.(map[string]interface{})
-		if !ok {
-			logging.GetLogger().Errorf("incorrect metadata format for TCPListen in node %v: %v", n.Host, v)
-		}
+	for k := range tcpListen {
 		// Only create the hash with ip and port, ignore process as it will be different in the other side of the connection
-		kv[graph.Hash(vv["IP"], vv["port"])] = nil
+		kv[graph.Hash(k)] = nil
 	}
 
+	logging.GetLogger().Debugf("Listen index for node %s: %v", nodeName(n), kv)
 	return kv
+}
+
+// nodeName return the Metadata.Name value or ID
+// Used in loggers and errors to show a representation of the node
+func nodeName(n *graph.Node) string {
+	name, err := n.Metadata.GetFieldString(proccon.MetadataNameKey)
+	if err == nil {
+		return name
+	}
+
+	return string(n.ID)
 }
 
 // NewProbe creates a new graph node peering probe
@@ -178,6 +189,9 @@ func NewProbe(g *graph.Graph) *Probe {
 
 	// Notify errors using OnError
 	probe.linker.AddEventListener(probe)
+
+	// Subscribirnos para obtener eventos de node updated
+	g.AddEventListener(probe)
 
 	return probe
 }
