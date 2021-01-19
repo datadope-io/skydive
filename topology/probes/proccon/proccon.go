@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	uuid "github.com/nu7hatch/gouuid"
 	"github.com/skydive-project/skydive/config"
 	"github.com/skydive-project/skydive/graffiti/filters"
 	"github.com/skydive-project/skydive/graffiti/graph"
@@ -33,6 +34,8 @@ import (
 )
 
 const (
+	// ProcconOriginName defines the prefix set in nodes/edges Origin field
+	ProcconOriginName = "proccon."
 	// MetadataTypeKey key name to store the type of node in node's metadata
 	MetadataTypeKey = "Type"
 	// MetadataNameKey key name to store the name of the server in node's metadata
@@ -125,8 +128,8 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if len(nodes) == 0 {
 			logging.GetLogger().Debugf("Node not found with Metadata.Name '%s', creating it", metric.Tags.Host)
 
-			logging.GetLogger().Debugf("NewNode(Server, %v)", metric.Tags.Host)
-			hostNode, err = p.graph.NewNode(graph.GenID(), graph.Metadata{
+			logging.GetLogger().Debugf("newNode(Server, %v)", metric.Tags.Host)
+			hostNode, err = p.newNode(metric.Tags.Host, graph.Metadata{
 				MetadataNameKey: metric.Tags.Host,
 				MetadataTypeKey: MetadataTypeServer,
 			})
@@ -213,8 +216,8 @@ func (p *Probe) appendToOthers(hostNode *graph.Node, metric Metric) {
 
 	if len(othersNodes) == 0 {
 		// Create the node
-		logging.GetLogger().Debugf("NewNode(Software, others)")
-		otherNode, err = p.graph.NewNode(graph.GenID(), graph.Metadata{
+		logging.GetLogger().Debugf("newNode(Software, others)")
+		otherNode, err = p.newNode(metric.Tags.Host, graph.Metadata{
 			MetadataNameKey: OthersSoftwareNode,
 			MetadataTypeKey: MetadataTypeSoftware,
 		})
@@ -224,8 +227,8 @@ func (p *Probe) appendToOthers(hostNode *graph.Node, metric Metric) {
 		}
 
 		// Create edge to link to the host
-		logging.GetLogger().Debugf("NewEdge(%v, %v, has_software)", hostNode, otherNode)
-		_, err = p.graph.NewEdge("", hostNode, otherNode, graph.Metadata{
+		logging.GetLogger().Debugf("newEdge(%v, %v, has_software)", hostNode, otherNode)
+		_, err = p.newEdge(metric.Tags.Host, hostNode, otherNode, graph.Metadata{
 			MetadataRelationTypeKey: RelationTypeHasSoftware,
 		})
 		if err != nil {
@@ -463,6 +466,32 @@ func nodeName(n *graph.Node) string {
 	}
 
 	return string(n.ID)
+}
+
+// newEdge creates and inserts a new edge in the graph, using a random ID, setting the
+// Origin field to "proccon"+g.Origin and the Host field to the param "host"
+func (p *Probe) newEdge(host string, n *graph.Node, c *graph.Node, m graph.Metadata) (*graph.Edge, error) {
+	u, _ := uuid.NewV5(uuid.NamespaceOID, []byte(n.ID+c.ID))
+	i := graph.Identifier(u.String())
+
+	e := graph.CreateEdge(i, n, c, m, graph.TimeUTC(), host, ProcconOriginName+p.graph.GetOrigin())
+
+	if err := p.graph.AddEdge(e); err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+// newNode creates and inserts a new node in the graph, using a random ID, setting the
+// Origin field to "proccon"+g.Origin and the Host field to the param "host"
+func (p *Probe) newNode(host string, m graph.Metadata) (*graph.Node, error) {
+	i := graph.GenID()
+	n := graph.CreateNode(i, m, graph.TimeUTC(), host, ProcconOriginName+p.graph.GetOrigin())
+
+	if err := p.graph.AddNode(n); err != nil {
+		return nil, err
+	}
+	return n, nil
 }
 
 // Start initilizates the proccon probe, starting a web server to receive data and the garbage collector to delete old info
