@@ -15,6 +15,20 @@
  *
  */
 
+// Package procpeering generate edges (type tcp_conn) between nodes having a TCP connection between them.
+// Nodes should have the fields Metadata.TCPConn / Metadata.TCPListen
+// The match will be produced when a node have a connection endpoint (the destination) already seen
+// in another node (in its TCPListen).
+// It means that the first node is connecting to the IP:port of the second node.
+//
+// This is thought to work with "proccon", which will be the one in charge to add the network info to nodes
+//
+// To be able to create matchings, when a node with listeners is created or modified, an index is updated.
+// When another node with connections is created/modified, it tries to match the listeners.
+//
+// If we start Skydive with data already present in the backend, those listeners will not be available in the
+// index until the nodes are modified.
+// TODO load data in startup
 package procpeering
 
 import (
@@ -85,10 +99,12 @@ func (l *simpleLinker) GetABLinks(nodeConnection *graph.Node) (edges []*graph.Ed
 		logging.GetLogger().Debugf("incorrect node '%v' metadata, expecting TCPConn key: %v", nodeConnection, err)
 	}
 
-	tcpConn, ok := tcpConnIface.(map[string]proccon.ProcInfo)
+	tcpConnPtr, ok := tcpConnIface.(*proccon.NetworkInfo)
 	if !ok {
 		return []*graph.Edge{}
 	}
+
+	tcpConn := *tcpConnPtr
 
 	// Iterate over node connections and try to find a listener match
 	for outgoingConn := range tcpConn { // cambiado de string a interface
@@ -125,10 +141,12 @@ func connectionsEndpointHasher(n *graph.Node) map[string]interface{} {
 	if err != nil {
 		return nil
 	}
-	tcpConn, ok := tcpConnIface.(map[string]proccon.ProcInfo)
+	tcpConnPtr, ok := tcpConnIface.(*proccon.NetworkInfo)
 	if !ok {
 		return map[string]interface{}{}
 	}
+
+	tcpConn := *tcpConnPtr
 
 	kv := make(map[string]interface{}, len(tcpConn))
 	for k := range tcpConn {
@@ -147,7 +165,7 @@ func listenEndpointHasher(n *graph.Node) map[string]interface{} {
 	if err != nil {
 		return nil
 	}
-	tcpListen := tcpListenIface.(map[string]proccon.ProcInfo)
+	tcpListen := *tcpListenIface.(*proccon.NetworkInfo)
 
 	kv := make(map[string]interface{}, len(tcpListen))
 	for k := range tcpListen {

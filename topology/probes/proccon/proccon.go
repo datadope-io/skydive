@@ -86,15 +86,6 @@ type Metric struct {
 	Tags      Tags   `json:"tags"`
 }
 
-// ProcInfo store info associated to each TCP connection or listen endpoint.
-// It is used to delete old conections and be able to tell which connections
-// are seen several times
-type ProcInfo struct {
-	CreatedAt int64
-	UpdatedAt int64
-	Revision  int64
-}
-
 // TelegrafPacket is schema of the data POSTed to this probe by external agents. Following the JSON format of Telegraf output plugin for the addapted procs plugins
 type TelegrafPacket struct {
 	Metrics []Metric `json:"metrics"`
@@ -261,7 +252,7 @@ func (p *Probe) appendToOthers(hostNode *graph.Node, metric Metric) {
 
 	err = p.addNetworkInfo(otherNode, tcpConn, tcpListen)
 	if err != nil {
-		logging.GetLogger().Errorf("Not able to add network info to Software '%+s' (host %+v)", otherNode, hostNode)
+		logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %v): %v", nodeName(otherNode), nodeName(hostNode), err)
 	}
 }
 
@@ -288,7 +279,7 @@ func (p *Probe) removeFromOthers(hostNode *graph.Node, metric Metric) error {
 
 	// Remove from connections/listeners lists in otherNode the values found in "metric"
 	removeKeysFromList := func(field interface{}, metrics []string) (ret bool) {
-		info := field.(map[string]ProcInfo)
+		info := *field.(*NetworkInfo)
 		for _, v := range metrics {
 			if _, ok := info[v]; ok {
 				delete(info, v)
@@ -323,8 +314,8 @@ func (p *Probe) removeFromOthers(hostNode *graph.Node, metric Metric) error {
 
 // generateProcInfoData from a list of connections or endpoints, return a dict being the key
 // the connection string and the value a ProcInfo struct initializated to now a 0
-func generateProcInfoData(conn []string) map[string]ProcInfo {
-	ret := map[string]ProcInfo{}
+func generateProcInfoData(conn []string) NetworkInfo {
+	ret := NetworkInfo{}
 	for _, c := range conn {
 		ret[c] = ProcInfo{
 			CreatedAt: graph.TimeNow().UnixMilli(),
@@ -343,8 +334,8 @@ func (p *Probe) addNetworkInfo(node *graph.Node, tcpConn []string, listenEndpoin
 	defer p.graph.Unlock()
 
 	// Add new network info and update current stored one
-	updateNetworkMetadata := func(field interface{}, newData map[string]ProcInfo) bool {
-		currentData := field.(map[string]ProcInfo)
+	updateNetworkMetadata := func(field interface{}, newData NetworkInfo) bool {
+		currentData := *field.(*NetworkInfo)
 		for k, v := range newData {
 			netData, ok := currentData[k]
 			if ok {
@@ -378,13 +369,13 @@ func (p *Probe) addNetworkInfo(node *graph.Node, tcpConn []string, listenEndpoin
 	if errTCPConn != nil || errListenEndpoint != nil {
 		tr := p.graph.StartMetadataTransaction(node)
 		if errTCPConn != nil {
-			tr.AddMetadata(MetadataTCPConnKey, tcpConnStruct)
+			tr.AddMetadata(MetadataTCPConnKey, &tcpConnStruct)
 		}
 		if errListenEndpoint != nil {
-			tr.AddMetadata(MetadataListenEndpointKey, listenEndpointsStruct)
+			tr.AddMetadata(MetadataListenEndpointKey, &listenEndpointsStruct)
 		}
 		if err := tr.Commit(); err != nil {
-			return fmt.Errorf("Unable to set metadata in node %s: %v", nodeName(node), err)
+			return fmt.Errorf("unable to set metadata in node %s: %v", nodeName(node), err)
 		}
 	}
 
@@ -400,7 +391,7 @@ func (p *Probe) removeOldNetworkInformation(node *graph.Node, thresholdTime time
 	tt := graph.Time(thresholdTime)
 
 	removeOld := func(field interface{}) (ret bool) {
-		info := field.(map[string]ProcInfo)
+		info := *field.(*NetworkInfo)
 		for k, v := range info {
 			if v.UpdatedAt < tt.UnixMilli() {
 				delete(info, k)
@@ -533,8 +524,8 @@ func NewProbe(g *graph.Graph) *Probe {
 	return probe
 }
 
-// Register is part of the setup
+// Register called at initialization to register metadata decoders
 func Register() {
-	// not used
-	graph.NodeMetadataDecoders["ProcCon"] = MetadataDecoder
+	graph.NodeMetadataDecoders[MetadataTCPConnKey] = MetadataDecoder
+	graph.NodeMetadataDecoders[MetadataListenEndpointKey] = MetadataDecoder
 }

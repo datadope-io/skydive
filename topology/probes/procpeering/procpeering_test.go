@@ -35,8 +35,8 @@ func TestMatchConnectionListener(t *testing.T) {
 	softwareServer, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
 		proccon.MetadataNameKey:    "swServer",
 		proccon.MetadataTypeKey:    proccon.MetadataTypeSoftware,
-		proccon.MetadataTCPConnKey: map[string]proccon.ProcInfo{},
-		proccon.MetadataListenEndpointKey: map[string]proccon.ProcInfo{
+		proccon.MetadataTCPConnKey: &proccon.NetworkInfo{},
+		proccon.MetadataListenEndpointKey: &proccon.NetworkInfo{
 			"1.1.1.1:80": {
 				CreatedAt: 0,
 				UpdatedAt: 0,
@@ -52,7 +52,7 @@ func TestMatchConnectionListener(t *testing.T) {
 	softwareClient, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
 		proccon.MetadataNameKey: "swClient",
 		proccon.MetadataTypeKey: proccon.MetadataTypeSoftware,
-		proccon.MetadataTCPConnKey: map[string]proccon.ProcInfo{
+		proccon.MetadataTCPConnKey: &proccon.NetworkInfo{
 			"1.1.1.1:80": {
 				CreatedAt: 0,
 				UpdatedAt: 0,
@@ -94,7 +94,7 @@ func TestMatchConnectionListenerUpdatedNode(t *testing.T) {
 		t.Errorf("Unable to create software server: %v", err)
 	}
 
-	p.graph.AddMetadata(softwareServer, proccon.MetadataListenEndpointKey, map[string]proccon.ProcInfo{
+	p.graph.AddMetadata(softwareServer, proccon.MetadataListenEndpointKey, &proccon.NetworkInfo{
 		"1.1.1.1:80": {
 			CreatedAt: 0,
 			UpdatedAt: 0,
@@ -106,7 +106,7 @@ func TestMatchConnectionListenerUpdatedNode(t *testing.T) {
 	softwareClient, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
 		proccon.MetadataNameKey: "swClient",
 		proccon.MetadataTypeKey: proccon.MetadataTypeSoftware,
-		proccon.MetadataTCPConnKey: map[string]proccon.ProcInfo{
+		proccon.MetadataTCPConnKey: &proccon.NetworkInfo{
 			"1.1.1.1:80": {
 				CreatedAt: 0,
 				UpdatedAt: 0,
@@ -144,8 +144,8 @@ func TestUpdatingNetworkingMetadataDoesNotCreateNewEdges(t *testing.T) {
 	softwareServer, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
 		proccon.MetadataNameKey:    "swServer",
 		proccon.MetadataTypeKey:    proccon.MetadataTypeSoftware,
-		proccon.MetadataTCPConnKey: map[string]proccon.ProcInfo{},
-		proccon.MetadataListenEndpointKey: map[string]proccon.ProcInfo{
+		proccon.MetadataTCPConnKey: &proccon.NetworkInfo{},
+		proccon.MetadataListenEndpointKey: &proccon.NetworkInfo{
 			"1.1.1.1:80": {
 				CreatedAt: 0,
 				UpdatedAt: 0,
@@ -160,7 +160,7 @@ func TestUpdatingNetworkingMetadataDoesNotCreateNewEdges(t *testing.T) {
 	softwareClient, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
 		proccon.MetadataNameKey: "swClient",
 		proccon.MetadataTypeKey: proccon.MetadataTypeSoftware,
-		proccon.MetadataTCPConnKey: map[string]proccon.ProcInfo{
+		proccon.MetadataTCPConnKey: &proccon.NetworkInfo{
 			"1.1.1.1:80": {
 				CreatedAt: 0,
 				UpdatedAt: 0,
@@ -174,7 +174,7 @@ func TestUpdatingNetworkingMetadataDoesNotCreateNewEdges(t *testing.T) {
 
 	// WHEN
 	// Once the edge tcp_conn is connected, we modify the network metadata for server and client
-	p.graph.AddMetadata(softwareServer, proccon.MetadataListenEndpointKey, map[string]proccon.ProcInfo{
+	p.graph.AddMetadata(softwareServer, proccon.MetadataListenEndpointKey, &proccon.NetworkInfo{
 		"1.1.1.1:80": {
 			CreatedAt: 0,
 			UpdatedAt: 1,
@@ -182,7 +182,7 @@ func TestUpdatingNetworkingMetadataDoesNotCreateNewEdges(t *testing.T) {
 		},
 	})
 
-	p.graph.AddMetadata(softwareClient, proccon.MetadataTCPConnKey, map[string]proccon.ProcInfo{
+	p.graph.AddMetadata(softwareClient, proccon.MetadataTCPConnKey, &proccon.NetworkInfo{
 		"1.1.1.1:80": {
 			CreatedAt: 0,
 			UpdatedAt: 1,
@@ -215,8 +215,8 @@ func TestRemovedConnectionFromMetadataDeleteConnectionEdge(t *testing.T) {
 	_, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
 		proccon.MetadataNameKey:    "swServer",
 		proccon.MetadataTypeKey:    proccon.MetadataTypeSoftware,
-		proccon.MetadataTCPConnKey: map[string]proccon.ProcInfo{},
-		proccon.MetadataListenEndpointKey: map[string]proccon.ProcInfo{
+		proccon.MetadataTCPConnKey: &proccon.NetworkInfo{},
+		proccon.MetadataListenEndpointKey: &proccon.NetworkInfo{
 			"1.1.1.1:80": {
 				CreatedAt: 0,
 				UpdatedAt: 0,
@@ -231,7 +231,7 @@ func TestRemovedConnectionFromMetadataDeleteConnectionEdge(t *testing.T) {
 	softwareClient, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
 		proccon.MetadataNameKey: "swClient",
 		proccon.MetadataTypeKey: proccon.MetadataTypeSoftware,
-		proccon.MetadataTCPConnKey: map[string]proccon.ProcInfo{
+		proccon.MetadataTCPConnKey: &proccon.NetworkInfo{
 			"1.1.1.1:80": {
 				CreatedAt: 0,
 				UpdatedAt: 0,
@@ -249,7 +249,7 @@ func TestRemovedConnectionFromMetadataDeleteConnectionEdge(t *testing.T) {
 
 	// WHEN
 	// Once the edge tcp_conn is connected, we remove the connection from the client
-	p.graph.AddMetadata(softwareClient, proccon.MetadataTCPConnKey, map[string]proccon.ProcInfo{})
+	p.graph.AddMetadata(softwareClient, proccon.MetadataTCPConnKey, &proccon.NetworkInfo{})
 
 	// THEN
 	assert.Empty(t, g.GetEdges(hasSoftwareEdgeFilter))
@@ -265,8 +265,8 @@ func TestRemovedListenerFromMetadataDeleteEdgesFromClients(t *testing.T) {
 	softwareServer, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
 		proccon.MetadataNameKey:    "swServer",
 		proccon.MetadataTypeKey:    proccon.MetadataTypeSoftware,
-		proccon.MetadataTCPConnKey: map[string]proccon.ProcInfo{},
-		proccon.MetadataListenEndpointKey: map[string]proccon.ProcInfo{
+		proccon.MetadataTCPConnKey: &proccon.NetworkInfo{},
+		proccon.MetadataListenEndpointKey: &proccon.NetworkInfo{
 			"1.1.1.1:80": {
 				CreatedAt: 0,
 				UpdatedAt: 0,
@@ -286,7 +286,7 @@ func TestRemovedListenerFromMetadataDeleteEdgesFromClients(t *testing.T) {
 		c, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
 			proccon.MetadataNameKey: "swClient",
 			proccon.MetadataTypeKey: proccon.MetadataTypeSoftware,
-			proccon.MetadataTCPConnKey: map[string]proccon.ProcInfo{
+			proccon.MetadataTCPConnKey: &proccon.NetworkInfo{
 				"1.1.1.1:80": {
 					CreatedAt: 0,
 					UpdatedAt: 0,
@@ -305,7 +305,7 @@ func TestRemovedListenerFromMetadataDeleteEdgesFromClients(t *testing.T) {
 
 	// WHEN
 	// Once we have all clients connected, delete the listener
-	p.graph.AddMetadata(softwareServer, proccon.MetadataListenEndpointKey, map[string]proccon.ProcInfo{})
+	p.graph.AddMetadata(softwareServer, proccon.MetadataListenEndpointKey, &proccon.NetworkInfo{})
 
 	// Edges will be still there, for simplicity they are only handled when modifications take place in clients
 	assert.Len(t, g.GetEdges(connectionEdgeFilter), numberOfClients)
@@ -313,7 +313,7 @@ func TestRemovedListenerFromMetadataDeleteEdgesFromClients(t *testing.T) {
 	// Simulate a new reception of network data in client
 	for _, c := range clients {
 		p.graph.UpdateMetadata(c, proccon.MetadataTCPConnKey, func(field interface{}) bool {
-			info := field.(map[string]proccon.ProcInfo)
+			info := *field.(*proccon.NetworkInfo)
 			for _, v := range info {
 				v.UpdatedAt = graph.TimeNow().UnixMilli()
 				v.Revision++

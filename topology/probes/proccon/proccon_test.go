@@ -58,7 +58,7 @@ func getTCPConn(node *graph.Node) (conn []string, err error) {
 		return conn, nil
 	}
 
-	for c := range data.(map[string]ProcInfo) {
+	for c := range *data.(*NetworkInfo) {
 		conn = append(conn, c)
 	}
 
@@ -74,7 +74,7 @@ func getListenEndpoints(node *graph.Node) (listen []string, err error) {
 		return listen, nil
 	}
 
-	for l := range data.(map[string]ProcInfo) {
+	for l := range *data.(*NetworkInfo) {
 		listen = append(listen, l)
 	}
 
@@ -430,11 +430,12 @@ func TestNewMetricUpdateNetworkMetadata(t *testing.T) {
 		t.Fatalf("Software 'others' must have the %v key in metadata", MetadataTCPConnKey)
 	}
 
-	// It should have just one connection
-	assert.Len(t, softwareTCPConn, 1)
-
-	procInfoTCPConn, ok := (softwareTCPConn).(map[string]ProcInfo)
+	procInfoTCPConnPtr, ok := softwareTCPConn.(*NetworkInfo)
 	assert.True(t, ok)
+	procInfoTCPConn := *procInfoTCPConnPtr
+
+	// It should have just one connection
+	assert.Len(t, procInfoTCPConn, 1)
 
 	conn := procInfoTCPConn[givenOthersSoftwareTCPConnections[0]]
 
@@ -448,11 +449,12 @@ func TestNewMetricUpdateNetworkMetadata(t *testing.T) {
 		t.Fatalf("Software 'others' must have the %v key in metadata", MetadataListenEndpointKey)
 	}
 
-	// It should have just one listener
-	assert.Len(t, softwareListenEndpoint, 1)
-
-	procInfoListenEndpoint, ok := (softwareListenEndpoint).(map[string]ProcInfo)
+	procInfoListenEndpointPtr, ok := softwareListenEndpoint.(*NetworkInfo)
 	assert.True(t, ok)
+	procInfoListenEndpoint := *procInfoListenEndpointPtr
+
+	// It should have just one listener
+	assert.Len(t, procInfoListenEndpoint, 1)
 
 	listen := procInfoListenEndpoint[givenOthersSoftwareListenEndpoints[0]]
 
@@ -706,7 +708,7 @@ func TestClearOldConnectionsKeepNewerConnections(t *testing.T) {
 	software, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
 		MetadataNameKey: OthersSoftwareNode,
 		MetadataTypeKey: MetadataTypeSoftware,
-		MetadataTCPConnKey: map[string]ProcInfo{
+		MetadataTCPConnKey: &NetworkInfo{
 			"1.1.1.1:80": {
 				CreatedAt: 0,
 				UpdatedAt: 0,
@@ -718,7 +720,7 @@ func TestClearOldConnectionsKeepNewerConnections(t *testing.T) {
 				Revision:  1,
 			},
 		},
-		MetadataListenEndpointKey: map[string]ProcInfo{
+		MetadataListenEndpointKey: &NetworkInfo{
 			"1.1.1.1:80": {
 				CreatedAt: 0,
 				UpdatedAt: 0,
