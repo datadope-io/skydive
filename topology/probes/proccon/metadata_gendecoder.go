@@ -7,108 +7,85 @@ import (
 	"strings"
 )
 
-func (obj *Metadata) GetFieldBool(key string) (bool, error) {
+func (obj *ProcInfo) GetFieldBool(key string) (bool, error) {
 	return false, getter.ErrFieldNotFound
 }
 
-func (obj *Metadata) GetFieldInt64(key string) (int64, error) {
+func (obj *ProcInfo) GetFieldInt64(key string) (int64, error) {
+	switch key {
+	case "CreatedAt":
+		return int64(obj.CreatedAt), nil
+	case "UpdatedAt":
+		return int64(obj.UpdatedAt), nil
+	case "Revision":
+		return int64(obj.Revision), nil
+	}
 	return 0, getter.ErrFieldNotFound
 }
 
-func (obj *Metadata) GetFieldString(key string) (string, error) {
-	switch key {
-	case "ContainerID":
-		return string(obj.ContainerID), nil
-	case "ContainerName":
-		return string(obj.ContainerName), nil
-	}
+func (obj *ProcInfo) GetFieldString(key string) (string, error) {
 	return "", getter.ErrFieldNotFound
 }
 
-func (obj *Metadata) GetFieldKeys() []string {
+func (obj *ProcInfo) GetFieldKeys() []string {
 	return []string{
-		"ContainerID",
-		"ContainerName",
-		"Labels",
+		"CreatedAt",
+		"UpdatedAt",
+		"Revision",
 	}
 }
 
-func (obj *Metadata) MatchBool(key string, predicate getter.BoolPredicate) bool {
-	first := key
-	index := strings.Index(key, ".")
-	if index != -1 {
-		first = key[:index]
-	}
-
-	switch first {
-	case "Labels":
-		if index != -1 && obj.Labels != nil {
-			return obj.Labels.MatchBool(key[index+1:], predicate)
-		}
-	}
+func (obj *ProcInfo) MatchBool(key string, predicate getter.BoolPredicate) bool {
 	return false
 }
 
-func (obj *Metadata) MatchInt64(key string, predicate getter.Int64Predicate) bool {
-	first := key
-	index := strings.Index(key, ".")
-	if index != -1 {
-		first = key[:index]
-	}
-
-	switch first {
-
-	case "Labels":
-		if index != -1 && obj.Labels != nil {
-			return obj.Labels.MatchInt64(key[index+1:], predicate)
-		}
-	}
-	return false
-}
-
-func (obj *Metadata) MatchString(key string, predicate getter.StringPredicate) bool {
-	if b, err := obj.GetFieldString(key); err == nil {
+func (obj *ProcInfo) MatchInt64(key string, predicate getter.Int64Predicate) bool {
+	if b, err := obj.GetFieldInt64(key); err == nil {
 		return predicate(b)
 	}
-
-	first := key
-	index := strings.Index(key, ".")
-	if index != -1 {
-		first = key[:index]
-	}
-
-	switch first {
-
-	case "Labels":
-		if index != -1 && obj.Labels != nil {
-			return obj.Labels.MatchString(key[index+1:], predicate)
-		}
-	}
 	return false
 }
 
-func (obj *Metadata) GetField(key string) (interface{}, error) {
-	if s, err := obj.GetFieldString(key); err == nil {
-		return s, nil
-	}
+func (obj *ProcInfo) MatchString(key string, predicate getter.StringPredicate) bool {
+	return false
+}
 
-	first := key
-	index := strings.Index(key, ".")
-	if index != -1 {
-		first = key[:index]
+func (obj *ProcInfo) GetField(key string) (interface{}, error) {
+	if i, err := obj.GetFieldInt64(key); err == nil {
+		return i, nil
 	}
+	return nil, getter.ErrFieldNotFound
+}
 
-	switch first {
-	case "Labels":
-		if obj.Labels != nil {
-			if index != -1 {
-				return obj.Labels.GetField(key[index+1:])
-			} else {
-				return obj.Labels, nil
-			}
-		}
+func (obj *NetworkInfo) GetFieldBool(key string) (bool, error) {
+	return false, getter.ErrFieldNotFound
+}
 
-	}
+func (obj *NetworkInfo) GetFieldInt64(key string) (int64, error) {
+	return 0, getter.ErrFieldNotFound
+}
+
+func (obj *NetworkInfo) GetFieldString(key string) (string, error) {
+	return "", getter.ErrFieldNotFound
+}
+
+func (obj *NetworkInfo) GetFieldKeys() []string {
+	return []string{}
+}
+
+func (obj *NetworkInfo) MatchBool(key string, predicate getter.BoolPredicate) bool {
+	return false
+}
+
+func (obj *NetworkInfo) MatchInt64(key string, predicate getter.Int64Predicate) bool {
+	return false
+}
+
+func (obj *NetworkInfo) MatchString(key string, predicate getter.StringPredicate) bool {
+	return false
+}
+
+func (obj *NetworkInfo) GetField(key string) (interface{}, error) {
 	return nil, getter.ErrFieldNotFound
 }
 

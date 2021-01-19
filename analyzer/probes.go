@@ -57,6 +57,7 @@ func registerStaticProbes() {
 	ovsdb.Register()
 	libvirt.Register()
 	ovn.Register()
+	proccon.Register()
 }
 
 func registerPluginProbes() error {
