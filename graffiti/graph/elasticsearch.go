@@ -427,6 +427,16 @@ func (b *ElasticSearchBackend) GetEdges(t Context, m ElementMatcher) []*Edge {
 		edges = dedupEdges(edges)
 	}
 
+	for _, e := range edges {
+		raw, err := edgeToRaw(e)
+		if err != nil {
+			b.logger.Errorf("Ignoring edge, failing to marshal: %v", err)
+			continue
+		}
+
+		b.prevRevision[e.ID] = raw
+	}
+
 	return edges
 }
 
@@ -454,6 +464,16 @@ func (b *ElasticSearchBackend) GetNodes(t Context, m ElementMatcher) []*Node {
 
 	if len(nodes) > 1 && t.TimePoint {
 		nodes = dedupNodes(nodes)
+	}
+
+	for _, n := range nodes {
+		raw, err := nodeToRaw(n)
+		if err != nil {
+			b.logger.Errorf("Ignoring node, failing to marshal: %v", err)
+			continue
+		}
+
+		b.prevRevision[n.ID] = raw
 	}
 
 	return nodes
