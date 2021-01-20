@@ -28,18 +28,20 @@
 //
 // If we start Skydive with data already present in the backend, those listeners will not be available in the
 // index until the nodes are modified.
-// TODO load data in startup
 package procpeering
 
 import (
 	"fmt"
 
+	uuid "github.com/nu7hatch/gouuid"
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/logging"
 	"github.com/skydive-project/skydive/topology/probes/proccon"
 )
 
 const (
+	// ProcpeeringOriginName defines the prefix set in nodes/edges Origin field
+	ProcpeeringOriginName = "procpeering."
 	// RelationTypeConnection value for edges connecting two software nodes connected by TCP
 	RelationTypeConnection = "tcp_conn"
 )
@@ -114,11 +116,24 @@ func (l *simpleLinker) GetABLinks(nodeConnection *graph.Node) (edges []*graph.Ed
 		// Create link from our node to the listener
 		for _, nodeListener := range nodesListeners {
 			logging.GetLogger().Debugf("Match %s -> %s (%s)", nodeName(nodeConnection), outgoingConn, nodeName(nodeListener))
-			edges = append(edges, l.probe.graph.CreateEdge("", nodeConnection, nodeListener, graph.Metadata{
-				"RelationType": RelationTypeConnection,
-				"Destination":  outgoingConn,
-				// We do not have the origin connection info, it is not stored in the node metadata, we only store the destination endpoint
-			}, graph.TimeUTC()))
+
+			// Create edge, but do not insert into the graph, GetABLinks caller will do it
+			u, _ := uuid.NewV5(uuid.NamespaceOID, []byte(nodeConnection.ID+nodeListener.ID))
+			i := graph.Identifier(u.String())
+
+			edges = append(edges, graph.CreateEdge(
+				i,
+				nodeConnection,
+				nodeListener,
+				graph.Metadata{
+					"RelationType": RelationTypeConnection,
+					"Destination":  outgoingConn,
+					// We do not have the origin connection info, it is not stored in the node metadata, we only store the destination endpoint
+				},
+				graph.TimeUTC(),
+				nodeConnection.Host, // Host to the same value of the connection originator node
+				ProcpeeringOriginName+l.probe.graph.GetOrigin(), // Procpeering creator of the edge
+			))
 		}
 
 		// Show an error if we find more than one listener
