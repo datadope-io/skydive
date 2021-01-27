@@ -79,6 +79,105 @@ func TestMatchConnectionListener(t *testing.T) {
 	assert.Equal(t, hasSoftwareEdge.Child, softwareServer.ID)
 }
 
+// TestMatchConnectionListenerWithPrefixedIPs check edge creation when IPs have a prefix to differentiate private subnets
+func TestMatchConnectionListenerWithPrefixedIPs(t *testing.T) {
+	// GIVEN
+	g := newGraph(t)
+	p := NewProbe(g)
+	p.Start()
+
+	softwareServer, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		proccon.MetadataNameKey:    "swServer",
+		proccon.MetadataTypeKey:    proccon.MetadataTypeSoftware,
+		proccon.MetadataTCPConnKey: &proccon.NetworkInfo{},
+		proccon.MetadataListenEndpointKey: &proccon.NetworkInfo{
+			"foobar-1.1.1.1:80": {
+				CreatedAt: 0,
+				UpdatedAt: 0,
+				Revision:  1,
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("Unable to create software server: %v", err)
+	}
+
+	// WHEN
+	softwareClient, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		proccon.MetadataNameKey: "swClient",
+		proccon.MetadataTypeKey: proccon.MetadataTypeSoftware,
+		proccon.MetadataTCPConnKey: &proccon.NetworkInfo{
+			"foobar-1.1.1.1:80": {
+				CreatedAt: 0,
+				UpdatedAt: 0,
+				Revision:  1,
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("Unable to create software client: %v", err)
+	}
+
+	// THEN
+	hasSoftwareEdgeFilter := graph.NewElementFilter(filters.NewTermStringFilter(proccon.MetadataRelationTypeKey, RelationTypeConnection))
+	hasSoftwareEdges := g.GetEdges(hasSoftwareEdgeFilter)
+	if len(hasSoftwareEdges) == 0 {
+		t.Fatalf("Edge %s not created", proccon.RelationTypeHasSoftware)
+	} else if len(hasSoftwareEdges) > 1 {
+		t.Errorf("Too many edges %s created", proccon.RelationTypeHasSoftware)
+	}
+
+	hasSoftwareEdge := hasSoftwareEdges[0]
+
+	assert.Equal(t, hasSoftwareEdge.Parent, softwareClient.ID)
+	assert.Equal(t, hasSoftwareEdge.Child, softwareServer.ID)
+}
+
+// TestNoMatchConnectionListenerWithDifferentPrefixedIPs check edge creation when IPs have a prefix to differentiate private subnets
+func TestNoMatchConnectionListenerWithDifferentPrefixedIPs(t *testing.T) {
+	// GIVEN
+	g := newGraph(t)
+	p := NewProbe(g)
+	p.Start()
+
+	_, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		proccon.MetadataNameKey:    "swServer",
+		proccon.MetadataTypeKey:    proccon.MetadataTypeSoftware,
+		proccon.MetadataTCPConnKey: &proccon.NetworkInfo{},
+		proccon.MetadataListenEndpointKey: &proccon.NetworkInfo{
+			"foo-1.1.1.1:80": {
+				CreatedAt: 0,
+				UpdatedAt: 0,
+				Revision:  1,
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("Unable to create software server: %v", err)
+	}
+
+	// WHEN
+	_, err = p.graph.NewNode(graph.GenID(), graph.Metadata{
+		proccon.MetadataNameKey: "swClient",
+		proccon.MetadataTypeKey: proccon.MetadataTypeSoftware,
+		proccon.MetadataTCPConnKey: &proccon.NetworkInfo{
+			"bar-1.1.1.1:80": {
+				CreatedAt: 0,
+				UpdatedAt: 0,
+				Revision:  1,
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("Unable to create software client: %v", err)
+	}
+
+	// THEN
+	hasSoftwareEdgeFilter := graph.NewElementFilter(filters.NewTermStringFilter(proccon.MetadataRelationTypeKey, RelationTypeConnection))
+	hasSoftwareEdges := g.GetEdges(hasSoftwareEdgeFilter)
+	assert.Empty(t, hasSoftwareEdges)
+}
+
 // TestMatchConnectionListenerUpdatedNode given a Software node without network info, it is updated to add a determined listener, if a new Server appears with a connection matching the listener, an edge should be created
 func TestMatchConnectionListenerUpdatedNode(t *testing.T) {
 	// GIVEN
