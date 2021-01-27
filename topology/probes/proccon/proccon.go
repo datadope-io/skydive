@@ -17,6 +17,65 @@
  *
  */
 
+// Package proccon provides an additional API to add metrics to Skydive.
+// It accept HTTP-JSON POST like this:
+// {
+//   "metrics": [
+//     {
+//       "fields": {
+//         "conn": "1.2.3.4:80,9.9.9.9:53",
+//         "listen": "192.168.1.36:8000,192.168.1.22:8000"
+//       },
+//       "name": "procstat_test",
+//       "tags": {
+//         "cmdline": "nc -kl 8000",
+//         "host": "fooBar",
+//         "process_name": "nc",
+//         "conn_prefix": ""  // optional value
+//       },
+//       "timestamp": 1603890543
+//     }
+//   ]
+// }
+//
+// This will create, if does not already exists, a node Type=Server and other
+// node Type=Software linked to the previous one.
+// It will find if there is already a software who matches the cmdline.
+// If not, it will use one with name "others".
+//
+// In the software node it will add the network info in the Metadata like:
+// "Metadata": {
+//   "TCPConn": {
+//     "1.2.3.4:80": {
+//       "CreatedAt": 161114359940
+//       "UpdatedAt": 161114367803
+//       "Revision": 2
+//     },
+//     "9.9.9.9:53": {
+//       "CreatedAt": 161114359940
+//       "UpdatedAt": 161114367803
+//       "Revision": 2
+//     }
+//   },
+//   "TCPListen": {
+//     "192.168.1.36:8000": {
+//       "CreatedAt": 161114359940
+//       "UpdatedAt": 161114367803
+//       "Revision": 2
+//     },
+//     "192.168.1.22:8000": {
+//       "CreatedAt": 161114359940
+//       "UpdatedAt": 161114367803
+//       "Revision": 2
+//     }
+//   },
+//   "Name": "others",
+//   "Type": "Software"
+// }
+//
+// This plugin it is thought to work with procpeering, which will create edges
+// between connected nodes (one node having a TCPConn matching a TCPListen of
+// another node).
 package proccon
 
 import (
@@ -76,6 +135,9 @@ type Tags struct {
 	Cmdline     string `json:"cmdline"`
 	Host        string `json:"host"`
 	ProcessName string `json:"process_name"`
+	// ConnPrefix optional tag to indicate skydive that should index IPs with this prefix
+	// This could be used to differenciate private IPs in different network partitions
+	ConnPrefix string `json:"conn_prefix"`
 }
 
 // Metric represents each of the processes found by the external agent
@@ -174,11 +236,23 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		tcpConn := []string{}
 		if metric.Fields.Conn != "" {
 			tcpConn = strings.Split(metric.Fields.Conn, ",")
+			// Add ConnPrefix if defined
+			if metric.Tags.ConnPrefix != "" {
+				for i := 0; i < len(tcpConn); i++ {
+					tcpConn[i] = metric.Tags.ConnPrefix + tcpConn[i]
+				}
+			}
 		}
 
 		tcpListen := []string{}
 		if metric.Fields.Listen != "" {
 			tcpListen = strings.Split(metric.Fields.Listen, ",")
+			// Add ConnPrefix if defined
+			if metric.Tags.ConnPrefix != "" {
+				for i := 0; i < len(tcpListen); i++ {
+					tcpListen[i] = metric.Tags.ConnPrefix + tcpListen[i]
+				}
+			}
 		}
 
 		err = p.addNetworkInfo(swNode, tcpConn, tcpListen)
@@ -243,11 +317,23 @@ func (p *Probe) appendToOthers(hostNode *graph.Node, metric Metric) {
 	tcpConn := []string{}
 	if metric.Fields.Conn != "" {
 		tcpConn = strings.Split(metric.Fields.Conn, ",")
+		// Add ConnPrefix if defined
+		if metric.Tags.ConnPrefix != "" {
+			for i := 0; i < len(tcpConn); i++ {
+				tcpConn[i] = metric.Tags.ConnPrefix + tcpConn[i]
+			}
+		}
 	}
 
 	tcpListen := []string{}
 	if metric.Fields.Listen != "" {
 		tcpListen = strings.Split(metric.Fields.Listen, ",")
+		// Add ConnPrefix if defined
+		if metric.Tags.ConnPrefix != "" {
+			for i := 0; i < len(tcpListen); i++ {
+				tcpListen[i] = metric.Tags.ConnPrefix + tcpListen[i]
+			}
+		}
 	}
 
 	err = p.addNetworkInfo(otherNode, tcpConn, tcpListen)

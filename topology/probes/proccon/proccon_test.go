@@ -183,7 +183,6 @@ func TestCreateServerNodeSoftwareOthers(t *testing.T) {
 	}
 }
 
-//
 // TestPresentServerCreateSoftwareToOthers receives a metric of a server node already in the graph, but without a "others" software node. It should
 // create that "others" software node and append the connection info.
 func TestPresentServerCreateSoftwareToOthers(t *testing.T) {
@@ -266,7 +265,6 @@ func TestPresentServerCreateSoftwareToOthers(t *testing.T) {
 	assert.Equal(t, e[0].Parent, serverNode.ID)
 }
 
-//
 // TestFillOthersSoftwareNode given a present server and empty 'others' software node, add the connection info to that node
 func TestFillOthersSoftwareNode(t *testing.T) {
 	// GIVEN
@@ -356,6 +354,84 @@ func TestFillOthersSoftwareNode(t *testing.T) {
 		t.Errorf("Not able to get TCP listen endpoints")
 	}
 	assert.ElementsMatch(t, softwareListenEndpoints, strings.Split(metricListen, ","))
+}
+
+// TestFillOthersSoftwareNodeWithConnPrefix if the received metrics has the tag connPrefix, IPs stored in Skydive should prefix that value
+func TestFillOthersSoftwareNodeWithConnPrefix(t *testing.T) {
+	// GIVEN
+	p := Probe{}
+
+	p.graph = newGraph(t)
+
+	givenServerName := "hostFoo"
+
+	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey: givenServerName,
+		MetadataTypeKey: MetadataTypeServer,
+	})
+	if err != nil {
+		t.Errorf("Unable to create server %s", givenServerName)
+	}
+
+	givenOtherNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey: OthersSoftwareNode,
+		MetadataTypeKey: MetadataTypeSoftware,
+	})
+	if err != nil {
+		t.Error("Unable to create software others")
+	}
+
+	_, err = p.graph.NewEdge("", givenNode, givenOtherNode, graph.Metadata{
+		MetadataRelationTypeKey: RelationTypeHasSoftware,
+	})
+	if err != nil {
+		t.Errorf("Unable to create edge between server %s and software others", givenServerName)
+	}
+
+	// WHEN
+	metricServerName := "hostFoo"
+	metricSoftwareCmdline := "nc -kl 8000"
+	metricConnections := "1.2.3.4:80,9.9.9.9:53"
+	metricListen := "192.168.1.36:8000,192.168.1.22:8000"
+	connPrefix := "foobar-"
+	agentData := []byte(fmt.Sprintf(`
+{
+  "metrics": [
+    {
+      "fields": {
+        "conn": "%s",
+        "listen": "%s"
+      },
+      "name": "procstat_test",
+      "tags": {
+        "cmdline": "%s",
+        "host": "%s",
+        "process_name": "nc",
+				"conn_prefix": "%s"
+      },
+      "timestamp": 1603890543
+    }
+  ]
+}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName, connPrefix))
+
+	sendAgentData(t, p, agentData)
+
+	// THEN
+	// Check if Software node 'others' exists and have the right name and connection info
+	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
+	softwares := p.graph.GetNodes(softwareNodeFilter)
+	if len(softwares) == 0 {
+		t.Fatal("Software node not created")
+	} else if len(softwares) > 1 {
+		t.Error("Too many Software nodes created")
+	}
+
+	software := softwares[0]
+	softwareTCPConn, _ := getTCPConn(software)
+	assert.ElementsMatch(t, softwareTCPConn, []string{"foobar-1.2.3.4:80", "foobar-9.9.9.9:53"})
+
+	softwareListenEndpoints, _ := getListenEndpoints(software)
+	assert.ElementsMatch(t, softwareListenEndpoints, []string{"foobar-192.168.1.36:8000", "foobar-192.168.1.22:8000"})
 }
 
 // TestNewMetricUpdateNetworkMetadata given a present 'others' software node with some data, if a new metric is received, it should update the network metadata
