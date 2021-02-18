@@ -122,6 +122,10 @@ type Probe struct {
 	graph *graph.Graph
 	// GCdone channel to stop garbageCollector ticker
 	GCdone chan bool
+	// nodeRevisionForceFlush defines after how many node updates it is synced to the backend.
+	// A small number will produce a lot of modifications in the backend because of network info updates.
+	// A big number will leave behind the backend, loosing info in case of a restart of skydive
+	nodeRevisionForceFlush int64
 }
 
 // Fields is schema of the data with the connection info (inbound and outbound) of the process being added
@@ -232,6 +236,7 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		swNode := childNodes[0]
 
+		// Generate an slice from the comma separated list in the metric received
 		// Avoid having an array with an empty element if the string received is the empty string
 		tcpConn := []string{}
 		if metric.Fields.Conn != "" {
@@ -244,6 +249,7 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		// Same for the listen endpoints
 		tcpListen := []string{}
 		if metric.Fields.Listen != "" {
 			tcpListen = strings.Split(metric.Fields.Listen, ",")
@@ -261,6 +267,7 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			logging.GetLogger().Warningf("Invalid timestamp value, using time.Now(). Timestamp=%v (Software '%s', host %+v)", metric.Timestamp, nodeName(swNode), hostNode)
 		}
 
+		// Attach that network information to the software node
 		err = p.addNetworkInfo(swNode, tcpConn, tcpListen, timestamp)
 		if err != nil {
 			logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %+v)", nodeName(swNode), hostNode)
@@ -436,6 +443,31 @@ func generateProcInfoData(conn []string, metricTimestamp int64) NetworkInfo {
 	return ret
 }
 
+// updateNetworkMetadata adds new network info and update current stored one.
+// Only return true if there is new data.
+// Modifying UpdatedAt and Revision fields are not considered modifications (save flushes to the backed)
+// To don't leave the backend too behind, each N node Revisions consider it a modification.
+func (p *Probe) updateNetworkMetadata(field interface{}, newData NetworkInfo, nodeRevision int64) (ret bool) {
+	currentData := *field.(*NetworkInfo)
+	for k, v := range newData {
+		netData, ok := currentData[k]
+		if ok {
+			// If network info exists, update Revision and UpdatedAt
+			netData.UpdatedAt = v.UpdatedAt
+			netData.Revision++
+			currentData[k] = netData
+		} else {
+			// If the network info did not exists, assign the new values
+			currentData[k] = v
+			ret = true
+		}
+	}
+	// If node p.nodeRevisionForceFlush is 100, when nodeRevision is 100, 200, etc, the function
+	// will return true, forcing an update in the backend.
+	// Avoid panic if p.nodeRevisionForceFlush is 0
+	return ret || (p.nodeRevisionForceFlush != 0 && (nodeRevision%p.nodeRevisionForceFlush == 0))
+}
+
 // addNetworkInfo append connection and listen endpoints to the metadata of the server
 // Only one function for both (tcpConn and tcpListen) to avoid two modifications of the metadata, avoiding extra work for the backend
 // metricTimestamp is in ms
@@ -443,35 +475,17 @@ func (p *Probe) addNetworkInfo(node *graph.Node, tcpConn []string, listenEndpoin
 	p.graph.Lock()
 	defer p.graph.Unlock()
 
-	// Add new network info and update current stored one
-	updateNetworkMetadata := func(field interface{}, newData NetworkInfo) bool {
-		currentData := *field.(*NetworkInfo)
-		for k, v := range newData {
-			netData, ok := currentData[k]
-			if ok {
-				// If network info exists, update Revision and UpdatedAt
-				netData.UpdatedAt = metricTimestamp
-				netData.Revision++
-				currentData[k] = netData
-			} else {
-				// If the network info did not exists, assign the new values
-				currentData[k] = v
-			}
-		}
-		return len(newData) > 0
-	}
-
-	// Connection info converted to the data structure stored in the node metadata
+	// Network info converted to the data structure stored in the node metadata
 	tcpConnStruct := generateProcInfoData(tcpConn, metricTimestamp)
-
-	errTCPConn := p.graph.UpdateMetadata(node, MetadataTCPConnKey, func(field interface{}) bool {
-		return updateNetworkMetadata(field, tcpConnStruct)
-	})
-
 	listenEndpointsStruct := generateProcInfoData(listenEndpoints, metricTimestamp)
 
+	// Updates nodes metadata
+	errTCPConn := p.graph.UpdateMetadata(node, MetadataTCPConnKey, func(field interface{}) bool {
+		return p.updateNetworkMetadata(field, tcpConnStruct, node.Revision)
+	})
+
 	errListenEndpoint := p.graph.UpdateMetadata(node, MetadataListenEndpointKey, func(field interface{}) bool {
-		return updateNetworkMetadata(field, listenEndpointsStruct)
+		return p.updateNetworkMetadata(field, listenEndpointsStruct, node.Revision)
 	})
 
 	// UpdateMetadata will fail if the metadata key does not exists
@@ -614,6 +628,8 @@ func (p *Probe) Start() error {
 	if err != nil {
 		logging.GetLogger().Fatalf("Invalid analyzer.topology.proccon.garbage_collector.delete_duration value: %v", err)
 	}
+
+	p.nodeRevisionForceFlush = int64(config.GetInt("analyzer.topology.proccon.revision_flush"))
 
 	go p.garbageCollector(interval, deleteDuration)
 

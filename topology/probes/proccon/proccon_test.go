@@ -1218,3 +1218,31 @@ func TestMigrateConnInfoFromOthersToKnownSoftwareNode(t *testing.T) {
 	}
 	assert.Len(t, netcatListenEndpoints, len(strings.Split(metricListen, ",")))
 }
+
+// TestNotSignalUpdateForKnownNetworkUpdates checks that updateNetworkMetadata does not return true (modificated) if
+// the only modification is updating the fields UpdatedAt and Revision
+func TestNotSignalUpdateForKnownNetworkUpdates(t *testing.T) {
+	newNetworkInfo := generateProcInfoData([]string{"1.1.1.1:80"}, 1e9)
+	nodeNetworkInfo := NetworkInfo{}
+	var nodeRevisionForceFlush int64 = 100
+	p := Probe{
+		nodeRevisionForceFlush: nodeRevisionForceFlush,
+	}
+
+	// First time updateNetworkMetadata is called, there is no info in nodeNetworkInfo, so it should return true
+	assert.Truef(t, p.updateNetworkMetadata(&nodeNetworkInfo, newNetworkInfo, 1), "new network info")
+
+	// This time, its the same network info, just with a new timestamp, the function should not mark is as an update
+	newNetworkInfo = generateProcInfoData([]string{"1.1.1.1:80"}, 1e9+1)
+	assert.Falsef(t, p.updateNetworkMetadata(&nodeNetworkInfo, newNetworkInfo, 2), "update without new network info")
+
+	// If a new connection is added, it should return true (modification)
+	newNetworkInfo = generateProcInfoData([]string{"2.2.2.2:8000"}, 1e9+2)
+	assert.Truef(t, p.updateNetworkMetadata(&nodeNetworkInfo, newNetworkInfo, 3), "new network info")
+
+	// After several node modifications the function should return "true" even if it has only
+	// updated the UpdatedAt and Revision values.
+	// This is to avoid leaving the backend behind too much
+	assert.True(t, p.updateNetworkMetadata(&nodeNetworkInfo, newNetworkInfo, nodeRevisionForceFlush), "forced flush iteration %v", nodeRevisionForceFlush)
+	assert.True(t, p.updateNetworkMetadata(&nodeNetworkInfo, newNetworkInfo, nodeRevisionForceFlush*2), "forced flush iteration %v", nodeRevisionForceFlush*2)
+}
