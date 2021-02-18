@@ -117,6 +117,8 @@ analyzer:
       # - istio
       # - nsm
       # - ovn
+      # - procpeering
+      # - proccon
 
     k8s:
       # kubeconfig resolution order:
@@ -174,6 +176,33 @@ analyzer:
       # * tcp:addr:port
       # * unix:/var/run/ovn/ovnnb_db.sock
       # address: unix:/var/run/ovn/ovnnb_db.sock
+
+    # Probe to listen for outside metrics with network information about procs
+    proccon:
+      # Where does this probe listen for new data
+      listen: 0.0.0.0:4000
+
+      # Network information received by proccon that does not add new elements to Metadata.TCPConn or TCPListen
+      # does not produce a flush to the backend.
+      # To avoid leaving behind the backend, after this number of node revisions, the flush is done.
+      # The node.Revision field increments one for each modification in TCPConn or TCPListen.
+      # If the node receive info for both values, node.Revision will increment two times.
+      # Using revision_flush=1 will keep the backend synced to skydive, but at the expense of many writes.
+      # Using a big value could lost data in case of a restart.
+      # This value should be a trade-off between the interval of clients sending data the the garbage_collector.delete_duration
+      # Eg.: if clients send data each 5', assuming they always send conn+listen info, this will produce 2 updates each 5'.
+      # If we want to sync each two hours, we will set the value to 12*2/5=48
+      revision_flush: 48
+
+      # Clean old connections (items from Metadata.TCPConn and Metadata.TCPListen)
+      garbage_collector:
+        # How often garbage collector will run
+        # Format: https://golang.org/pkg/time/#ParseDuration
+        # Eg.: 2h, 20m, 3h45m
+        interval: 1h
+        # Network info older than this value will be deleted.
+        # Same format as "interval"
+        delete_duration: 3h
 
   replication:
     # debug: false
