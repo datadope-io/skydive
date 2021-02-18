@@ -255,11 +255,27 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		err = p.addNetworkInfo(swNode, tcpConn, tcpListen)
+		// Convert metric timestamp ms in int64
+		timestamp, ok := metricTimestampMs(metric.Timestamp)
+		if !ok {
+			logging.GetLogger().Warningf("Invalid timestamp value, using time.Now(). Timestamp=%v (Software '%s', host %+v)", metric.Timestamp, nodeName(swNode), hostNode)
+		}
+
+		err = p.addNetworkInfo(swNode, tcpConn, tcpListen, timestamp)
 		if err != nil {
 			logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %+v)", nodeName(swNode), hostNode)
 		}
 	}
+}
+
+// metricTimestampMs convert a timestamp to ms with format int64.
+// If it is an unexpected value, returns time.Now() and not ok
+func metricTimestampMs(timestamp int) (int64, bool) {
+	if timestamp > int(1e10) {
+		return graph.TimeNow().UnixMilli(), false
+	}
+
+	return int64(timestamp) * 1000, true
 }
 
 // appendToOthers add the metric to a "fake" software node used to store all connections
@@ -336,7 +352,12 @@ func (p *Probe) appendToOthers(hostNode *graph.Node, metric Metric) {
 		}
 	}
 
-	err = p.addNetworkInfo(otherNode, tcpConn, tcpListen)
+	timestamp, ok := metricTimestampMs(metric.Timestamp)
+	if !ok {
+		logging.GetLogger().Warningf("Invalid timestamp value, using time.Now(). Timestamp=%v (Software '%s', host %+v)", metric.Timestamp, nodeName(otherNode), hostNode)
+	}
+
+	err = p.addNetworkInfo(otherNode, tcpConn, tcpListen, timestamp)
 	if err != nil {
 		logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %v): %v", nodeName(otherNode), nodeName(hostNode), err)
 	}
@@ -399,13 +420,15 @@ func (p *Probe) removeFromOthers(hostNode *graph.Node, metric Metric) error {
 }
 
 // generateProcInfoData from a list of connections or endpoints, return a dict being the key
-// the connection string and the value a ProcInfo struct initializated to now a 0
-func generateProcInfoData(conn []string) NetworkInfo {
+// the connection string and the value a ProcInfo struct initializated to the metric timestamp
+// and revision 1
+// metricTimestamp is in ms
+func generateProcInfoData(conn []string, metricTimestamp int64) NetworkInfo {
 	ret := NetworkInfo{}
 	for _, c := range conn {
 		ret[c] = ProcInfo{
-			CreatedAt: graph.TimeNow().UnixMilli(),
-			UpdatedAt: graph.TimeNow().UnixMilli(),
+			CreatedAt: metricTimestamp,
+			UpdatedAt: metricTimestamp,
 			Revision:  1,
 		}
 	}
@@ -415,7 +438,8 @@ func generateProcInfoData(conn []string) NetworkInfo {
 
 // addNetworkInfo append connection and listen endpoints to the metadata of the server
 // Only one function for both (tcpConn and tcpListen) to avoid two modifications of the metadata, avoiding extra work for the backend
-func (p *Probe) addNetworkInfo(node *graph.Node, tcpConn []string, listenEndpoints []string) error {
+// metricTimestamp is in ms
+func (p *Probe) addNetworkInfo(node *graph.Node, tcpConn []string, listenEndpoints []string, metricTimestamp int64) error {
 	p.graph.Lock()
 	defer p.graph.Unlock()
 
@@ -426,7 +450,7 @@ func (p *Probe) addNetworkInfo(node *graph.Node, tcpConn []string, listenEndpoin
 			netData, ok := currentData[k]
 			if ok {
 				// If network info exists, update Revision and UpdatedAt
-				netData.UpdatedAt = graph.TimeNow().UnixMilli()
+				netData.UpdatedAt = metricTimestamp
 				netData.Revision++
 				currentData[k] = netData
 			} else {
@@ -438,13 +462,13 @@ func (p *Probe) addNetworkInfo(node *graph.Node, tcpConn []string, listenEndpoin
 	}
 
 	// Connection info converted to the data structure stored in the node metadata
-	tcpConnStruct := generateProcInfoData(tcpConn)
+	tcpConnStruct := generateProcInfoData(tcpConn, metricTimestamp)
 
 	errTCPConn := p.graph.UpdateMetadata(node, MetadataTCPConnKey, func(field interface{}) bool {
 		return updateNetworkMetadata(field, tcpConnStruct)
 	})
 
-	listenEndpointsStruct := generateProcInfoData(listenEndpoints)
+	listenEndpointsStruct := generateProcInfoData(listenEndpoints, metricTimestamp)
 
 	errListenEndpoint := p.graph.UpdateMetadata(node, MetadataListenEndpointKey, func(field interface{}) bool {
 		return updateNetworkMetadata(field, listenEndpointsStruct)
