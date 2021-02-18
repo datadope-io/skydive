@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -18,7 +19,7 @@ import (
 
 func TestMain(m *testing.M) {
 	// Remove comment to change logging level to debug
-	//logging.InitLogging("id", true, []*logging.LoggerConfig{logging.NewLoggerConfig(logging.NewStdioBackend(os.Stdout), "5", "UTF-8")})
+	// logging.InitLogging("id", true, []*logging.LoggerConfig{logging.NewLoggerConfig(logging.NewStdioBackend(os.Stdout), "5", "UTF-8")})
 	os.Exit(m.Run())
 }
 
@@ -356,6 +357,246 @@ func TestFillOthersSoftwareNode(t *testing.T) {
 	assert.ElementsMatch(t, softwareListenEndpoints, strings.Split(metricListen, ","))
 }
 
+// TestMetricDateIsUsed checks that CreatedAt and UpdatedAt fields are set to the metric timestamp for new metrics
+func TestMetricDateIsUsed(t *testing.T) {
+	// GIVEN
+	p := Probe{}
+
+	p.graph = newGraph(t)
+
+	givenServerName := "hostFoo"
+
+	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey: givenServerName,
+		MetadataTypeKey: MetadataTypeServer,
+	})
+	if err != nil {
+		t.Errorf("Unable to create server %s", givenServerName)
+	}
+
+	givenOtherNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey: OthersSoftwareNode,
+		MetadataTypeKey: MetadataTypeSoftware,
+	})
+	if err != nil {
+		t.Error("Unable to create software others")
+	}
+
+	_, err = p.graph.NewEdge("", givenNode, givenOtherNode, graph.Metadata{
+		MetadataRelationTypeKey: RelationTypeHasSoftware,
+	})
+	if err != nil {
+		t.Errorf("Unable to create edge between server %s and software others", givenServerName)
+	}
+
+	// WHEN
+	metricServerName := "hostFoo"
+	metricSoftwareCmdline := "nc -kl 8000"
+	metricConnections := "1.2.3.4:80"
+	metricListen := "192.168.1.36:8000"
+	var metricTimestamp int64 = 1555555555
+	agentData := []byte(fmt.Sprintf(`
+{
+  "metrics": [
+    {
+      "fields": {
+        "conn": "%s",
+        "listen": "%s"
+      },
+      "name": "procstat_test",
+      "tags": {
+        "cmdline": "%s",
+        "host": "%s",
+        "process_name": "nc"
+      },
+      "timestamp": %d
+    }
+  ]
+}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName, metricTimestamp))
+
+	sendAgentData(t, p, agentData)
+
+	// THEN
+	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
+	software := p.graph.GetNodes(softwareNodeFilter)[0]
+
+	metadataTCPConnRaw, _ := software.Metadata.GetField(MetadataTCPConnKey)
+	connMetadata := (*metadataTCPConnRaw.(*NetworkInfo))[metricConnections]
+
+	metadataListenEndpointsRaw, _ := software.Metadata.GetField(MetadataListenEndpointKey)
+	listenMetadata := (*metadataListenEndpointsRaw.(*NetworkInfo))[metricListen]
+
+	expectedMetadata := ProcInfo{
+		CreatedAt: metricTimestamp * 1000, // CreatedAt is in milliseconds
+		UpdatedAt: metricTimestamp * 1000, // UpdatedAt is in milliseconds
+		Revision:  1,
+	}
+
+	assert.Equal(t, connMetadata, expectedMetadata)
+	assert.Equal(t, listenMetadata, expectedMetadata)
+}
+
+// TestMetricDateIsUsedWhenUpdating consecutives updates for the same metric should increase Revision and use the metric timestamp in the UpdatedAt field
+func TestMetricDateIsUsedWhenUpdating(t *testing.T) {
+	// GIVEN
+	p := Probe{}
+
+	p.graph = newGraph(t)
+
+	givenServerName := "hostFoo"
+
+	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey: givenServerName,
+		MetadataTypeKey: MetadataTypeServer,
+	})
+	if err != nil {
+		t.Errorf("Unable to create server %s", givenServerName)
+	}
+
+	givenOtherNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey: OthersSoftwareNode,
+		MetadataTypeKey: MetadataTypeSoftware,
+	})
+	if err != nil {
+		t.Error("Unable to create software others")
+	}
+
+	_, err = p.graph.NewEdge("", givenNode, givenOtherNode, graph.Metadata{
+		MetadataRelationTypeKey: RelationTypeHasSoftware,
+	})
+	if err != nil {
+		t.Errorf("Unable to create edge between server %s and software others", givenServerName)
+	}
+
+	// WHEN
+	metricServerName := "hostFoo"
+	metricSoftwareCmdline := "nc -kl 8000"
+	metricConnections := "1.2.3.4:80"
+	metricListen := "192.168.1.36:8000"
+	var metricTimestamp int64 = 1555555555
+	agentData := fmt.Sprintf(`
+{
+  "metrics": [
+    {
+      "fields": {
+        "conn": "%s",
+        "listen": "%s"
+      },
+      "name": "procstat_test",
+      "tags": {
+        "cmdline": "%s",
+        "host": "%s",
+        "process_name": "nc"
+      },
+      "timestamp": %d
+    }
+  ]
+}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName, metricTimestamp)
+
+	// First send
+	sendAgentData(t, p, []byte(agentData))
+
+	// Second send
+	var secondMetricTimestamp int64 = 1666666666
+	secondAgentData := strings.Replace(agentData, strconv.Itoa(int(metricTimestamp)), strconv.Itoa(int(secondMetricTimestamp)), 1)
+	sendAgentData(t, p, []byte(secondAgentData))
+
+	// THEN
+	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
+	software := p.graph.GetNodes(softwareNodeFilter)[0]
+
+	metadataTCPConnRaw, _ := software.Metadata.GetField(MetadataTCPConnKey)
+	connMetadata := (*metadataTCPConnRaw.(*NetworkInfo))[metricConnections]
+
+	metadataListenEndpointsRaw, _ := software.Metadata.GetField(MetadataListenEndpointKey)
+	listenMetadata := (*metadataListenEndpointsRaw.(*NetworkInfo))[metricListen]
+
+	expectedMetadata := ProcInfo{
+		CreatedAt: metricTimestamp * 1000,       // CreatedAt is in milliseconds
+		UpdatedAt: secondMetricTimestamp * 1000, // UpdatedAt is in milliseconds
+		Revision:  2,
+	}
+
+	assert.Equal(t, connMetadata, expectedMetadata)
+	assert.Equal(t, listenMetadata, expectedMetadata)
+}
+
+// TestMetricInvalidTimestamp check that invalid timestamps lead to use time.Now() in the UpdatedAt/CreatedAt fields
+func TestMetricInvalidTimestamp(t *testing.T) {
+	// GIVEN
+	p := Probe{}
+
+	p.graph = newGraph(t)
+
+	givenServerName := "hostFoo"
+
+	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey: givenServerName,
+		MetadataTypeKey: MetadataTypeServer,
+	})
+	if err != nil {
+		t.Errorf("Unable to create server %s", givenServerName)
+	}
+
+	givenOtherNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey: OthersSoftwareNode,
+		MetadataTypeKey: MetadataTypeSoftware,
+	})
+	if err != nil {
+		t.Error("Unable to create software others")
+	}
+
+	_, err = p.graph.NewEdge("", givenNode, givenOtherNode, graph.Metadata{
+		MetadataRelationTypeKey: RelationTypeHasSoftware,
+	})
+	if err != nil {
+		t.Errorf("Unable to create edge between server %s and software others", givenServerName)
+	}
+
+	// WHEN
+	metricServerName := "hostFoo"
+	metricSoftwareCmdline := "nc -kl 8000"
+	metricConnections := "1.2.3.4:80"
+	metricListen := "192.168.1.36:8000"
+	var metricTimestamp int64 = 1e11
+	agentData := fmt.Sprintf(`
+{
+  "metrics": [
+    {
+      "fields": {
+        "conn": "%s",
+        "listen": "%s"
+      },
+      "name": "procstat_test",
+      "tags": {
+        "cmdline": "%s",
+        "host": "%s",
+        "process_name": "nc"
+      },
+      "timestamp": %d
+    }
+  ]
+}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName, metricTimestamp)
+
+	// First send
+	sendAgentData(t, p, []byte(agentData))
+
+	// THEN
+	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
+	software := p.graph.GetNodes(softwareNodeFilter)[0]
+
+	metadataTCPConnRaw, _ := software.Metadata.GetField(MetadataTCPConnKey)
+	connMetadata := (*metadataTCPConnRaw.(*NetworkInfo))[metricConnections]
+
+	metadataListenEndpointsRaw, _ := software.Metadata.GetField(MetadataListenEndpointKey)
+	listenMetadata := (*metadataListenEndpointsRaw.(*NetworkInfo))[metricListen]
+
+	assert.NotEqual(t, connMetadata.CreatedAt, metricTimestamp*1000)
+	assert.NotEqual(t, connMetadata.UpdatedAt, metricTimestamp*1000)
+	assert.NotEqual(t, listenMetadata.CreatedAt, metricTimestamp*1000)
+	assert.NotEqual(t, listenMetadata.UpdatedAt, metricTimestamp*1000)
+}
+
 // TestFillOthersSoftwareNodeWithConnPrefix if the received metrics has the tag connPrefix, IPs stored in Skydive should prefix that value
 func TestFillOthersSoftwareNodeWithConnPrefix(t *testing.T) {
 	// GIVEN
@@ -469,7 +710,7 @@ func TestNewMetricUpdateNetworkMetadata(t *testing.T) {
 	}
 
 	// This function handles its own lock
-	err = p.addNetworkInfo(givenOtherNode, givenOthersSoftwareTCPConnections, givenOthersSoftwareListenEndpoints)
+	err = p.addNetworkInfo(givenOtherNode, givenOthersSoftwareTCPConnections, givenOthersSoftwareListenEndpoints, 1e9)
 	if err != nil {
 		t.Error("Adding network connections to others Software node")
 	}
@@ -578,7 +819,7 @@ func TestAppendConnectionInfoToOthersSoftwareNode(t *testing.T) {
 	p.graph.Unlock()
 
 	// This function handles its own lock
-	err = p.addNetworkInfo(givenOtherNode, givenOthersSoftwareTCPConnections, givenOthersSoftwareListenEndpoints)
+	err = p.addNetworkInfo(givenOtherNode, givenOthersSoftwareTCPConnections, givenOthersSoftwareListenEndpoints, 1e9)
 	if err != nil {
 		t.Error("Adding network connections to others Software node")
 	}
@@ -670,7 +911,7 @@ func TestFillKnownSoftwareNode(t *testing.T) {
 	p.graph.Unlock()
 
 	// This function handles its own lock
-	err = p.addNetworkInfo(givenSWNode, givenSoftwareTCPConnections, givenSoftwareListenEndpoints)
+	err = p.addNetworkInfo(givenSWNode, givenSoftwareTCPConnections, givenSoftwareListenEndpoints, 1e9)
 	if err != nil {
 		t.Error("Adding network connections to others Software node")
 	}
