@@ -168,6 +168,9 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Accumulate "others" connections to generate only one modification in the node
+	others := map[*graph.Node][]Metric{}
+
 	// For each metric, found the matching node in the graph, or, if it does not exists, create one
 	for _, metric := range res.Metrics {
 		// Get lock between querying if the node exists and creating it
@@ -216,7 +219,8 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if len(childNodes) == 0 {
 			logging.GetLogger().Debugf("Software node not found for Server node '%v' and cmdline '%s', storing in others", nodeName(hostNode), metric.Tags.Cmdline)
-			p.appendToOthers(hostNode, metric)
+			// Accumulate changes to "others" to make only one change to the node
+			others[hostNode] = append(others[hostNode], metric)
 			continue
 		} else if len(childNodes) > 1 {
 			// This should not happen
@@ -237,11 +241,14 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		swNode := childNodes[0]
 
 		// Attach that network information to the software node
-		err = p.addNetworkInfo(swNode, metric.Fields.Conn, metric.Fields.Listen, metric.Timestamp, metric.Tags.ConnPrefix)
+		err = p.addNetworkInfo(swNode, []Metric{metric})
 		if err != nil {
 			logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %+v)", nodeName(swNode), hostNode)
 		}
 	}
+
+	// Handle accumulated "others" software connections
+	p.generateOthers(others)
 }
 
 // metricTimestampMs convert a timestamp to ms with format int64.
@@ -254,60 +261,63 @@ func metricTimestampMs(timestamp int) (int64, bool) {
 	return int64(timestamp) * 1000, true
 }
 
-// appendToOthers add the metric to a "fake" software node used to store all connections
-// from unknown software.
-// Create the node if neccessary.
-// The software node will be called "others"
-func (p *Probe) appendToOthers(hostNode *graph.Node, metric Metric) {
-	// Get the lock to avoid a race condition between asking if the node exists and creating it
-	p.graph.Lock()
+// generateOthers get the accumulated values of metrics that should be written to the "others" node.
+// This node stores all connections that does not have a custom Software node.
+// This funcion will create the "others" software node if needed.
+func (p *Probe) generateOthers(others map[*graph.Node][]Metric) {
+	for hostNode, metrics := range others {
+		host := hostNode.Host
 
-	othersNodes := p.graph.LookupChildren(
-		hostNode,
-		graph.Metadata{MetadataTypeKey: MetadataTypeSoftware, MetadataNameKey: OthersSoftwareNode},
-		graph.Metadata{MetadataRelationTypeKey: RelationTypeHasSoftware},
-	)
+		// Get the lock to avoid a race condition between asking if the node exists and creating it
+		p.graph.Lock()
 
-	var otherNode *graph.Node
-	var err error
+		othersNodes := p.graph.LookupChildren(
+			hostNode,
+			graph.Metadata{MetadataTypeKey: MetadataTypeSoftware, MetadataNameKey: OthersSoftwareNode},
+			graph.Metadata{MetadataRelationTypeKey: RelationTypeHasSoftware},
+		)
 
-	if len(othersNodes) == 0 {
-		// Create the node
-		logging.GetLogger().Debugf("newNode(Software, others)")
-		otherNode, err = p.newNode(metric.Tags.Host, graph.Metadata{
-			MetadataNameKey: OthersSoftwareNode,
-			MetadataTypeKey: MetadataTypeSoftware,
-		})
-		if err != nil {
-			logging.GetLogger().Errorf("Creating 'others' Software node for Server node '%+v': %v.", hostNode, err)
+		var otherNode *graph.Node
+		var err error
+
+		if len(othersNodes) == 0 {
+			// Create the node
+			logging.GetLogger().Debugf("newNode(Software, others)")
+			otherNode, err = p.newNode(host, graph.Metadata{
+				MetadataNameKey: OthersSoftwareNode,
+				MetadataTypeKey: MetadataTypeSoftware,
+			})
+			if err != nil {
+				logging.GetLogger().Errorf("Creating 'others' Software node for Server node '%+v': %v.", hostNode, err)
+				return
+			}
+
+			// Create edge to link to the host
+			logging.GetLogger().Debugf("newEdge(%v, %v, has_software)", hostNode, otherNode)
+			_, err = p.newEdge(host, hostNode, otherNode, graph.Metadata{
+				MetadataRelationTypeKey: RelationTypeHasSoftware,
+			})
+			if err != nil {
+				logging.GetLogger().Errorf("Linking 'others' Software node to host Server node '%+v': %v.", hostNode, err)
+				return
+			}
+
+		} else if len(othersNodes) > 1 {
+			logging.GetLogger().Errorf("Found more than one 'others' Software node for Server node '%+v'. This should not happen. Not adding metrics", hostNode)
 			return
+
+		} else {
+			// Append info
+			otherNode = othersNodes[0]
 		}
 
-		// Create edge to link to the host
-		logging.GetLogger().Debugf("newEdge(%v, %v, has_software)", hostNode, otherNode)
-		_, err = p.newEdge(metric.Tags.Host, hostNode, otherNode, graph.Metadata{
-			MetadataRelationTypeKey: RelationTypeHasSoftware,
-		})
+		// Frees graph lock before addNetworkInfo, as that function grab also the lock
+		p.graph.Unlock()
+
+		err = p.addNetworkInfo(otherNode, metrics)
 		if err != nil {
-			logging.GetLogger().Errorf("Linking 'others' Software node to host Server node '%+v': %v.", hostNode, err)
-			return
+			logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %v): %v", nodeName(otherNode), nodeName(hostNode), err)
 		}
-
-	} else if len(othersNodes) > 1 {
-		logging.GetLogger().Errorf("Found more than one 'others' Software node for Server node '%+v'. This should not happen. Not adding metrics", hostNode)
-		return
-
-	} else {
-		// Append info
-		otherNode = othersNodes[0]
-	}
-
-	// Frees graph lock before addNetworkInfo, as that function grab also the lock
-	p.graph.Unlock()
-
-	err = p.addNetworkInfo(otherNode, metric.Fields.Conn, metric.Fields.Listen, metric.Timestamp, metric.Tags.ConnPrefix)
-	if err != nil {
-		logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %v): %v", nodeName(otherNode), nodeName(hostNode), err)
 	}
 }
 
@@ -367,21 +377,17 @@ func (p *Probe) removeFromOthers(hostNode *graph.Node, metric Metric) error {
 	return nil
 }
 
-// generateProcInfoData from a list of connections or endpoints, return a dict being the key
-// the connection string and the value a ProcInfo struct initializated to the metric timestamp
-// and revision 1
-// metricTimestamp is in ms
-func generateProcInfoData(conn []string, metricTimestamp int64) NetworkInfo {
-	ret := NetworkInfo{}
+// appendProcInfoData given a list of connetions/endpoints, for each element append it, with
+// the appropiate struct, to the netInfo variable.
+// Revision is initialized to 1
+func appendProcInfoData(conn []string, metricTimestamp int64, netInfo NetworkInfo) {
 	for _, c := range conn {
-		ret[c] = ProcInfo{
+		netInfo[c] = ProcInfo{
 			CreatedAt: metricTimestamp,
 			UpdatedAt: metricTimestamp,
 			Revision:  1,
 		}
 	}
-
-	return ret
 }
 
 // updateNetworkMetadata adds new network info and update current stored one.
@@ -410,46 +416,50 @@ func (p *Probe) updateNetworkMetadata(field interface{}, newData NetworkInfo, no
 }
 
 // addNetworkInfo append connection and listen endpoints to the metadata of the server
-// Only one function for both (tcpConn and tcpListen) to avoid two modifications of the metadata, avoiding extra work for the backend
-// metricTimestamp is in ms
-func (p *Probe) addNetworkInfo(node *graph.Node, tcpConnStr string, listenEndpointsStr string, metricTimestamp int, prefix string) error {
-	// Generate an slice from the comma separated list in the metric received
-	// Avoid having an array with an empty element if the string received is the empty string
-	tcpConn := []string{}
-	if tcpConnStr != "" {
-		tcpConn = strings.Split(tcpConnStr, ",")
-		// Add ConnPrefix if defined
-		if prefix != "" {
-			for i := 0; i < len(tcpConn); i++ {
-				tcpConn[i] = prefix + tcpConn[i]
+func (p *Probe) addNetworkInfo(node *graph.Node, metrics []Metric) error {
+	// Accumulate conn/endpoint of all metrics in this vars
+	tcpConnStruct := NetworkInfo{}
+	listenEndpointsStruct := NetworkInfo{}
+
+	for _, metric := range metrics {
+		// Generate an slice from the comma separated list in the metric received
+		// Avoid having an array with an empty element if the string received is the empty string
+		tcpConn := []string{}
+		if metric.Fields.Conn != "" {
+			tcpConn = strings.Split(metric.Fields.Conn, ",")
+			// Add ConnPrefix if defined
+			if metric.Tags.ConnPrefix != "" {
+				for i := 0; i < len(tcpConn); i++ {
+					tcpConn[i] = metric.Tags.ConnPrefix + tcpConn[i]
+				}
 			}
 		}
-	}
 
-	// Same for the listen endpoints
-	listenEndpoints := []string{}
-	if listenEndpointsStr != "" {
-		listenEndpoints = strings.Split(listenEndpointsStr, ",")
-		// Add ConnPrefix if defined
-		if prefix != "" {
-			for i := 0; i < len(listenEndpoints); i++ {
-				listenEndpoints[i] = prefix + listenEndpoints[i]
+		// Same for the listen endpoints
+		listenEndpoints := []string{}
+		if metric.Fields.Listen != "" {
+			listenEndpoints = strings.Split(metric.Fields.Listen, ",")
+			// Add ConnPrefix if defined
+			if metric.Tags.ConnPrefix != "" {
+				for i := 0; i < len(listenEndpoints); i++ {
+					listenEndpoints[i] = metric.Tags.ConnPrefix + listenEndpoints[i]
+				}
 			}
 		}
-	}
 
-	// Convert metric timestamp ms in int64
-	timestamp, ok := metricTimestampMs(metricTimestamp)
-	if !ok {
-		logging.GetLogger().Warningf("Invalid timestamp value, using time.Now(). Timestamp=%v", metricTimestamp)
+		// Convert metric timestamp ms in int64
+		timestamp, ok := metricTimestampMs(metric.Timestamp)
+		if !ok {
+			logging.GetLogger().Warningf("Invalid timestamp value, using time.Now(). Timestamp=%v", metric.Timestamp)
+		}
+
+		// Network info converted to the data structure stored in the node metadata
+		appendProcInfoData(tcpConn, timestamp, tcpConnStruct)
+		appendProcInfoData(listenEndpoints, timestamp, listenEndpointsStruct)
 	}
 
 	p.graph.Lock()
 	defer p.graph.Unlock()
-
-	// Network info converted to the data structure stored in the node metadata
-	tcpConnStruct := generateProcInfoData(tcpConn, timestamp)
-	listenEndpointsStruct := generateProcInfoData(listenEndpoints, timestamp)
 
 	// Updates nodes metadata
 	errTCPConn := p.graph.UpdateMetadata(node, MetadataTCPConnKey, func(field interface{}) bool {

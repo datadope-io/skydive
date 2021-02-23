@@ -897,7 +897,13 @@ func TestNewMetricUpdateNetworkMetadata(t *testing.T) {
 	}
 
 	// This function handles its own lock
-	err = p.addNetworkInfo(givenOtherNode, strings.Join(givenOthersSoftwareTCPConnections, ","), strings.Join(givenOthersSoftwareListenEndpoints, ","), 1e9, "")
+	metric := Metric{
+		Fields: Fields{
+			Conn:   strings.Join(givenOthersSoftwareTCPConnections, ","),
+			Listen: strings.Join(givenOthersSoftwareListenEndpoints, ","),
+		},
+	}
+	err = p.addNetworkInfo(givenOtherNode, []Metric{metric})
 	if err != nil {
 		t.Error("Adding network connections to others Software node")
 	}
@@ -1016,7 +1022,13 @@ func TestAppendConnectionInfoToOthersSoftwareNode(t *testing.T) {
 	p.graph.Unlock()
 
 	// This function handles its own lock
-	err = p.addNetworkInfo(givenOtherNode, strings.Join(givenOthersSoftwareTCPConnections, ","), strings.Join(givenOthersSoftwareListenEndpoints, ","), 1e9, "")
+	metric := Metric{
+		Fields: Fields{
+			Conn:   strings.Join(givenOthersSoftwareTCPConnections, ","),
+			Listen: strings.Join(givenOthersSoftwareListenEndpoints, ","),
+		},
+	}
+	err = p.addNetworkInfo(givenOtherNode, []Metric{metric})
 	if err != nil {
 		t.Error("Adding network connections to others Software node")
 	}
@@ -1108,7 +1120,13 @@ func TestFillKnownSoftwareNode(t *testing.T) {
 	p.graph.Unlock()
 
 	// This function handles its own lock
-	err = p.addNetworkInfo(givenSWNode, strings.Join(givenSoftwareTCPConnections, ","), strings.Join(givenSoftwareListenEndpoints, ","), 1e9, "")
+	metric := Metric{
+		Fields: Fields{
+			Conn:   strings.Join(givenSoftwareTCPConnections, ","),
+			Listen: strings.Join(givenSoftwareListenEndpoints, ","),
+		},
+	}
+	err = p.addNetworkInfo(givenSWNode, []Metric{metric})
 	if err != nil {
 		t.Error("Adding network connections to others Software node")
 	}
@@ -1442,4 +1460,17 @@ func TestNotSignalUpdateForKnownNetworkUpdates(t *testing.T) {
 	// This is to avoid leaving the backend behind too much
 	assert.True(t, p.updateNetworkMetadata(&nodeNetworkInfo, newNetworkInfo, nodeRevisionForceFlush), "forced flush iteration %v", nodeRevisionForceFlush)
 	assert.True(t, p.updateNetworkMetadata(&nodeNetworkInfo, newNetworkInfo, nodeRevisionForceFlush*2), "forced flush iteration %v", nodeRevisionForceFlush*2)
+}
+
+func generateProcInfoData(conn []string, metricTimestamp int64) NetworkInfo {
+	ret := NetworkInfo{}
+	for _, c := range conn {
+		ret[c] = ProcInfo{
+			CreatedAt: metricTimestamp,
+			UpdatedAt: metricTimestamp,
+			Revision:  1,
+		}
+	}
+
+	return ret
 }
