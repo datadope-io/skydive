@@ -642,12 +642,12 @@ func (p *Probe) Stop() {
 }
 
 // NewProbe initialize the probe with the parameters from the config file
-func NewProbe(g *graph.Graph) *Probe {
+func NewProbe(g *graph.Graph) (*Probe, error) {
 	probe := &Probe{
 		graph: g,
 	}
 
-	return probe
+	return probe, nil
 }
 
 // Register called at initialization to register metadata decoders

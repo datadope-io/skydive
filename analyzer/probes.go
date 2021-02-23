@@ -108,8 +108,6 @@ func NewTopologyProbeBundleFromConfig(g *graph.Graph) (*probe.Bundle, error) {
 	}
 	bundle.AddHandler("fabric", fabricProbe)
 	bundle.AddHandler("peering", peering.NewProbe(g))
-	bundle.AddHandler("proccon", proccon.NewProbe(g))
-	bundle.AddHandler("procpeering", procpeering.NewProbe(g))
 
 	for _, t := range list {
 		if bundle.GetHandler(t) != nil {
@@ -126,6 +124,10 @@ func NewTopologyProbeBundleFromConfig(g *graph.Graph) (*probe.Bundle, error) {
 			handler, err = istio.NewIstioProbe(g)
 		case "nsm":
 			handler, err = nsm.NewNsmProbe(g)
+		case "proccon":
+			handler, err = proccon.NewProbe(g)
+		case "procpeering":
+			handler, err = procpeering.NewProbe(g)
 		default:
 			logging.GetLogger().Errorf("unknown probe type: %s", t)
 			continue
