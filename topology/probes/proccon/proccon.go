@@ -236,39 +236,8 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		swNode := childNodes[0]
 
-		// Generate an slice from the comma separated list in the metric received
-		// Avoid having an array with an empty element if the string received is the empty string
-		tcpConn := []string{}
-		if metric.Fields.Conn != "" {
-			tcpConn = strings.Split(metric.Fields.Conn, ",")
-			// Add ConnPrefix if defined
-			if metric.Tags.ConnPrefix != "" {
-				for i := 0; i < len(tcpConn); i++ {
-					tcpConn[i] = metric.Tags.ConnPrefix + tcpConn[i]
-				}
-			}
-		}
-
-		// Same for the listen endpoints
-		tcpListen := []string{}
-		if metric.Fields.Listen != "" {
-			tcpListen = strings.Split(metric.Fields.Listen, ",")
-			// Add ConnPrefix if defined
-			if metric.Tags.ConnPrefix != "" {
-				for i := 0; i < len(tcpListen); i++ {
-					tcpListen[i] = metric.Tags.ConnPrefix + tcpListen[i]
-				}
-			}
-		}
-
-		// Convert metric timestamp ms in int64
-		timestamp, ok := metricTimestampMs(metric.Timestamp)
-		if !ok {
-			logging.GetLogger().Warningf("Invalid timestamp value, using time.Now(). Timestamp=%v (Software '%s', host %+v)", metric.Timestamp, nodeName(swNode), hostNode)
-		}
-
 		// Attach that network information to the software node
-		err = p.addNetworkInfo(swNode, tcpConn, tcpListen, timestamp)
+		err = p.addNetworkInfo(swNode, metric.Fields.Conn, metric.Fields.Listen, metric.Timestamp, metric.Tags.ConnPrefix)
 		if err != nil {
 			logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %+v)", nodeName(swNode), hostNode)
 		}
@@ -336,35 +305,7 @@ func (p *Probe) appendToOthers(hostNode *graph.Node, metric Metric) {
 	// Frees graph lock before addNetworkInfo, as that function grab also the lock
 	p.graph.Unlock()
 
-	// Avoid having an array with an empty element if the string received is the empty string
-	tcpConn := []string{}
-	if metric.Fields.Conn != "" {
-		tcpConn = strings.Split(metric.Fields.Conn, ",")
-		// Add ConnPrefix if defined
-		if metric.Tags.ConnPrefix != "" {
-			for i := 0; i < len(tcpConn); i++ {
-				tcpConn[i] = metric.Tags.ConnPrefix + tcpConn[i]
-			}
-		}
-	}
-
-	tcpListen := []string{}
-	if metric.Fields.Listen != "" {
-		tcpListen = strings.Split(metric.Fields.Listen, ",")
-		// Add ConnPrefix if defined
-		if metric.Tags.ConnPrefix != "" {
-			for i := 0; i < len(tcpListen); i++ {
-				tcpListen[i] = metric.Tags.ConnPrefix + tcpListen[i]
-			}
-		}
-	}
-
-	timestamp, ok := metricTimestampMs(metric.Timestamp)
-	if !ok {
-		logging.GetLogger().Warningf("Invalid timestamp value, using time.Now(). Timestamp=%v (Software '%s', host %+v)", metric.Timestamp, nodeName(otherNode), hostNode)
-	}
-
-	err = p.addNetworkInfo(otherNode, tcpConn, tcpListen, timestamp)
+	err = p.addNetworkInfo(otherNode, metric.Fields.Conn, metric.Fields.Listen, metric.Timestamp, metric.Tags.ConnPrefix)
 	if err != nil {
 		logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %v): %v", nodeName(otherNode), nodeName(hostNode), err)
 	}
@@ -471,13 +412,44 @@ func (p *Probe) updateNetworkMetadata(field interface{}, newData NetworkInfo, no
 // addNetworkInfo append connection and listen endpoints to the metadata of the server
 // Only one function for both (tcpConn and tcpListen) to avoid two modifications of the metadata, avoiding extra work for the backend
 // metricTimestamp is in ms
-func (p *Probe) addNetworkInfo(node *graph.Node, tcpConn []string, listenEndpoints []string, metricTimestamp int64) error {
+func (p *Probe) addNetworkInfo(node *graph.Node, tcpConnStr string, listenEndpointsStr string, metricTimestamp int, prefix string) error {
+	// Generate an slice from the comma separated list in the metric received
+	// Avoid having an array with an empty element if the string received is the empty string
+	tcpConn := []string{}
+	if tcpConnStr != "" {
+		tcpConn = strings.Split(tcpConnStr, ",")
+		// Add ConnPrefix if defined
+		if prefix != "" {
+			for i := 0; i < len(tcpConn); i++ {
+				tcpConn[i] = prefix + tcpConn[i]
+			}
+		}
+	}
+
+	// Same for the listen endpoints
+	listenEndpoints := []string{}
+	if listenEndpointsStr != "" {
+		listenEndpoints = strings.Split(listenEndpointsStr, ",")
+		// Add ConnPrefix if defined
+		if prefix != "" {
+			for i := 0; i < len(listenEndpoints); i++ {
+				listenEndpoints[i] = prefix + listenEndpoints[i]
+			}
+		}
+	}
+
+	// Convert metric timestamp ms in int64
+	timestamp, ok := metricTimestampMs(metricTimestamp)
+	if !ok {
+		logging.GetLogger().Warningf("Invalid timestamp value, using time.Now(). Timestamp=%v", metricTimestamp)
+	}
+
 	p.graph.Lock()
 	defer p.graph.Unlock()
 
 	// Network info converted to the data structure stored in the node metadata
-	tcpConnStruct := generateProcInfoData(tcpConn, metricTimestamp)
-	listenEndpointsStruct := generateProcInfoData(listenEndpoints, metricTimestamp)
+	tcpConnStruct := generateProcInfoData(tcpConn, timestamp)
+	listenEndpointsStruct := generateProcInfoData(listenEndpoints, timestamp)
 
 	// Updates nodes metadata
 	errTCPConn := p.graph.UpdateMetadata(node, MetadataTCPConnKey, func(field interface{}) bool {

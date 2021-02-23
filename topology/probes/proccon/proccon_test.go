@@ -154,6 +154,11 @@ func TestCreateServerNodeSoftwareOthers(t *testing.T) {
 		t.Errorf("Software node created, but with wrong name: %v", softwareName)
 	}
 
+	// The software node should have two revisions:
+	//  - creating the node
+	//  - adding TCPConn and TCPListen to that empty node
+	assert.Equal(t, int64(2), software.Revision)
+
 	softwareTCPConn, err := getTCPConn(software)
 	if err != nil {
 		t.Errorf("Not able to get TCP connection info")
@@ -436,6 +441,188 @@ func TestMetricDateIsUsed(t *testing.T) {
 	assert.Equal(t, listenMetadata, expectedMetadata)
 }
 
+// TestMultipleMetricsToOtherOnlyOneRevision if several metrics are received in the same packet and are going to the "others" software,
+// the node.Revision field should only increase by one. Network info from both connetions should be added to "others"
+func TestMultipleMetricsToOtherOnlyOneRevision(t *testing.T) {
+	// GIVEN
+	p := Probe{}
+
+	p.graph = newGraph(t)
+
+	givenServerName := "hostFoo"
+
+	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey: givenServerName,
+		MetadataTypeKey: MetadataTypeServer,
+	})
+	if err != nil {
+		t.Errorf("Unable to create server %s", givenServerName)
+	}
+
+	givenOtherNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey: OthersSoftwareNode,
+		MetadataTypeKey: MetadataTypeSoftware,
+	})
+	if err != nil {
+		t.Error("Unable to create software others")
+	}
+
+	_, err = p.graph.NewEdge("", givenNode, givenOtherNode, graph.Metadata{
+		MetadataRelationTypeKey: RelationTypeHasSoftware,
+	})
+	if err != nil {
+		t.Errorf("Unable to create edge between server %s and software others", givenServerName)
+	}
+
+	// WHEN
+	metricServerName := "hostFoo"
+	metricSoftwareCmdline := "nc -kl 8000"
+	metricConnections := "1.2.3.4:80"
+	metricListen := "192.168.1.36:8000"
+
+	metricSoftwareCmdline2 := "nc -kl 8888"
+	metricConnections2 := "1.2.3.4:88"
+	metricListen2 := "192.168.1.36:8888"
+
+	metricSoftwareCmdline3 := "nc -kl 9999"
+	metricConnections3 := "1.2.3.4:99"
+	metricListen3 := "192.168.1.36:9999"
+
+	var metricTimestamp int64 = 1555555555
+	agentData := fmt.Sprintf(`
+{
+  "metrics": [
+    {
+      "fields": {
+        "conn": "%s",
+        "listen": "%s"
+      },
+      "name": "procstat_test",
+      "tags": {
+        "cmdline": "%s",
+        "host": "%s",
+        "process_name": "nc"
+      },
+      "timestamp": %d
+    },
+    {
+      "fields": {
+        "conn": "%s",
+        "listen": "%s"
+      },
+      "name": "procstat_test",
+      "tags": {
+        "cmdline": "%s",
+        "host": "%s",
+        "process_name": "nc"
+      },
+      "timestamp": %d
+    },
+    {
+      "fields": {
+        "conn": "%s",
+        "listen": "%s"
+      },
+      "name": "procstat_test",
+      "tags": {
+        "cmdline": "%s",
+        "host": "%s",
+        "process_name": "nc"
+      },
+      "timestamp": %d
+    }
+  ]
+}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName, metricTimestamp,
+		metricConnections2, metricListen2, metricSoftwareCmdline2, metricServerName, metricTimestamp,
+		metricConnections3, metricListen3, metricSoftwareCmdline3, metricServerName, metricTimestamp,
+	)
+
+	// First send
+	sendAgentData(t, p, []byte(agentData))
+
+	// THEN
+	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
+	software := p.graph.GetNodes(softwareNodeFilter)[0]
+
+	// The software node should have two revisions:
+	//  - creating the node
+	//  - adding TCPConn and TCPListen to that empty node
+	assert.Equal(t, int64(2), software.Revision)
+
+	metadataTCPConnRaw, _ := software.Metadata.GetField(MetadataTCPConnKey)
+	connMetadata := (*metadataTCPConnRaw.(*NetworkInfo))
+	assert.Len(t, connMetadata, 3)
+
+	metadataListenEndpointsRaw, _ := software.Metadata.GetField(MetadataListenEndpointKey)
+	listenMetadata := (*metadataListenEndpointsRaw.(*NetworkInfo))
+	assert.Len(t, listenMetadata, 3)
+}
+
+// TestTwoMetricsTwoOthersNode given a metric message with two metrics from different servers (tag.host), it should create
+// two different Server node and two different "others" Software node
+func TestTwoMetricsTwoOthersNode(t *testing.T) {
+	// GIVEN
+	p := Probe{}
+	p.graph = newGraph(t)
+
+	metricServerName := "hostFoo"
+	metricSoftwareCmdline := "nc -kl 8000"
+	metricConnections := "1.2.3.4:80"
+	metricListen := "192.168.1.36:8000"
+
+	metricServerName2 := "hostBar"
+	metricSoftwareCmdline2 := "nc -kl 8888"
+	metricConnections2 := "1.2.3.4:88"
+	metricListen2 := "192.168.1.36:8888"
+
+	var metricTimestamp int64 = 1555555555
+	agentData := fmt.Sprintf(`
+{
+  "metrics": [
+    {
+      "fields": {
+        "conn": "%s",
+        "listen": "%s"
+      },
+      "name": "procstat_test",
+      "tags": {
+        "cmdline": "%s",
+        "host": "%s",
+        "process_name": "nc"
+      },
+      "timestamp": %d
+    },
+    {
+      "fields": {
+        "conn": "%s",
+        "listen": "%s"
+      },
+      "name": "procstat_test",
+      "tags": {
+        "cmdline": "%s",
+        "host": "%s",
+        "process_name": "nc"
+      },
+      "timestamp": %d
+    }
+  ]
+}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName, metricTimestamp,
+		metricConnections2, metricListen2, metricSoftwareCmdline2, metricServerName2, metricTimestamp,
+	)
+
+	// WHEN
+	sendAgentData(t, p, []byte(agentData))
+
+	// THEN
+	serverNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeServer))
+	servers := p.graph.GetNodes(serverNodeFilter)
+	assert.Len(t, servers, 2)
+
+	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
+	softwares := p.graph.GetNodes(softwareNodeFilter)
+	assert.Len(t, softwares, 2)
+}
+
 // TestMetricDateIsUsedWhenUpdating consecutives updates for the same metric should increase Revision and use the metric timestamp in the UpdatedAt field
 func TestMetricDateIsUsedWhenUpdating(t *testing.T) {
 	// GIVEN
@@ -710,10 +897,15 @@ func TestNewMetricUpdateNetworkMetadata(t *testing.T) {
 	}
 
 	// This function handles its own lock
-	err = p.addNetworkInfo(givenOtherNode, givenOthersSoftwareTCPConnections, givenOthersSoftwareListenEndpoints, 1e9)
+	err = p.addNetworkInfo(givenOtherNode, strings.Join(givenOthersSoftwareTCPConnections, ","), strings.Join(givenOthersSoftwareListenEndpoints, ","), 1e9, "")
 	if err != nil {
 		t.Error("Adding network connections to others Software node")
 	}
+
+	// This created other nod should have 2 revisions
+	//  - creating the node
+	//  - adding TCPConn and TCPListen to that empty node
+	assert.Equal(t, int64(2), givenOtherNode.Revision)
 
 	// WHEN
 	agentData := []byte(fmt.Sprintf(`
@@ -741,6 +933,11 @@ func TestNewMetricUpdateNetworkMetadata(t *testing.T) {
 	// THEN
 	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
 	software := p.graph.GetNodes(softwareNodeFilter)[0]
+
+	// After handling the metrics, node should have increased its revision by two
+	//  - adding TCPConn to existant Metadata
+	//  - adding TCPListen to existant Metadata
+	assert.Equal(t, int64(4), givenOtherNode.Revision)
 
 	softwareTCPConn, err := software.Metadata.GetField(MetadataTCPConnKey)
 	if err != nil {
@@ -819,7 +1016,7 @@ func TestAppendConnectionInfoToOthersSoftwareNode(t *testing.T) {
 	p.graph.Unlock()
 
 	// This function handles its own lock
-	err = p.addNetworkInfo(givenOtherNode, givenOthersSoftwareTCPConnections, givenOthersSoftwareListenEndpoints, 1e9)
+	err = p.addNetworkInfo(givenOtherNode, strings.Join(givenOthersSoftwareTCPConnections, ","), strings.Join(givenOthersSoftwareListenEndpoints, ","), 1e9, "")
 	if err != nil {
 		t.Error("Adding network connections to others Software node")
 	}
@@ -911,7 +1108,7 @@ func TestFillKnownSoftwareNode(t *testing.T) {
 	p.graph.Unlock()
 
 	// This function handles its own lock
-	err = p.addNetworkInfo(givenSWNode, givenSoftwareTCPConnections, givenSoftwareListenEndpoints, 1e9)
+	err = p.addNetworkInfo(givenSWNode, strings.Join(givenSoftwareTCPConnections, ","), strings.Join(givenSoftwareListenEndpoints, ","), 1e9, "")
 	if err != nil {
 		t.Error("Adding network connections to others Software node")
 	}
