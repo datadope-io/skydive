@@ -204,7 +204,7 @@ func nodeName(n *graph.Node) string {
 }
 
 // NewProbe creates a new graph node peering probe
-func NewProbe(g *graph.Graph) *Probe {
+func NewProbe(g *graph.Graph) (*Probe, error) {
 	probe := &Probe{
 		graph:         g,
 		listenIndexer: graph.NewIndexer(g, g, listenEndpointHasher, false),
@@ -226,5 +226,5 @@ func NewProbe(g *graph.Graph) *Probe {
 	// Subscribirnos para obtener eventos de node updated
 	g.AddEventListener(probe)
 
-	return probe
+	return probe, nil
 }

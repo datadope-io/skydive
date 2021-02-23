@@ -12,7 +12,7 @@ import (
 
 func TestMain(m *testing.M) {
 	// Remove comment to change logging level to debug
-	//logging.InitLogging("id", true, []*logging.LoggerConfig{logging.NewLoggerConfig(logging.NewStdioBackend(os.Stdout), "5", "UTF-8")})
+	// logging.InitLogging("id", true, []*logging.LoggerConfig{logging.NewLoggerConfig(logging.NewStdioBackend(os.Stdout), "5", "UTF-8")})
 	os.Exit(m.Run())
 }
 
@@ -29,7 +29,7 @@ func newGraph(t *testing.T) *graph.Graph {
 func TestMatchConnectionListener(t *testing.T) {
 	// GIVEN
 	g := newGraph(t)
-	p := NewProbe(g)
+	p, _ := NewProbe(g)
 	p.Start()
 
 	softwareServer, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
@@ -83,7 +83,7 @@ func TestMatchConnectionListener(t *testing.T) {
 func TestMatchConnectionListenerWithPrefixedIPs(t *testing.T) {
 	// GIVEN
 	g := newGraph(t)
-	p := NewProbe(g)
+	p, _ := NewProbe(g)
 	p.Start()
 
 	softwareServer, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
@@ -137,7 +137,7 @@ func TestMatchConnectionListenerWithPrefixedIPs(t *testing.T) {
 func TestNoMatchConnectionListenerWithDifferentPrefixedIPs(t *testing.T) {
 	// GIVEN
 	g := newGraph(t)
-	p := NewProbe(g)
+	p, _ := NewProbe(g)
 	p.Start()
 
 	_, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
@@ -182,7 +182,7 @@ func TestNoMatchConnectionListenerWithDifferentPrefixedIPs(t *testing.T) {
 func TestMatchConnectionListenerUpdatedNode(t *testing.T) {
 	// GIVEN
 	g := newGraph(t)
-	p := NewProbe(g)
+	p, _ := NewProbe(g)
 	p.Start()
 
 	softwareServer, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
@@ -237,7 +237,7 @@ func TestMatchConnectionListenerUpdatedNode(t *testing.T) {
 func TestUpdatingNetworkingMetadataDoesNotCreateNewEdges(t *testing.T) {
 	// GIVEN
 	g := newGraph(t)
-	p := NewProbe(g)
+	p, _ := NewProbe(g)
 	p.Start()
 
 	softwareServer, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
@@ -308,7 +308,7 @@ func TestUpdatingNetworkingMetadataDoesNotCreateNewEdges(t *testing.T) {
 func TestRemovedConnectionFromMetadataDeleteConnectionEdge(t *testing.T) {
 	// GIVEN
 	g := newGraph(t)
-	p := NewProbe(g)
+	p, _ := NewProbe(g)
 	p.Start()
 
 	_, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
@@ -358,7 +358,7 @@ func TestRemovedConnectionFromMetadataDeleteConnectionEdge(t *testing.T) {
 func TestRemovedListenerFromMetadataDeleteEdgesFromClients(t *testing.T) {
 	// GIVEN
 	g := newGraph(t)
-	p := NewProbe(g)
+	p, _ := NewProbe(g)
 	p.Start()
 
 	softwareServer, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
