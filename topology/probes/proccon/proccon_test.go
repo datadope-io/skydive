@@ -2,11 +2,9 @@ package proccon
 
 import (
 	"bytes"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -33,7 +31,7 @@ func newGraph(t *testing.T) *graph.Graph {
 }
 
 // sendAgentData simulates the HTTP post of an external agent
-func sendAgentData(t *testing.T, p Probe, data []byte) {
+func sendAgentData(t *testing.T, p Probe, data []byte, expectedStatus int) {
 	req, err := http.NewRequest("POST", "/", bytes.NewBuffer(data))
 	if err != nil {
 		t.Fatal(err)
@@ -44,9 +42,9 @@ func sendAgentData(t *testing.T, p Probe, data []byte) {
 	p.ServeHTTP(rr, req)
 
 	// Check HTTP 200 and empty body
-	if status := rr.Code; status != http.StatusOK {
+	if status := rr.Code; status != expectedStatus {
 		t.Errorf("handler returned wrong status code: got %v want %v. Error: %v",
-			status, http.StatusOK, rr.Body.String())
+			status, expectedStatus, rr.Body.String())
 	}
 }
 
@@ -93,27 +91,31 @@ func TestCreateServerNodeSoftwareOthers(t *testing.T) {
 	metricSoftwareCmdline := "nc -kl 8000"
 	metricConnections := "1.2.3.4:80,9.9.9.9:53"
 	metricListen := "192.168.1.36:8000,192.168.1.22:8000"
-	agentData := []byte(fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": 1603890543
-    }
-  ]
-}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName))
+
+	metric := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(1603890543, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline,
+			"host":         metricServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections,
+			"listen": metricListen,
+		},
+	}
+
+	agentData := []byte{}
+	agentData, err := metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
 
 	// WHEN
-	sendAgentData(t, p, agentData)
+	sendAgentData(t, p, agentData, http.StatusOK)
 
 	// THEN
 	// Check if Server node has been created correctly
@@ -212,26 +214,29 @@ func TestPresentServerCreateSoftwareToOthers(t *testing.T) {
 	metricSoftwareCmdline := "nc -kl 8000"
 	metricConnections := "1.2.3.4:80,9.9.9.9:53"
 	metricListen := "192.168.1.36:8000,192.168.1.22:8000"
-	agentData := []byte(fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": 1603890543
-    }
-  ]
-}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName))
+	metric := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(1603890543, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline,
+			"host":         metricServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections,
+			"listen": metricListen,
+		},
+	}
 
-	sendAgentData(t, p, agentData)
+	agentData := []byte{}
+	agentData, err = metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
+
+	sendAgentData(t, p, agentData, http.StatusOK)
 
 	// THEN
 	// Check if Software node 'others' exists and have the right name and connection info
@@ -308,26 +313,30 @@ func TestFillOthersSoftwareNode(t *testing.T) {
 	metricSoftwareCmdline := "nc -kl 8000"
 	metricConnections := "1.2.3.4:80,9.9.9.9:53"
 	metricListen := "192.168.1.36:8000,192.168.1.22:8000"
-	agentData := []byte(fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": 1603890543
-    }
-  ]
-}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName))
 
-	sendAgentData(t, p, agentData)
+	metric := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(1603890543, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline,
+			"host":         metricServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections,
+			"listen": metricListen,
+		},
+	}
+
+	agentData := []byte{}
+	agentData, err = metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
+
+	sendAgentData(t, p, agentData, http.StatusOK)
 
 	// THEN
 	// Check if Software node 'others' exists and have the right name and connection info
@@ -360,6 +369,41 @@ func TestFillOthersSoftwareNode(t *testing.T) {
 		t.Errorf("Not able to get TCP listen endpoints")
 	}
 	assert.ElementsMatch(t, softwareListenEndpoints, strings.Split(metricListen, ","))
+}
+
+// TestSendingInvalidFormatDataJSON sends a JSON body, instead of msgpack, to the server, it should
+// reject the the message
+func TestSendingInvalidFormatDataJSON(t *testing.T) {
+	// GIVEN
+	p := Probe{}
+
+	p.graph = newGraph(t)
+
+	// WHEN
+	agentData := []byte(`
+{
+  "metrics": [
+    {
+      "fields": {
+				"conn": "1.1.1.1:90",
+				"listen": "192.168.1.1:980"
+      },
+      "name": "procstat_test",
+      "tags": {
+        "cmdline": "nc -kl 980",
+        "host": "foobar",
+        "process_name": "nc"
+      },
+      "timestamp": 123456789
+    }
+  ]
+}`)
+
+	sendAgentData(t, p, agentData, http.StatusNotAcceptable)
+
+	// THEN
+	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
+	assert.Len(t, p.graph.GetNodes(softwareNodeFilter), 0)
 }
 
 // TestMetricDateIsUsed checks that CreatedAt and UpdatedAt fields are set to the metric timestamp for new metrics
@@ -400,26 +444,30 @@ func TestMetricDateIsUsed(t *testing.T) {
 	metricConnections := "1.2.3.4:80"
 	metricListen := "192.168.1.36:8000"
 	var metricTimestamp int64 = 1555555555
-	agentData := []byte(fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": %d
-    }
-  ]
-}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName, metricTimestamp))
 
-	sendAgentData(t, p, agentData)
+	metric := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(metricTimestamp, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline,
+			"host":         metricServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections,
+			"listen": metricListen,
+		},
+	}
+
+	agentData := []byte{}
+	agentData, err = metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
+
+	sendAgentData(t, p, agentData, http.StatusOK)
 
 	// THEN
 	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
@@ -489,56 +537,71 @@ func TestMultipleMetricsToOtherOnlyOneRevision(t *testing.T) {
 	metricListen3 := "192.168.1.36:9999"
 
 	var metricTimestamp int64 = 1555555555
-	agentData := fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": %d
-    },
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": %d
-    },
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": %d
-    }
-  ]
-}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName, metricTimestamp,
-		metricConnections2, metricListen2, metricSoftwareCmdline2, metricServerName, metricTimestamp,
-		metricConnections3, metricListen3, metricSoftwareCmdline3, metricServerName, metricTimestamp,
-	)
+
+	metric1 := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(metricTimestamp, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline,
+			"host":         metricServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections,
+			"listen": metricListen,
+		},
+	}
+
+	metric2 := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(metricTimestamp, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline2,
+			"host":         metricServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections2,
+			"listen": metricListen2,
+		},
+	}
+
+	metric3 := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(metricTimestamp, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline3,
+			"host":         metricServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections3,
+			"listen": metricListen3,
+		},
+	}
+
+	agentData := []byte{}
+	agentData, err = metric1.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
+	agentData, err = metric2.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
+	agentData, err = metric3.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
 
 	// First send
-	sendAgentData(t, p, []byte(agentData))
+	sendAgentData(t, p, agentData, http.StatusOK)
 
 	// THEN
 	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
@@ -576,42 +639,52 @@ func TestTwoMetricsTwoOthersNode(t *testing.T) {
 	metricListen2 := "192.168.1.36:8888"
 
 	var metricTimestamp int64 = 1555555555
-	agentData := fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": %d
-    },
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": %d
-    }
-  ]
-}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName, metricTimestamp,
-		metricConnections2, metricListen2, metricSoftwareCmdline2, metricServerName2, metricTimestamp,
-	)
+
+	metric1 := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(metricTimestamp, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline,
+			"host":         metricServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections,
+			"listen": metricListen,
+		},
+	}
+
+	metric2 := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(metricTimestamp, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline2,
+			"host":         metricServerName2,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections2,
+			"listen": metricListen2,
+		},
+	}
+
+	var err error
+	agentData := []byte{}
+	agentData, err = metric1.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
+	agentData, err = metric2.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
 
 	// WHEN
-	sendAgentData(t, p, []byte(agentData))
+	sendAgentData(t, p, []byte(agentData), http.StatusOK)
 
 	// THEN
 	serverNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeServer))
@@ -661,32 +734,42 @@ func TestMetricDateIsUsedWhenUpdating(t *testing.T) {
 	metricConnections := "1.2.3.4:80"
 	metricListen := "192.168.1.36:8000"
 	var metricTimestamp int64 = 1555555555
-	agentData := fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": %d
-    }
-  ]
-}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName, metricTimestamp)
+
+	metric := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(metricTimestamp, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline,
+			"host":         metricServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections,
+			"listen": metricListen,
+		},
+	}
+
+	agentData := []byte{}
+	agentData, err = metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
 
 	// First send
-	sendAgentData(t, p, []byte(agentData))
+	sendAgentData(t, p, agentData, http.StatusOK)
 
 	// Second send
 	var secondMetricTimestamp int64 = 1666666666
-	secondAgentData := strings.Replace(agentData, strconv.Itoa(int(metricTimestamp)), strconv.Itoa(int(secondMetricTimestamp)), 1)
-	sendAgentData(t, p, []byte(secondAgentData))
+	metric.Time = MessagePackTime{time: time.Unix(secondMetricTimestamp, 0)}
+	agentData = []byte{}
+	agentData, err = metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
+
+	sendAgentData(t, p, agentData, http.StatusOK)
 
 	// THEN
 	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
@@ -706,82 +789,6 @@ func TestMetricDateIsUsedWhenUpdating(t *testing.T) {
 
 	assert.Equal(t, connMetadata, expectedMetadata)
 	assert.Equal(t, listenMetadata, expectedMetadata)
-}
-
-// TestMetricInvalidTimestamp check that invalid timestamps lead to use time.Now() in the UpdatedAt/CreatedAt fields
-func TestMetricInvalidTimestamp(t *testing.T) {
-	// GIVEN
-	p := Probe{}
-
-	p.graph = newGraph(t)
-
-	givenServerName := "hostFoo"
-
-	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
-		MetadataNameKey: givenServerName,
-		MetadataTypeKey: MetadataTypeServer,
-	})
-	if err != nil {
-		t.Errorf("Unable to create server %s", givenServerName)
-	}
-
-	givenOtherNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
-		MetadataNameKey: OthersSoftwareNode,
-		MetadataTypeKey: MetadataTypeSoftware,
-	})
-	if err != nil {
-		t.Error("Unable to create software others")
-	}
-
-	_, err = p.graph.NewEdge("", givenNode, givenOtherNode, graph.Metadata{
-		MetadataRelationTypeKey: RelationTypeHasSoftware,
-	})
-	if err != nil {
-		t.Errorf("Unable to create edge between server %s and software others", givenServerName)
-	}
-
-	// WHEN
-	metricServerName := "hostFoo"
-	metricSoftwareCmdline := "nc -kl 8000"
-	metricConnections := "1.2.3.4:80"
-	metricListen := "192.168.1.36:8000"
-	var metricTimestamp int64 = 1e11
-	agentData := fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": %d
-    }
-  ]
-}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName, metricTimestamp)
-
-	// First send
-	sendAgentData(t, p, []byte(agentData))
-
-	// THEN
-	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
-	software := p.graph.GetNodes(softwareNodeFilter)[0]
-
-	metadataTCPConnRaw, _ := software.Metadata.GetField(MetadataTCPConnKey)
-	connMetadata := (*metadataTCPConnRaw.(*NetworkInfo))[metricConnections]
-
-	metadataListenEndpointsRaw, _ := software.Metadata.GetField(MetadataListenEndpointKey)
-	listenMetadata := (*metadataListenEndpointsRaw.(*NetworkInfo))[metricListen]
-
-	assert.NotEqual(t, connMetadata.CreatedAt, metricTimestamp*1000)
-	assert.NotEqual(t, connMetadata.UpdatedAt, metricTimestamp*1000)
-	assert.NotEqual(t, listenMetadata.CreatedAt, metricTimestamp*1000)
-	assert.NotEqual(t, listenMetadata.UpdatedAt, metricTimestamp*1000)
 }
 
 // TestFillOthersSoftwareNodeWithConnPrefix if the received metrics has the tag connPrefix, IPs stored in Skydive should prefix that value
@@ -822,27 +829,31 @@ func TestFillOthersSoftwareNodeWithConnPrefix(t *testing.T) {
 	metricConnections := "1.2.3.4:80,9.9.9.9:53"
 	metricListen := "192.168.1.36:8000,192.168.1.22:8000"
 	connPrefix := "foobar-"
-	agentData := []byte(fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc",
-				"conn_prefix": "%s"
-      },
-      "timestamp": 1603890543
-    }
-  ]
-}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName, connPrefix))
 
-	sendAgentData(t, p, agentData)
+	metric := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(1603890543, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline,
+			"host":         metricServerName,
+			"process_name": "nc",
+			"conn_prefix":  connPrefix,
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections,
+			"listen": metricListen,
+		},
+	}
+
+	agentData := []byte{}
+	agentData, err = metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
+
+	sendAgentData(t, p, agentData, http.StatusOK)
 
 	// THEN
 	// Check if Software node 'others' exists and have the right name and connection info
@@ -897,13 +908,13 @@ func TestNewMetricUpdateNetworkMetadata(t *testing.T) {
 	}
 
 	// This function handles its own lock
-	metric := Metric{
-		Fields: Fields{
-			Conn:   strings.Join(givenOthersSoftwareTCPConnections, ","),
-			Listen: strings.Join(givenOthersSoftwareListenEndpoints, ","),
+	m := Metric{
+		Fields: map[string]string{
+			MetricFieldConn:   strings.Join(givenOthersSoftwareTCPConnections, ","),
+			MetricFieldListen: strings.Join(givenOthersSoftwareListenEndpoints, ","),
 		},
 	}
-	err = p.addNetworkInfo(givenOtherNode, []Metric{metric})
+	err = p.addNetworkInfo(givenOtherNode, []Metric{m})
 	if err != nil {
 		t.Error("Adding network connections to others Software node")
 	}
@@ -914,27 +925,31 @@ func TestNewMetricUpdateNetworkMetadata(t *testing.T) {
 	assert.Equal(t, int64(2), givenOtherNode.Revision)
 
 	// WHEN
-	agentData := []byte(fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "nc -kl 8000",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": 1603890543
-    }
-  ]
-}`, strings.Join(givenOthersSoftwareTCPConnections, ","), strings.Join(givenOthersSoftwareListenEndpoints, ","), givenServerName))
+	metricSoftwareCmdline := "nc -kl 8000"
+	metric := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(1603890543, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline,
+			"host":         givenServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   strings.Join(givenOthersSoftwareTCPConnections, ","),
+			"listen": strings.Join(givenOthersSoftwareListenEndpoints, ","),
+		},
+	}
+
+	agentData := []byte{}
+	agentData, err = metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
 
 	time.Sleep(time.Millisecond) // To be able to see a difference between UpdatedAt and CreatedAt
-	sendAgentData(t, p, agentData)
+	sendAgentData(t, p, agentData, http.StatusOK)
 
 	// THEN
 	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
@@ -1022,40 +1037,45 @@ func TestAppendConnectionInfoToOthersSoftwareNode(t *testing.T) {
 	p.graph.Unlock()
 
 	// This function handles its own lock
-	metric := Metric{
-		Fields: Fields{
-			Conn:   strings.Join(givenOthersSoftwareTCPConnections, ","),
-			Listen: strings.Join(givenOthersSoftwareListenEndpoints, ","),
+	m := Metric{
+		Fields: map[string]string{
+			MetricFieldConn:   strings.Join(givenOthersSoftwareTCPConnections, ","),
+			MetricFieldListen: strings.Join(givenOthersSoftwareListenEndpoints, ","),
 		},
 	}
-	err = p.addNetworkInfo(givenOtherNode, []Metric{metric})
+	err = p.addNetworkInfo(givenOtherNode, []Metric{m})
 	if err != nil {
 		t.Error("Adding network connections to others Software node")
 	}
 
 	// WHEN
+	metricSoftwareCmdline := "nc -kl 8000"
 	metricConnections := []string{}
 	metricListen := []string{"192.168.1.36:8000", "192.168.1.22:8000", "10.0.1.1:22"}
-	agentData := []byte(fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "nc -kl 8000",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": 1603890543
-    }
-  ]
-}`, strings.Join(metricConnections, ","), strings.Join(metricListen, ","), givenServerName))
 
-	sendAgentData(t, p, agentData)
+	metric := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(1603890543, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline,
+			"host":         givenServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   strings.Join(metricConnections, ","),
+			"listen": strings.Join(metricListen, ","),
+		},
+	}
+
+	agentData := []byte{}
+	agentData, err = metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
+
+	sendAgentData(t, p, agentData, http.StatusOK)
 
 	// THEN
 	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
@@ -1120,13 +1140,13 @@ func TestFillKnownSoftwareNode(t *testing.T) {
 	p.graph.Unlock()
 
 	// This function handles its own lock
-	metric := Metric{
-		Fields: Fields{
-			Conn:   strings.Join(givenSoftwareTCPConnections, ","),
-			Listen: strings.Join(givenSoftwareListenEndpoints, ","),
+	m := Metric{
+		Fields: map[string]string{
+			MetricFieldConn:   strings.Join(givenSoftwareTCPConnections, ","),
+			MetricFieldListen: strings.Join(givenSoftwareListenEndpoints, ","),
 		},
 	}
-	err = p.addNetworkInfo(givenSWNode, []Metric{metric})
+	err = p.addNetworkInfo(givenSWNode, []Metric{m})
 	if err != nil {
 		t.Error("Adding network connections to others Software node")
 	}
@@ -1134,26 +1154,30 @@ func TestFillKnownSoftwareNode(t *testing.T) {
 	// WHEN
 	metricConnections := []string{}
 	metricListen := []string{"192.168.1.36:8000", "192.168.1.22:8000", "10.0.1.1:22"}
-	agentData := []byte(fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": 1603890543
-    }
-  ]
-}`, strings.Join(metricConnections, ","), strings.Join(metricListen, ","), cmdline, givenServerName))
 
-	sendAgentData(t, p, agentData)
+	metric := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(1603890543, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      cmdline,
+			"host":         givenServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   strings.Join(metricConnections, ","),
+			"listen": strings.Join(metricListen, ","),
+		},
+	}
+
+	agentData := []byte{}
+	agentData, err = metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
+
+	sendAgentData(t, p, agentData, http.StatusOK)
 
 	// THEN
 	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
@@ -1189,26 +1213,30 @@ func TestClearOldConnections(t *testing.T) {
 	metricSoftwareCmdline := "nc -kl 8000"
 	metricConnections := "1.2.3.4:80,9.9.9.9:53"
 	metricListen := "192.168.1.36:8000,192.168.1.22:8000"
-	agentData := []byte(fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": 1603890543
-    }
-  ]
-}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName))
+	metric := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(1603890543, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline,
+			"host":         metricServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections,
+			"listen": metricListen,
+		},
+	}
 
-	sendAgentData(t, p, agentData)
+	var err error
+	agentData := []byte{}
+	agentData, err = metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
+
+	sendAgentData(t, p, agentData, http.StatusOK)
 	swNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
 	software := p.graph.GetNodes(swNodeFilter)[0]
 
@@ -1287,6 +1315,46 @@ func TestClearOldConnectionsKeepNewerConnections(t *testing.T) {
 	assert.Len(t, softwareListenEndpoints, 1)
 }
 
+// TestCleanTCPListenIfTCPConnIsInvalid check that TCPListen metadata is cleaned even when TCPConn
+// has an invalid data type
+func TestCleanTCPListenIfTCPConnIsInvalid(t *testing.T) {
+	// GIVEN
+	p := Probe{}
+	p.graph = newGraph(t)
+
+	software, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey:    OthersSoftwareNode,
+		MetadataTypeKey:    MetadataTypeSoftware,
+		MetadataTCPConnKey: "",
+		MetadataListenEndpointKey: &NetworkInfo{
+			"1.1.1.1:80": {
+				CreatedAt: 0,
+				UpdatedAt: 0,
+				Revision:  1,
+			},
+			"1.2.3.4:80": {
+				CreatedAt: graph.TimeNow().UnixMilli(),
+				UpdatedAt: graph.TimeNow().UnixMilli(),
+				Revision:  1,
+			},
+		},
+	})
+	if err != nil {
+		t.Error("Unable to create software others")
+	}
+
+	// WHEN
+	// Should remove old connections but no the new ones
+	p.removeOldNetworkInformation(software, time.Now().Add(-time.Hour))
+
+	// THEN
+	softwareListenEndpoints, err := getListenEndpoints(software)
+	if err != nil {
+		t.Errorf("Not able to get TCP listen endpoints")
+	}
+	assert.Len(t, softwareListenEndpoints, 1)
+}
+
 // TestDoNotPanicIfInvalidTCPConnOrTCPListenDataType checks that parsing invalid data do not panic
 func TestDoNotPanicIfInvalidTCPConnOrTCPListenDataType(t *testing.T) {
 	// GIVEN
@@ -1318,29 +1386,39 @@ func TestClearSoftwareNodes(t *testing.T) {
 	metricSoftwareCmdline := "nc -kl 8000"
 	metricConnections := "1.2.3.4:80,9.9.9.9:53"
 	metricListen := "192.168.1.36:8000,192.168.1.22:8000"
-	agentData := fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": 1603890543
-    }
-  ]
-}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName)
+	metric := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(1603890543, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline,
+			"host":         metricServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections,
+			"listen": metricListen,
+		},
+	}
+
+	var err error
+	agentData := []byte{}
+	agentData, err = metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
 
 	// hostFoo server
-	sendAgentData(t, p, []byte(agentData))
+	sendAgentData(t, p, agentData, http.StatusOK)
 	// hostBar server
-	sendAgentData(t, p, []byte(strings.Replace(agentData, metricServerName, "hostBar", 1)))
+	metric.Tags["host"] = "hostBar"
+	agentData = []byte{}
+	agentData, err = metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
+	sendAgentData(t, p, agentData, http.StatusOK)
 
 	// WHEN
 	// This should delete all connections in all nodes, as the threshold time is in the future
@@ -1375,27 +1453,31 @@ func TestMigrateConnInfoFromOthersToKnownSoftwareNode(t *testing.T) {
 	metricSoftwareCmdline := "nc -kl 8000"
 	metricConnections := "1.2.3.4:80,9.9.9.9:53"
 	metricListen := "192.168.1.36:8000,192.168.1.22:8000"
-	agentData := fmt.Sprintf(`
-{
-  "metrics": [
-    {
-      "fields": {
-        "conn": "%s",
-        "listen": "%s"
-      },
-      "name": "procstat_test",
-      "tags": {
-        "cmdline": "%s",
-        "host": "%s",
-        "process_name": "nc"
-      },
-      "timestamp": 1603890543
-    }
-  ]
-}`, metricConnections, metricListen, metricSoftwareCmdline, metricServerName)
+	metric := Metric{
+		Name: "procstat_test",
+		Time: MessagePackTime{
+			time: time.Unix(1603890543, 0),
+		},
+		Tags: map[string]string{
+			"cmdline":      metricSoftwareCmdline,
+			"host":         metricServerName,
+			"process_name": "nc",
+		},
+		Fields: map[string]string{
+			"conn":   metricConnections,
+			"listen": metricListen,
+		},
+	}
+
+	var err error
+	agentData := []byte{}
+	agentData, err = metric.MarshalMsg(agentData)
+	if err != nil {
+		panic(err)
+	}
 
 	// This should create server "hostFoo" and software "others"
-	sendAgentData(t, p, []byte(agentData))
+	sendAgentData(t, p, agentData, http.StatusOK)
 
 	// WHEN
 	// Create a software node for netcat linked to "hostFoo" server
@@ -1419,7 +1501,7 @@ func TestMigrateConnInfoFromOthersToKnownSoftwareNode(t *testing.T) {
 	}
 
 	// Send again the process metrics
-	sendAgentData(t, p, []byte(agentData))
+	sendAgentData(t, p, []byte(agentData), http.StatusOK)
 
 	// THEN
 	// others software should have not connections, neither listeners

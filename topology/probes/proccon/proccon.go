@@ -79,8 +79,8 @@
 package proccon
 
 import (
-	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -90,6 +90,7 @@ import (
 	"github.com/skydive-project/skydive/graffiti/filters"
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/logging"
+	"github.com/tinylib/msgp/msgp"
 )
 
 const (
@@ -115,6 +116,13 @@ const (
 	MetadataTypeSoftware = "Software"
 	// MetadataCmdlineKey key name to store the cmdline of known Software in nodes of type software
 	MetadataCmdlineKey = "Cmdline"
+	// MetricFieldConn is the field key where connection info is received
+	MetricFieldConn = "conn"
+	// MetricFieldListen the field key where listen info is received
+	MetricFieldListen = "listen"
+	// MetricTagConnPrefix is an optional tag value to prefix network information with, to be able to
+	// distinguish between same private IPs in different network partitions
+	MetricTagConnPrefix = "conn_prefix"
 )
 
 // Probe describes this probe
@@ -128,77 +136,71 @@ type Probe struct {
 	nodeRevisionForceFlush int64
 }
 
-// Fields is schema of the data with the connection info (inbound and outbound) of the process being added
-type Fields struct {
-	Conn   string `json:"conn"`
-	Listen string `json:"listen"`
-}
-
-// Tags is schema of the data when the external agents define the process being added
-type Tags struct {
-	Cmdline     string `json:"cmdline"`
-	Host        string `json:"host"`
-	ProcessName string `json:"process_name"`
-	// ConnPrefix optional tag to indicate skydive that should index IPs with this prefix
-	// This could be used to differenciate private IPs in different network partitions
-	ConnPrefix string `json:"conn_prefix"`
-}
-
-// Metric represents each of the processes found by the external agent
-type Metric struct {
-	Fields    Fields `json:"fields"`
-	Name      string `json:"name"`
-	Timestamp int    `json:"timestamp"`
-	Tags      Tags   `json:"tags"`
-}
-
-// TelegrafPacket is schema of the data POSTed to this probe by external agents. Following the JSON format of Telegraf output plugin for the addapted procs plugins
-type TelegrafPacket struct {
-	Metrics []Metric `json:"metrics"`
-}
-
 // SerServeHTTP receive HTTP POST requests from Telegraf nodes with processes data
 func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var res TelegrafPacket
+	var metrics []Metric
+
+	defer r.Body.Close()
 
 	// Decode the Telegraf JSON packet into the TelegrafPacket struct
-	err := json.NewDecoder(r.Body).Decode(&res)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotAcceptable)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Get X-Real-IP or client IP for error logging purposes
+	source := r.Header.Get("X-Real-IP")
+	if source == "" {
+		source = strings.Split(r.RemoteAddr, ":")[0]
+	}
+
+	for {
+		var metric Metric
+		leftovervalues, err := metric.UnmarshalMsg(body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotAcceptable)
+			logging.GetLogger().Warningf("invalid metric: %v (client: %+v)", err, source)
+			return
+		}
+		metrics = append(metrics, metric)
+		body = leftovervalues
+		if len(body) == 0 {
+			break
+		}
 	}
 
 	// Accumulate "others" connections to generate only one modification in the node
 	others := map[*graph.Node][]Metric{}
 
 	// For each metric, found the matching node in the graph, or, if it does not exists, create one
-	for _, metric := range res.Metrics {
+	for _, metric := range metrics {
 		// Get lock between querying if the node exists and creating it
 		p.graph.Lock()
 
 		// Find server-type nodes with mathing name
 		nodes := p.graph.GetNodes(graph.Metadata{
 			MetadataTypeKey: MetadataTypeServer,
-			MetadataNameKey: metric.Tags.Host,
+			MetadataNameKey: metric.Tags["host"],
 		})
 
 		var hostNode *graph.Node
 		var err error
 
 		if len(nodes) == 0 {
-			logging.GetLogger().Debugf("Node not found with Metadata.Name '%s', creating it", metric.Tags.Host)
+			logging.GetLogger().Debugf("Node not found with Metadata.Name '%s', creating it", metric.Tags["host"])
 
-			logging.GetLogger().Debugf("newNode(Server, %v)", metric.Tags.Host)
-			hostNode, err = p.newNode(metric.Tags.Host, graph.Metadata{
-				MetadataNameKey: metric.Tags.Host,
+			logging.GetLogger().Debugf("newNode(Server, %v)", metric.Tags["host"])
+			hostNode, err = p.newNode(metric.Tags["host"], graph.Metadata{
+				MetadataNameKey: metric.Tags["host"],
 				MetadataTypeKey: MetadataTypeServer,
 			})
 			if err != nil {
-				logging.GetLogger().Errorf("Creating %s server node: %v.", metric.Tags.Host, err)
+				logging.GetLogger().Errorf("Creating %s server node: %v.", metric.Tags["host"], err)
 				continue
 			}
 		} else if len(nodes) > 1 {
-			logging.GetLogger().Errorf("Found more than one node with Metadata.Name '%s'. This sould not happen. Ignoring", metric.Tags.Host)
+			logging.GetLogger().Errorf("Found more than one node with Metadata.Name '%s'. This sould not happen. Ignoring", metric.Tags["host"])
 			continue
 		} else {
 			hostNode = nodes[0]
@@ -211,20 +213,21 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Get child Software nodes with matching cmdline
 		childNodes := p.graph.LookupChildren(
 			hostNode,
-			graph.Metadata{MetadataTypeKey: MetadataTypeSoftware, MetadataCmdlineKey: metric.Tags.Cmdline},
+			graph.Metadata{MetadataTypeKey: MetadataTypeSoftware, MetadataCmdlineKey: metric.Tags["cmdline"]},
 			graph.Metadata{MetadataRelationTypeKey: RelationTypeHasSoftware},
 		)
 		// appendToOthers have its own lock handler
+		// TODO: quitar el unlock? O bajar al final de la función?
 		p.graph.Unlock()
 
 		if len(childNodes) == 0 {
-			logging.GetLogger().Debugf("Software node not found for Server node '%v' and cmdline '%s', storing in others", nodeName(hostNode), metric.Tags.Cmdline)
+			logging.GetLogger().Debugf("Software node not found for Server node '%v' and cmdline '%s', storing in others", nodeName(hostNode), metric.Tags["cmdline"])
 			// Accumulate changes to "others" to make only one change to the node
 			others[hostNode] = append(others[hostNode], metric)
 			continue
 		} else if len(childNodes) > 1 {
 			// This should not happen
-			logging.GetLogger().Errorf("Found more than one Software node for Server node '%v' and cmdline '%s': %+v. Ignoring", nodeName(hostNode), metric.Tags.Cmdline, childNodes)
+			logging.GetLogger().Errorf("Found more than one Software node for Server node '%v' and cmdline '%s': %+v. Ignoring", nodeName(hostNode), metric.Tags["cmdline"], childNodes)
 			continue
 		}
 
@@ -249,16 +252,8 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Handle accumulated "others" software connections
 	p.generateOthers(others)
-}
 
-// metricTimestampMs convert a timestamp to ms with format int64.
-// If it is an unexpected value, returns time.Now() and not ok
-func metricTimestampMs(timestamp int) (int64, bool) {
-	if timestamp > int(1e10) {
-		return graph.TimeNow().UnixMilli(), false
-	}
-
-	return int64(timestamp) * 1000, true
+	w.Write([]byte("OK"))
 }
 
 // generateOthers get the accumulated values of metrics that should be written to the "others" node.
@@ -355,7 +350,7 @@ func (p *Probe) removeFromOthers(hostNode *graph.Node, metric Metric) error {
 	}
 
 	removeTCPConn := func(field interface{}) (ret bool) {
-		metricsTCPConn := strings.Split(metric.Fields.Conn, ",")
+		metricsTCPConn := strings.Split(metric.Fields[MetricFieldConn], ",")
 		return removeKeysFromList(field, metricsTCPConn)
 	}
 
@@ -365,7 +360,7 @@ func (p *Probe) removeFromOthers(hostNode *graph.Node, metric Metric) error {
 	}
 
 	removeListenEndpoints := func(field interface{}) (ret bool) {
-		metricsListenersEndpoints := strings.Split(metric.Fields.Listen, ",")
+		metricsListenersEndpoints := strings.Split(metric.Fields[MetricFieldListen], ",")
 		return removeKeysFromList(field, metricsListenersEndpoints)
 	}
 
@@ -425,37 +420,34 @@ func (p *Probe) addNetworkInfo(node *graph.Node, metrics []Metric) error {
 		// Generate an slice from the comma separated list in the metric received
 		// Avoid having an array with an empty element if the string received is the empty string
 		tcpConn := []string{}
-		if metric.Fields.Conn != "" {
-			tcpConn = strings.Split(metric.Fields.Conn, ",")
+		if metric.Fields[MetricFieldConn] != "" {
+			tcpConn = strings.Split(metric.Fields[MetricFieldConn], ",")
 			// Add ConnPrefix if defined
-			if metric.Tags.ConnPrefix != "" {
+			if metric.Tags[MetricTagConnPrefix] != "" {
 				for i := 0; i < len(tcpConn); i++ {
-					tcpConn[i] = metric.Tags.ConnPrefix + tcpConn[i]
+					tcpConn[i] = metric.Tags[MetricTagConnPrefix] + tcpConn[i]
 				}
 			}
 		}
 
 		// Same for the listen endpoints
 		listenEndpoints := []string{}
-		if metric.Fields.Listen != "" {
-			listenEndpoints = strings.Split(metric.Fields.Listen, ",")
+		if metric.Fields[MetricFieldListen] != "" {
+			listenEndpoints = strings.Split(metric.Fields[MetricFieldListen], ",")
 			// Add ConnPrefix if defined
-			if metric.Tags.ConnPrefix != "" {
+			if metric.Tags[MetricTagConnPrefix] != "" {
 				for i := 0; i < len(listenEndpoints); i++ {
-					listenEndpoints[i] = metric.Tags.ConnPrefix + listenEndpoints[i]
+					listenEndpoints[i] = metric.Tags[MetricTagConnPrefix] + listenEndpoints[i]
 				}
 			}
 		}
 
-		// Convert metric timestamp ms in int64
-		timestamp, ok := metricTimestampMs(metric.Timestamp)
-		if !ok {
-			logging.GetLogger().Warningf("Invalid timestamp value, using time.Now(). Timestamp=%v", metric.Timestamp)
-		}
+		// Convert metric timestamp into ms in int64
+		timestampMs := metric.Time.time.UnixNano() / int64(time.Millisecond)
 
 		// Network info converted to the data structure stored in the node metadata
-		appendProcInfoData(tcpConn, timestamp, tcpConnStruct)
-		appendProcInfoData(listenEndpoints, timestamp, listenEndpointsStruct)
+		appendProcInfoData(tcpConn, timestampMs, tcpConnStruct)
+		appendProcInfoData(listenEndpoints, timestampMs, listenEndpointsStruct)
 	}
 
 	p.graph.Lock()
@@ -598,6 +590,9 @@ func (p *Probe) newNode(host string, m graph.Metadata) (*graph.Node, error) {
 
 // Start initilizates the proccon probe, starting a web server to receive data and the garbage collector to delete old info
 func (p *Probe) Start() error {
+	// Register msgp MessagePackTime extension
+	msgp.RegisterExtension(-1, func() msgp.Extension { return new(MessagePackTime) })
+
 	listenEndpoint := config.GetString("analyzer.topology.proccon.listen")
 	go http.ListenAndServe(listenEndpoint, p)
 	logging.GetLogger().Infof("Listening for new network metrics on %v", listenEndpoint)
