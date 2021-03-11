@@ -497,10 +497,15 @@ func (p *Probe) removeOldNetworkInformation(node *graph.Node, thresholdTime time
 	tt := graph.Time(thresholdTime)
 
 	removeOld := func(field interface{}) (ret bool) {
-		info := *field.(*NetworkInfo)
-		for k, v := range info {
+		info, ok := field.(*NetworkInfo)
+		if !ok {
+			logging.GetLogger().Warningf("Unable to convert %v (%T) to *NetworkInfo", field, field)
+			return false
+
+		}
+		for k, v := range *info {
 			if v.UpdatedAt < tt.UnixMilli() {
-				delete(info, k)
+				delete(*info, k)
 				ret = true
 			}
 		}
