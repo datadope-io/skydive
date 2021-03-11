@@ -1287,6 +1287,27 @@ func TestClearOldConnectionsKeepNewerConnections(t *testing.T) {
 	assert.Len(t, softwareListenEndpoints, 1)
 }
 
+// TestDoNotPanicIfInvalidTCPConnOrTCPListenDataType checks that parsing invalid data do not panic
+func TestDoNotPanicIfInvalidTCPConnOrTCPListenDataType(t *testing.T) {
+	// GIVEN
+	p := Probe{}
+	p.graph = newGraph(t)
+
+	software, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey:           OthersSoftwareNode,
+		MetadataTypeKey:           MetadataTypeSoftware,
+		MetadataTCPConnKey:        "",
+		MetadataListenEndpointKey: "",
+	})
+	if err != nil {
+		t.Error("Unable to create software others")
+	}
+
+	// WHEN
+	// Should remove old connections but no the new ones
+	p.removeOldNetworkInformation(software, time.Now().Add(-time.Hour))
+}
+
 // TestCleanSoftwareNodes check if garbage collector function delete correctly old connections in all software nodes
 func TestClearSoftwareNodes(t *testing.T) {
 	// GIVEN
