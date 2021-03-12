@@ -106,7 +106,7 @@ func (l *simpleLinker) GetABLinks(nodeConnection *graph.Node) (edges []*graph.Ed
 		return []*graph.Edge{}
 	}
 
-	tcpConn := *tcpConnPtr
+	tcpConn := *tcpConnPtr // TODO quitar esto y poner en el for *tcpConnPtr
 
 	// Iterate over node connections and try to find a listener match
 	for outgoingConn := range tcpConn { // cambiado de string a interface
@@ -156,16 +156,16 @@ func connectionsEndpointHasher(n *graph.Node) map[string]interface{} {
 	if err != nil {
 		return nil
 	}
-	tcpConnPtr, ok := tcpConnIface.(*proccon.NetworkInfo)
+	tcpConn, ok := tcpConnIface.(*proccon.NetworkInfo)
 	if !ok {
+		// Ignore invalid values for TCPConn metadata
 		return map[string]interface{}{}
 	}
 
-	tcpConn := *tcpConnPtr
-
-	kv := make(map[string]interface{}, len(tcpConn))
-	for k := range tcpConn {
+	kv := make(map[string]interface{}, len(*tcpConn))
+	for k := range *tcpConn {
 		// Only create the hash with ip and port, ignore process as it will be different in the other side of the connection
+		// We need to hash the value to be able to query this indexer later (Get func)
 		kv[graph.Hash(k)] = k
 	}
 
@@ -180,11 +180,17 @@ func listenEndpointHasher(n *graph.Node) map[string]interface{} {
 	if err != nil {
 		return nil
 	}
-	tcpListen := *tcpListenIface.(*proccon.NetworkInfo)
 
-	kv := make(map[string]interface{}, len(tcpListen))
-	for k := range tcpListen {
+	tcpListen, ok := tcpListenIface.(*proccon.NetworkInfo)
+	if !ok {
+		// Ignore invalid values for TCPListen metadata
+		return map[string]interface{}{}
+	}
+
+	kv := make(map[string]interface{}, len(*tcpListen))
+	for k := range *tcpListen {
 		// Only create the hash with ip and port, ignore process as it will be different in the other side of the connection
+		// We need to hash the value to be able to query this indexer later (Get func)
 		kv[graph.Hash(k)] = nil
 	}
 
