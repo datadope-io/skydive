@@ -77,6 +77,7 @@
 package proccon
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -86,6 +87,7 @@ import (
 	uuid "github.com/nu7hatch/gouuid"
 	"github.com/skydive-project/skydive/config"
 	"github.com/skydive-project/skydive/graffiti/filters"
+	"github.com/skydive-project/skydive/graffiti/getter"
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/logging"
 	"github.com/tinylib/msgp/msgp"
@@ -504,10 +506,18 @@ func (p *Probe) removeOldNetworkInformation(node *graph.Node, thresholdTime time
 
 	err := p.graph.UpdateMetadata(node, MetadataTCPConnKey, removeOld)
 	if err != nil {
+		if errors.Is(err, getter.ErrFieldNotFound) {
+			logging.GetLogger().Debugf("Unable to delete old network info because Metadata.%v does not exists", MetadataTCPConnKey)
+			return nil
+		}
 		return fmt.Errorf("unable to delete old TCP connections: %v", err)
 	}
 	err = p.graph.UpdateMetadata(node, MetadataListenEndpointKey, removeOld)
 	if err != nil {
+		if errors.Is(err, getter.ErrFieldNotFound) {
+			logging.GetLogger().Debugf("Unable to delete old network info because Metadata.%v does not exists", MetadataListenEndpointKey)
+			return nil
+		}
 		return fmt.Errorf("unable to delete old listen endpoints: %v", err)
 	}
 	return nil
