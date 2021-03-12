@@ -1376,6 +1376,37 @@ func TestDoNotPanicIfInvalidTCPConnOrTCPListenDataType(t *testing.T) {
 	p.removeOldNetworkInformation(software, time.Now().Add(-time.Hour))
 }
 
+// TestDoNotReturnErrorIfTCPConnOrTCPListenKeysDoesNotExists missing keys in Software node does not
+// should return an error, only a debug log trace
+func TestDoNotReturnErrorIfTCPConnOrTCPListenKeysDoesNotExists(t *testing.T) {
+	// GIVEN
+	p := Probe{}
+	p.graph = newGraph(t)
+
+	softwareNoTCPConn, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey:           OthersSoftwareNode,
+		MetadataTypeKey:           MetadataTypeSoftware,
+		MetadataListenEndpointKey: "",
+	})
+	if err != nil {
+		t.Error("Unable to create software others")
+	}
+
+	softwareNoTCPListen, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+		MetadataNameKey:    OthersSoftwareNode,
+		MetadataTypeKey:    MetadataTypeSoftware,
+		MetadataTCPConnKey: "",
+	})
+	if err != nil {
+		t.Error("Unable to create software others")
+	}
+
+	// WHEN
+	// Should remove old connections but no the new ones
+	assert.NoError(t, p.removeOldNetworkInformation(softwareNoTCPConn, time.Now().Add(-time.Hour)))
+	assert.NoError(t, p.removeOldNetworkInformation(softwareNoTCPListen, time.Now().Add(-time.Hour)))
+}
+
 // TestCleanSoftwareNodes check if garbage collector function delete correctly old connections in all software nodes
 func TestClearSoftwareNodes(t *testing.T) {
 	// GIVEN
