@@ -131,6 +131,7 @@ type PersistentBackend interface {
 
 	AddListener(listener PersistentBackendListener)
 	FlushElements(m ElementMatcher) error
+	Sync(*Graph, *ElementFilter) error
 
 	Start() error
 	Stop()
@@ -378,6 +379,22 @@ func (e *graphElement) GetField(name string) (interface{}, error) {
 	}
 
 	return e.Metadata.GetField(name)
+}
+
+func (e *graphElement) GetFields(names []string) (interface{}, error) {
+	values := make(map[string]interface{})
+
+	for _, name := range names {
+		if v, err := e.GetField(name); err == nil {
+			values[name] = v
+		}
+	}
+
+	if len(values) == 0 {
+		return nil, getter.ErrFieldNotFound
+	}
+
+	return values, nil
 }
 
 var graphElementKeys = map[string]bool{"ID": false, "Host": false, "Origin": false, "CreatedAt": false, "UpdatedAt": false, "DeletedAt": false, "Revision": false}
