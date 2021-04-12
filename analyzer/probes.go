@@ -43,6 +43,7 @@ import (
 	"github.com/skydive-project/skydive/topology/probes/peering"
 	"github.com/skydive-project/skydive/topology/probes/proccon"
 	"github.com/skydive-project/skydive/topology/probes/procpeering"
+	"github.com/skydive-project/skydive/topology/probes/snmplldp"
 )
 
 func registerStaticProbes() {
@@ -128,6 +129,8 @@ func NewTopologyProbeBundleFromConfig(g *graph.Graph) (*probe.Bundle, error) {
 			handler, err = proccon.NewProbe(g)
 		case "procpeering":
 			handler, err = procpeering.NewProbe(g)
+		case "snmplldp":
+			handler, err = snmplldp.NewProbe(g)
 		default:
 			logging.GetLogger().Errorf("unknown probe type: %s", t)
 			continue

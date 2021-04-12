@@ -34,6 +34,7 @@ require (
 	github.com/gophercloud/gophercloud v0.13.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
+	github.com/gosnmp/gosnmp v1.31.0 // indirect
 	github.com/gosuri/uitable v0.0.0-20160404203958-36ee7e946282 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.11.3 // indirect
 	github.com/hashicorp/golang-lru v0.5.3
