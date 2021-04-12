@@ -149,9 +149,11 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get X-Real-IP or client IP for error logging purposes
-	source := r.Header.Get("X-Real-IP")
-	if source == "" {
+	// Get original client from X-Forwarded-For for error logging purposes
+	source := ""
+	if h := r.Header.Get("X-Forwarded-For"); h != "" {
+		source = strings.Split(h, ",")[0]
+	} else {
 		source = strings.Split(r.RemoteAddr, ":")[0]
 	}
 
