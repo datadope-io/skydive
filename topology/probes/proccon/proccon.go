@@ -339,7 +339,13 @@ func (p *Probe) removeFromOthers(hostNode *graph.Node, metric Metric) error {
 
 	// Remove from connections/listeners lists in otherNode the values found in "metric"
 	removeKeysFromList := func(field interface{}, metrics []string) (ret bool) {
-		info := *field.(*NetworkInfo)
+		infoPtr, ok := field.(*NetworkInfo)
+		if !ok {
+			logging.GetLogger().Warningf("Unable to convert %v (%T) to *NetworkInfo", field, field)
+			return false
+		}
+		info := *infoPtr
+
 		for _, v := range metrics {
 			if _, ok := info[v]; ok {
 				delete(info, v)
@@ -390,7 +396,13 @@ func appendProcInfoData(conn []string, metricTimestamp int64, netInfo NetworkInf
 // Modifying UpdatedAt and Revision fields are not considered modifications (save flushes to the backed)
 // To don't leave the backend too behind, each N node Revisions consider it a modification.
 func (p *Probe) updateNetworkMetadata(field interface{}, newData NetworkInfo, nodeRevision int64) (ret bool) {
-	currentData := *field.(*NetworkInfo)
+	currentDataPtr, ok := field.(*NetworkInfo)
+	if !ok {
+		logging.GetLogger().Warningf("Unable to convert %v (%T) to *NetworkInfo", field, field)
+		return false
+	}
+	currentData := *currentDataPtr
+
 	for k, v := range newData {
 		netData, ok := currentData[k]
 		if ok {
@@ -493,8 +505,8 @@ func (p *Probe) removeOldNetworkInformation(node *graph.Node, thresholdTime time
 		if !ok {
 			logging.GetLogger().Warningf("Unable to convert %v (%T) to *NetworkInfo", field, field)
 			return false
-
 		}
+
 		for k, v := range *info {
 			if v.UpdatedAt < tt.UnixMilli() {
 				delete(*info, k)
