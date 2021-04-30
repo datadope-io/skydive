@@ -32,6 +32,8 @@ const (
 	remoteChassisID
 )
 
+const noObjMsg = "A required object (or instance) doesn't exist."
+
 func getLLDPInfo(host string, port uint16, community string) (*lldpInfo, error) {
 	snmpClient := &snmp.GoSNMP{
 		Version: snmp.Version2c,
@@ -64,13 +66,19 @@ func getLLDPInfo(host string, port uint16, community string) (*lldpInfo, error) 
 			return info, err
 		}
 
+		e := result.Variables[0]
+		if e.Type == snmp.NoSuchObject || e.Type == snmp.NoSuchInstance {
+			err = fmt.Errorf("%v OID: %v", noObjMsg, oid)
+			return info, err
+		}
+
 		switch object {
 		case localName:
-			info.name = string(result.Variables[0].Value.([]byte))
+			info.name = string(e.Value.([]byte))
 		case localDesc:
-			info.desc = string(result.Variables[0].Value.([]byte))
+			info.desc = string(e.Value.([]byte))
 		case localChassisID:
-			hexrep := fmt.Sprintf("% x", result.Variables[0].Value)
+			hexrep := fmt.Sprintf("% x", e.Value)
 			info.chassisID = strings.ReplaceAll(hexrep, " ", ":")
 		}
 
@@ -100,6 +108,11 @@ func getRemoteTable(client *snmp.GoSNMP) (map[string]*lldpRemote, error) {
 
 		// Retrieve the rows (instances) of the column (object)
 		for _, e := range results {
+			if e.Type == snmp.NoSuchObject || e.Type == snmp.NoSuchInstance {
+				err = fmt.Errorf("%v OID: %v", noObjMsg, oid)
+				return table, err
+			}
+
 			row := strings.ReplaceAll(e.Name, oid, "")
 			if table[row] == nil {
 				table[row] = &lldpRemote{}

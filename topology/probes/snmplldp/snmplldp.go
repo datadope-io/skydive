@@ -28,7 +28,7 @@ func (p *Probe) buildGraph() {
 	for _, dev := range p.devices {
 		lldp, err := getLLDPInfo(dev.host, dev.port, dev.community)
 		if err != nil {
-			p.log.Errorf("Obtaining LLDP info: %v", err)
+			p.log.Errorf("Obtaining LLDP info from %+v: %v", dev, err)
 			continue
 		}
 
