@@ -1,0 +1,120 @@
+"""
+Values to create a new Switch.
+"""
+input SwitchInput {
+  """
+  Switch name. Used as the primary key.
+  """
+  Name: String!
+  """
+  MAC address of the device.
+  Allowed formats https://pkg.go.dev/net#ParseMAC
+  """
+  MAC: String!
+  """
+  Vendor of the switch, eg.: Cisco, Juniper
+  """
+  Vendor: String
+  """
+  Switch model, eg.: CBS250-8P-E-2G
+  """
+  Model: String
+  """
+  Interfaces/ports of the switch
+  Undeclared intefaces already present are not deleted.
+  Interfaces already present are updated.
+  """
+  Interfaces: [InterfaceInput]
+}
+
+"""
+Network interface.
+Could represent a port in a switch, a router or Server.
+"""
+input InterfaceInput {
+  """
+  Name of the interface, eg.: ge/0/1
+  This parameter, with the link to some network element, is the primary key.
+  """
+  Name: String!
+  """
+  Set true for virtual interfaces aggregatting other physical interfaces (LACP)
+  """
+  Aggregation: Boolean
+  """
+  VLAN configuration for this interface
+  """
+  VLAN: InterfaceVLANInput
+  """
+  IP configuration
+  TODO: pueden tener varias IPs?
+  """
+  IP: InterfaceIPInput
+}
+
+"""
+VLAN configuration for an interface
+"""
+input InterfaceVLANInput {
+  Mode: VLAN_MODE!,
+  """
+  For ACCESS mode, define one element with the.
+  For TRUNK mode, define all possible VIDs allowed.
+  """
+  VID: [Int!]!
+  """
+  Set the native VLAN for this interface
+  """
+  NativeVID: Int
+}
+
+"""
+VLAN modes
+"""
+enum VLAN_MODE {
+  ACCESS
+  TRUNK
+}
+
+"""
+Return value when creating a new Switch.
+"""
+type AddSwitchPayload {
+  """
+  Internal ID for the node in Skydive
+  """
+  ID: String!
+  """
+  Return true if a switch with this name already exists
+  and metadata values have been updated.
+  """
+  Updated: Boolean!
+  """
+  Return true if some interface of the switch has been updated
+  """
+  InterfaceUpdated: Boolean!
+}
+
+"""
+Values to create a new VLAN.
+"""
+input VLANInput {
+  """
+  VLAN ID. Used as the primary key.
+  """
+  VID: Int!
+  """
+  Optional VLAN name
+  """
+  Name: String
+}
+
+"""
+Return value when creating a new VLAN.
+"""
+type AddVLANPayload {
+  """
+  Internal ID for the node in Skydive
+  """
+  ID: String!
+}

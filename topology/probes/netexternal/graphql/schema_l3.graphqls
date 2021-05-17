@@ -1,0 +1,55 @@
+"""
+Values to create a new Router
+"""
+input RouterInput {
+  """
+  Router name. Used as the primary key.
+  """
+  Name: String!
+  """
+  Vendor of the switch, eg.: Cisco, Juniper
+  """
+  Vendor: String
+  """
+  Switch model, eg.: CBS250-8P-E-2G
+  """
+  Model: String
+  """
+  Interfaces/ports of the router
+  Undeclared intefaces already present are not deleted.
+  Interfaces already present are updated.
+  """
+  Interfaces: [InterfaceInput]
+}
+
+"""
+Level 3 (IP) configuration for interfaces
+TODO: not tested with IPv4
+"""
+input InterfaceIPInput {
+  IP: String!
+  """
+  IP mask, format: 255.255.255.0
+  """
+  Mask: String!
+}
+
+
+"""
+Return value when creating a new Router.
+"""
+type AddRouterPayload {
+  """
+  Internal ID for the node in Skydive
+  """
+  ID: String!
+  """
+  Return true if a router with this name already exists
+  and metadata values have been updated.
+  """
+  Updated: Boolean!
+  """
+  Return true if some interface of the router has been updated
+  """
+  InterfaceUpdated: Boolean!
+}
