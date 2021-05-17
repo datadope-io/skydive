@@ -1,0 +1,23 @@
+type Mutation {
+  """
+  Create a new VLAN. Does nothing if already exists.
+  Return the skydive ID.
+  """
+  addVLAN(input: VLANInput!): AddVLANPayload!
+  """
+  Create a new Switch. Does nothing if already exists.
+  Also create nodes for interfaces, VLANs, IPs, networks and link them.
+  VLANs and networks will be created if they doesn't already exists.
+  """
+  addSwitch(input: SwitchInput!): AddSwitchPayload!
+  """
+  Create a new Router. Does nothing if already exists.
+  Also create nodes for interfaces, VLANs, IPs, networks and link them.
+  VLANs and networks will be created if they doesn't already exists.
+  """
+  addRouter(input: RouterInput!): AddRouterPayload!
+}
+
+type Query {
+  version: String!
+}

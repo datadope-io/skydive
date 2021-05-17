@@ -119,6 +119,7 @@ analyzer:
       # - ovn
       # - procpeering
       # - proccon
+      # - netexternal
 
     k8s:
       # kubeconfig resolution order:
@@ -203,6 +204,11 @@ analyzer:
         # Network info older than this value will be deleted.
         # Same format as "interval"
         delete_duration: 3h
+
+    # Probe to listen for external calls to create network elements
+    netexternal:
+      # Where does this probe listen for new data
+      listen: 0.0.0.0:4001
 
   replication:
     # debug: false
