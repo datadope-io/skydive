@@ -24,7 +24,7 @@ input RouterInput {
 
 """
 Level 3 (IP) configuration for interfaces
-TODO: not tested with IPv4
+TODO: not tested with IPv6
 """
 input InterfaceIPInput {
   IP: String!
@@ -32,6 +32,11 @@ input InterfaceIPInput {
   IP mask, format: 255.255.255.0
   """
   Mask: String!
+  """
+  This L3 interface belongs to this VRF.
+  If not defined, it will be defaulted to "default"
+  """
+  VRF: String
 }
 
 

@@ -429,6 +429,11 @@ input InterfaceIPInput {
   IP mask, format: 255.255.255.0
   """
   Mask: String!
+  """
+  This L3 interface belongs to this VRF.
+  If not defined, it will be defaulted to "default"
+  """
+  VRF: String
 }
 
 
@@ -2084,6 +2089,12 @@ func (ec *executionContext) unmarshalInputInterfaceIPInput(ctx context.Context, 
 		case "Mask":
 			var err error
 			it.Mask, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "VRF":
+			var err error
+			it.Vrf, err = ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}

@@ -42,6 +42,9 @@ type InterfaceIPInput struct {
 	IP string `json:"IP"`
 	// IP mask, format: 255.255.255.0
 	Mask string `json:"Mask"`
+	// This L3 interface belongs to this VRF.
+	// If not defined, it will be defaulted to "default"
+	Vrf *string `json:"VRF"`
 }
 
 // Network interface.
