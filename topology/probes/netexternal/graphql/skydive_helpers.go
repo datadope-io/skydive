@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"fmt"
+	"net"
 
 	uuid "github.com/nu7hatch/gouuid"
 	"github.com/skydive-project/skydive/graffiti/filters"
@@ -30,8 +31,27 @@ const (
 	// TypeServer is the Metadata.Type value used for server
 	TypeServer = "server"
 
-	// RelationTypeLayer2 is the edge type between interfaces and switches/routers and interfaces
+	// RelationTypeLayer2 is the edge type between interfaces of differents devices
+	// Try to mean the "cables" connecting ports.
 	RelationTypeLayer2 = "layer2"
+	/*
+	* Random names for edge RelationType field trying to explain the different relationships
+	* between nodes
+	 */
+	RelationTypeDefine    = "Define"
+	RelationTypeConfigure = "Configure"
+	// RelationTypeOwnership is the parent-child relationship for Skydive. Is how skydive knows
+	// what nodes could be grouped into its parent.
+	RelationTypeOwnership = "Ownership"
+
+	/*
+	* Match relation between nodes to the names defined as relation types
+	 */
+	RelationTypeDeviceInterface = RelationTypeLayer2
+	RelationTypeDeviceVRF       = RelationTypeDefine
+	RelationTypeVRFNetwork      = RelationTypeConfigure
+	RelationTypeInterfaceIP     = RelationTypeDefine
+	RelationTypeNetworkIP       = RelationTypeOwnership
 
 	// MetadataRelationTypeKey key name to store the type of an edge
 	MetadataRelationTypeKey = "RelationType"
@@ -47,8 +67,12 @@ const (
 	MetadataMACKey = "MAC"
 	// MetadataVendorKey to store vendor information for switches or routers
 	MetadataVendorKey = "Vendor"
-	// MetadataModelKey  store model information for switches or routers
+	// MetadataModelKey store model information for switches or routers
 	MetadataModelKey = "Model"
+	// MetadataCIDRKey key to store network in format CIDR (eg.: 192.168.2.0/24)
+	MetadataCIDRKey = "CIDR"
+	// MetadataIPKey key to store IP address
+	MetadataIPKey = "IP"
 )
 
 // newEdge create a new edge in Skydive with a custom Origin field
@@ -151,6 +175,182 @@ func (r *Resolver) createVLAN(vid int, name string) (*graph.Node, error) {
 	return node, nil
 }
 
+// createIP create a IP node linked to the iface node.
+// It also links the IP node to its network node.
+// The network is also linked to the VRF node.
+// Create the network node if it does not exists.
+func (r *Resolver) createIP(ip net.IP, mask net.IPMask, iface *graph.Node, vrfNode *graph.Node) (*graph.Node, error) {
+	metadata := map[string]interface{}{
+		MetadataNameKey: fmt.Sprintf("IP:%s", ip),
+		MetadataTypeKey: TypeIP,
+		MetadataIPKey:   ip.String(),
+	}
+
+	// Find IP nodes linked to this interface
+	ipNodeFilter := graph.NewElementFilter(
+		filters.NewAndFilter(
+			filters.NewTermStringFilter(MetadataTypeKey, TypeIP),
+			filters.NewTermStringFilter(MetadataIPKey, ip.String()),
+		))
+	ipEdgeFilter := graph.NewElementFilter(
+		filters.NewTermStringFilter(MetadataRelationTypeKey, RelationTypeInterfaceIP),
+	)
+	nodes := r.Graph.LookupChildren(iface, ipNodeFilter, ipEdgeFilter)
+
+	var ipNode *graph.Node
+	var err error
+
+	// Create, if it does not exists.
+	// Return internal ID if it exists.
+	// Error if there more than one node matching
+	if len(nodes) == 0 {
+		ipNode, err = r.newNode(metadata)
+		if err != nil {
+			return nil, err
+		}
+	} else if len(nodes) == 1 {
+		ipNode = nodes[0]
+	} else {
+		logging.GetLogger().Errorf("more than one IP nodes with same pkey linked to %+v: %+v", iface, nodes)
+		return nil, fmt.Errorf("%d IP linked to %+v nodes with same pkey already exists", len(nodes), iface)
+	}
+
+	// Link IP to the VRF node
+	if !r.Graph.AreLinked(iface, ipNode, ipEdgeFilter) {
+		_, err = r.newEdge(iface, ipNode, map[string]interface{}{
+			MetadataRelationTypeKey: RelationTypeInterfaceIP,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to link interface (%+v) to IP (%+v): %v", iface, ipNode, err)
+		}
+	}
+
+	// Link the IP to its network
+	// Create or get network node
+	network := net.IPNet{IP: ip, Mask: mask}
+	networkNode, err := r.createNetwork(network)
+	if err != nil {
+		return nil, err
+	}
+
+	networkEdgeFilter := graph.NewElementFilter(
+		filters.NewTermStringFilter(MetadataRelationTypeKey, RelationTypeNetworkIP),
+	)
+	if !r.Graph.AreLinked(networkNode, ipNode, networkEdgeFilter) {
+		_, err = r.newEdge(networkNode, ipNode, map[string]interface{}{
+			MetadataRelationTypeKey: RelationTypeOwn,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to link network (%+v) to IP (%+v): %v", networkNode, ipNode, err)
+		}
+	}
+
+	// Link the VRF to the network
+	vrfNetworkEdgeFilter := graph.NewElementFilter(
+		filters.NewTermStringFilter(MetadataRelationTypeKey, RelationTypeVRFNetwork),
+	)
+	if !r.Graph.AreLinked(vrfNode, networkNode, vrfNetworkEdgeFilter) {
+		_, err = r.newEdge(vrfNode, networkNode, map[string]interface{}{
+			MetadataRelationTypeKey: RelationTypeVRFNetwork,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to link VRF (%+v) to network (%+v): %v", vrfNode, networkNode, err)
+		}
+	}
+
+	return ipNode, nil
+}
+
+// createVRF create a VRF node linked to the device node.
+func (r *Resolver) createVRF(vrf *string, device *graph.Node) (*graph.Node, error) {
+	var name string
+	if vrf == nil {
+		name = "default"
+	} else {
+		name = *vrf
+	}
+
+	metadata := map[string]interface{}{
+		MetadataNameKey: name,
+		MetadataTypeKey: TypeVRF,
+	}
+
+	// Find VRF nodes linked to this interface
+	vrfNodeFilter := graph.NewElementFilter(filters.NewAndFilter(
+		filters.NewTermStringFilter(MetadataTypeKey, TypeVRF),
+		filters.NewTermStringFilter(MetadataNameKey, name),
+	))
+	vrfEdgeFilter := graph.NewElementFilter(
+		filters.NewTermStringFilter(MetadataRelationTypeKey, RelationTypeDeviceVRF),
+	)
+	nodes := r.Graph.LookupChildren(device, vrfNodeFilter, vrfEdgeFilter)
+
+	var vrfNode *graph.Node
+	var err error
+
+	// Create, if it does not exists.
+	// Return internal ID if it exists.
+	// Error if there more than one node matching
+	if len(nodes) == 0 {
+		vrfNode, err = r.newNode(metadata)
+		if err != nil {
+			return nil, err
+		}
+	} else if len(nodes) == 1 {
+		vrfNode = nodes[0]
+	} else {
+		logging.GetLogger().Errorf("more than one VRF nodes with same pkey linked to %+v: %+v", device, nodes)
+		return nil, fmt.Errorf("%d VRF linked to %+v nodes with same pkey already exists", len(nodes), device)
+	}
+
+	// Link VRF to the device
+	if !r.Graph.AreLinked(device, vrfNode, vrfEdgeFilter) {
+		_, err = r.newEdge(device, vrfNode, map[string]interface{}{
+			MetadataRelationTypeKey: RelationTypeDeviceVRF,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to link device (%+v) to VRF (%+v): %v", device, vrfNode, err)
+		}
+	}
+
+	return vrfNode, nil
+}
+
+// createNetwork create a node to represent a IP network
+func (r *Resolver) createNetwork(network net.IPNet) (*graph.Node, error) {
+	metadata := map[string]interface{}{
+		MetadataNameKey: fmt.Sprintf("NET:%s", network.String()),
+		MetadataTypeKey: TypeNetwork,
+		MetadataCIDRKey: network.String(),
+	}
+
+	// Find network node with matching CIDR+Type
+	nodes := r.Graph.GetNodes(graph.Metadata{
+		MetadataTypeKey: TypeNetwork,
+		MetadataCIDRKey: network.String(),
+	})
+
+	var node *graph.Node
+	var err error
+
+	// Create, if it does not exists.
+	// Return internal ID if it exists.
+	// Error if there more than one node matching
+	if len(nodes) == 0 {
+		node, err = r.newNode(metadata)
+		if err != nil {
+			return nil, err
+		}
+	} else if len(nodes) == 1 {
+		node = nodes[0]
+	} else {
+		logging.GetLogger().Errorf("more than one network nodes with same pkey: %+v", nodes)
+		return nil, fmt.Errorf("%d network nodes with same pkey already exists", len(nodes))
+	}
+
+	return node, nil
+}
+
 // createInterface add a new node to Skydive to represent a interface.
 // This node is also linked with the node using a layer2 edge.
 // Return if any interface has been updated.
@@ -158,26 +358,26 @@ func (r *Resolver) createInterfaces(node *graph.Node, interfaces []*model.Interf
 	// Get currently connected interfaces
 	// From the node, get layer2 edges.
 	// From that edges, get only nodes type interface
-	layer2Filter := graph.NewElementFilter(
-		filters.NewTermStringFilter(MetadataRelationTypeKey, RelationTypeLayer2),
+	interfaceEdgeFilter := graph.NewElementFilter(
+		filters.NewTermStringFilter(MetadataRelationTypeKey, RelationTypeDeviceInterface),
 	)
-	interfaceFilter := graph.NewElementFilter(
+	interfaceNodeFilter := graph.NewElementFilter(
 		filters.NewTermStringFilter(MetadataTypeKey, TypeInterface),
 	)
 
-	layer2Edges := r.Graph.GetNodeEdges(node, layer2Filter)
+	layer2Edges := r.Graph.GetNodeEdges(node, interfaceEdgeFilter)
 	// currentInterfaces create an index of current node interfaces using its name
-	var currentInterfaces map[string]*graph.Node
+	currentInterfaces := map[string]*graph.Node{}
 	for _, e := range layer2Edges {
 		var edgeNodes []*graph.Node
 		if e.Child == node.ID {
-			edgeNodes, _ = r.Graph.GetEdgeNodes(e, interfaceFilter, nil)
+			edgeNodes, _ = r.Graph.GetEdgeNodes(e, interfaceNodeFilter, nil)
 		} else {
-			_, edgeNodes = r.Graph.GetEdgeNodes(e, nil, interfaceFilter)
+			_, edgeNodes = r.Graph.GetEdgeNodes(e, nil, interfaceNodeFilter)
 		}
 		for _, n := range edgeNodes {
-			ifaceName, err := n.GetFieldString(MetadataNameKey)
-			if err != nil {
+			ifaceName, errG := n.GetFieldString(MetadataNameKey)
+			if errG != nil {
 				logging.GetLogger().Errorf("interface without Metadata.Name: %v", n)
 				continue
 			}
@@ -200,8 +400,8 @@ func (r *Resolver) createInterfaces(node *graph.Node, interfaces []*model.Interf
 		iface, ok := currentInterfaces[userIface.Name]
 		if ok {
 			revisionPreUpdateIface := iface.Revision
-			err := r.Graph.SetMetadata(iface, ifaceMetadata)
-			if err != nil {
+			errS := r.Graph.SetMetadata(iface, ifaceMetadata)
+			if errS != nil {
 				logging.GetLogger().Errorf("unable to update interface metadata %+v: %v", iface, err)
 				return updated, fmt.Errorf("unable to update interface metadata %+v: %v", iface, err)
 			}
@@ -217,10 +417,10 @@ func (r *Resolver) createInterfaces(node *graph.Node, interfaces []*model.Interf
 			}
 		}
 
-		// Link interface with node
-		if !r.Graph.AreLinked(node, iface, layer2Filter) {
+		// Link node with interface
+		if !r.Graph.AreLinked(node, iface, interfaceEdgeFilter) {
 			_, err = r.newEdge(node, iface, map[string]interface{}{
-				MetadataRelationTypeKey: RelationTypeLayer2,
+				MetadataRelationTypeKey: RelationTypeDeviceInterface,
 			})
 			if err != nil {
 				return updated, fmt.Errorf("unable to link node (%+v) to interface (%+v): %v", node, iface, err)
@@ -235,9 +435,9 @@ func (r *Resolver) createInterfaces(node *graph.Node, interfaces []*model.Interf
 			}
 		}
 
-		// Add IP if defined
+		// Add VRF/IP if defined
 		if userIface.IP != nil {
-			err := r.addIPToInterface(iface, *userIface.IP)
+			err := r.addIPToInterface(node, iface, *userIface.IP)
 			if err != nil {
 				return updated, err
 			}
@@ -291,13 +491,41 @@ func (r *Resolver) addNodeWithInterfaces(
 
 	// Interfaces
 	interfaceUpdated, err = r.createInterfaces(node, interfaces)
+	if err != nil {
+		logging.GetLogger().Errorf("creating interfaces for node %+v: %v", node, err)
+		return nil, false, false, fmt.Errorf("creating interfaces: %v", err)
+	}
 
 	return node, updated, interfaceUpdated, nil
 }
 
-// addIPToInterface add to the interface the IP configuration (IP + mask).
-// Create the network if it does not exists yet.
-func (r *Resolver) addIPToInterface(iface *graph.Node, vlan model.InterfaceIPInput) error {
-	// TODO por aqui
+// addIPToInterface add to the interface the IP node.
+// Links de IP also to its network. And the network to the VRF.
+// Create the network and VRF if it does not exists yet.
+func (r *Resolver) addIPToInterface(device *graph.Node, iface *graph.Node, ip model.InterfaceIPInput) error {
+	parsedIP := net.ParseIP(ip.IP)
+	if parsedIP == nil {
+		return fmt.Errorf("invalid IP address: %s", ip.IP)
+	}
+
+	parsedMaskIP := net.ParseIP(ip.Mask)
+	if parsedMaskIP == nil {
+		return fmt.Errorf("invalid network mask: %s", ip.Mask)
+	}
+	parsedMask := net.IPMask(parsedMaskIP)
+
+	// Create VRF node and link to this device
+	vrfNode, err := r.createVRF(ip.Vrf, device)
+	if err != nil {
+		return err
+	}
+
+	// Create IP node and link to this interface
+	// Also links the IP to its network
+	_, err = r.createIP(parsedIP, parsedMask, iface, vrfNode)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

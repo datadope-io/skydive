@@ -2,10 +2,16 @@ package graphql
 
 // This file will be automatically regenerated based on the schema, any resolver implementations
 // will be copied through when generating and any unknown code will be moved to the end.
+//
+// TODO:
+//  - eliminar cosas si desaparecen de la mutation, ejemplo:
+//    - VID que se quitan de una iface
+//    - interfaces que se quitan enteras
+//    - se quita una IP de una interfaz
+//    - etc
 
 import (
 	"context"
-	"fmt"
 	"net"
 
 	"github.com/skydive-project/skydive/graffiti/graph"
@@ -58,7 +64,29 @@ func (r *mutationResolver) AddSwitch(ctx context.Context, input model.SwitchInpu
 }
 
 func (r *mutationResolver) AddRouter(ctx context.Context, input model.RouterInput) (*model.AddRouterPayload, error) {
-	panic(fmt.Errorf("not implemented"))
+	metadata := map[string]interface{}{
+		MetadataNameKey:   input.Name,
+		MetadataTypeKey:   TypeRouter,
+		MetadataVendorKey: input.Vendor,
+		MetadataModelKey:  input.Model,
+	}
+
+	nodePKeyFilter := graph.Metadata{
+		MetadataTypeKey: TypeRouter,
+		MetadataNameKey: input.Name,
+	}
+
+	node, updated, interfaceUpdated, err := r.addNodeWithInterfaces(metadata, input.Interfaces, nodePKeyFilter)
+	if err != nil {
+		return nil, err
+	}
+
+	payload := model.AddRouterPayload{
+		ID:               string(node.ID),
+		Updated:          updated,
+		InterfaceUpdated: interfaceUpdated,
+	}
+	return &payload, nil
 }
 
 func (r *queryResolver) Version(ctx context.Context) (string, error) {
@@ -71,5 +99,7 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
+type (
+	mutationResolver struct{ *Resolver }
+	queryResolver    struct{ *Resolver }
+)
