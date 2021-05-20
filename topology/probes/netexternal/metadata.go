@@ -28,6 +28,11 @@ import (
 	"github.com/skydive-project/skydive/graffiti/getter"
 )
 
+// Prefix describes prefix
+// Copied from topology/routes.go
+// TODO try to use that one, but without an import cycle
+type Prefix net.IPNet
+
 // RouteTable is a list of routes.
 // easyjson:json
 // gendecoder
@@ -43,12 +48,21 @@ type Route struct {
 	// Name optional name for this route
 	Name string
 	// Network where this route apply
-	Network net.IPNet
+	Network Prefix
 	// NextHop IP address where the traffic should be sent
 	NextHop net.IP
 	// DeviceNextHop optinal way to define the next hop
 	DeviceNextHop string
 }
+
+var (
+	// IPv4DefaultRoute default IPv4 route
+	IPv4DefaultRoute    = net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 8*net.IPv4len)}
+	ipv4DefaultRouteStr = IPv4DefaultRoute.String()
+	// IPv6DefaultRoute default IPv6 route
+	IPv6DefaultRoute    = net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 8*net.IPv6len)}
+	ipv6DefaultRouteStr = IPv6DefaultRoute.String()
+)
 
 // MetadataDecoder implements a json message raw decoder
 func MetadataDecoder(raw json.RawMessage) (getter.Getter, error) {
@@ -58,4 +72,37 @@ func MetadataDecoder(raw json.RawMessage) (getter.Getter, error) {
 	}
 
 	return &r, nil
+}
+
+// IsDefaultRoute return whether the given cidr is a default route
+func (p *Prefix) IsDefaultRoute() bool {
+	ipnet := net.IPNet(*p)
+	s := ipnet.String()
+	return s == ipv4DefaultRouteStr || s == ipv6DefaultRouteStr
+}
+
+func (p *Prefix) String() string {
+	ipnet := net.IPNet(*p)
+	return ipnet.String()
+}
+
+// MarshalJSON custom marshal function
+func (p *Prefix) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + p.String() + `"`), nil
+}
+
+// UnmarshalJSON custom unmarshal function
+func (p *Prefix) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+
+	_, cidr, err := net.ParseCIDR(s)
+	if err != nil {
+		return err
+	}
+	*p = Prefix(*cidr)
+
+	return nil
 }
