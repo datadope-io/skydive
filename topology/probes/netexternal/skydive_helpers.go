@@ -1,4 +1,4 @@
-package graphql
+package netexternal
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/skydive-project/skydive/graffiti/filters"
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/logging"
-	"github.com/skydive-project/skydive/topology/probes/netexternal/graphql/model"
+	"github.com/skydive-project/skydive/topology/probes/netexternal/model"
 )
 
 const (
@@ -73,6 +73,9 @@ const (
 	MetadataCIDRKey = "CIDR"
 	// MetadataIPKey key to store IP address
 	MetadataIPKey = "IP"
+	// MetadataRoutingTableKey is the metadata key used to store routing info avoiding naming
+	// collision with the one created by the netlink probe
+	MetadataRoutingTableKey = "NetExtRoutingTable"
 )
 
 // newEdge create a new edge in Skydive with a custom Origin field
@@ -238,7 +241,7 @@ func (r *Resolver) createIP(ip net.IP, mask net.IPMask, iface *graph.Node, vrfNo
 	)
 	if !r.Graph.AreLinked(networkNode, ipNode, networkEdgeFilter) {
 		_, err = r.newEdge(networkNode, ipNode, map[string]interface{}{
-			MetadataRelationTypeKey: RelationTypeOwn,
+			MetadataRelationTypeKey: RelationTypeNetworkIP,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("unable to link network (%+v) to IP (%+v): %v", networkNode, ipNode, err)
@@ -353,8 +356,13 @@ func (r *Resolver) createNetwork(network net.IPNet) (*graph.Node, error) {
 
 // createInterface add a new node to Skydive to represent a interface.
 // This node is also linked with the node using a layer2 edge.
+// Add to the interface node its routing table.
 // Return if any interface has been updated.
-func (r *Resolver) createInterfaces(node *graph.Node, interfaces []*model.InterfaceInput) (updated bool, err error) {
+func (r *Resolver) createInterfaces(
+	node *graph.Node,
+	interfaces []*model.InterfaceInput,
+	routingTable map[string][]Route,
+) (updated bool, err error) {
 	// Get currently connected interfaces
 	// From the node, get layer2 edges.
 	// From that edges, get only nodes type interface
@@ -395,6 +403,22 @@ func (r *Resolver) createInterfaces(node *graph.Node, interfaces []*model.Interf
 		// Add the Native VLAN if defined
 		if userIface.Vlan != nil && userIface.Vlan.NativeVid != nil {
 			ifaceMetadata[MetadataNativeVLANKey] = userIface.Vlan.NativeVid
+		}
+
+		// Add route table if we have a route table for that VRF
+		if userIface.IP != nil {
+			vrfName := "default"
+			if userIface.IP.Vrf != nil {
+				vrfName = *userIface.IP.Vrf
+			}
+
+			routes, ok := routingTable[vrfName]
+			if ok {
+				// TODO hacer el marshal/unmarshal de este metadato
+				ifaceMetadata[MetadataRoutingTableKey] = routes
+			} else {
+				logging.GetLogger().Infof("adding interface %+v with IP but without route table", userIface)
+			}
 		}
 
 		iface, ok := currentInterfaces[userIface.Name]
@@ -450,6 +474,7 @@ func (r *Resolver) createInterfaces(node *graph.Node, interfaces []*model.Interf
 // addNodeWithInterfaces create a node with the data in "metadata" parameter and using
 // "nodePKey" as the metadata to find if the node already exists.
 // Once the node is created, add the interfaces.
+// To each interface node, add its routing table (matched by VRF).
 // Return the node created.
 // Return updated true if the node metadata has been updated.
 // Return interfaceUpdated true if any of the interfaces has been updated.
@@ -457,9 +482,66 @@ func (r *Resolver) addNodeWithInterfaces(
 	metadata graph.Metadata,
 	interfaces []*model.InterfaceInput,
 	nodePKey graph.Metadata,
+	routingTableList []*model.VRFRouteTable,
 ) (node *graph.Node, updated bool, interfaceUpdated bool, err error) {
 	// Find switch node with matching Name+Type
 	nodes := r.Graph.GetNodes(nodePKey)
+
+	// Map routing table by VRF name
+	routingTable := map[string][]Route{}
+	if routingTableList != nil {
+		for _, rt := range routingTableList {
+			// Set default VRF name to "default"
+			name := "default"
+			if rt.Vrf != nil {
+				name = *rt.Vrf
+			}
+
+			routes := []Route{}
+			// Convert the route format to the one that will be stored in skydive
+			for _, r := range rt.Routes {
+				var network *net.IPNet
+				if r.Cidr != nil {
+					_, network, err = net.ParseCIDR(*r.Cidr)
+					if err != nil {
+						return nil, false, false, fmt.Errorf("invalid CIDR for routing: %v", r.Cidr)
+					}
+				} else if r.IP != nil && r.Mask != nil {
+					ip := net.ParseIP(*r.IP)
+					if ip == nil {
+						return nil, false, false, fmt.Errorf("Invalid IP for route: %v", r.IP)
+					}
+					maskIP := net.ParseIP(*r.Mask)
+					if ip == nil {
+						return nil, false, false, fmt.Errorf("Invalid mask for route: %v", r.Mask)
+					}
+					network = &net.IPNet{
+						IP:   ip,
+						Mask: net.IPMask(maskIP),
+					}
+				} else {
+					return nil, false, false, fmt.Errorf("Network not specified for routing table")
+				}
+
+				route := Route{Network: *network}
+				if r.Name != nil {
+					route.Name = *r.Name
+				}
+				if r.NextHop != nil {
+					ipNextHop := net.ParseIP(*r.NextHop)
+					if ipNextHop == nil {
+						return nil, false, false, fmt.Errorf("Invalid next hop IP: %v", *r.NextHop)
+					}
+					route.NextHop = ipNextHop
+				}
+				if r.DeviceNextHop != nil {
+					route.DeviceNextHop = *r.DeviceNextHop
+				}
+				routes = append(routes, route)
+			}
+			routingTable[name] = routes
+		}
+	}
 
 	// Create, if it does not exists.
 	// Return internal ID if it exists.
@@ -490,7 +572,7 @@ func (r *Resolver) addNodeWithInterfaces(
 	}
 
 	// Interfaces
-	interfaceUpdated, err = r.createInterfaces(node, interfaces)
+	interfaceUpdated, err = r.createInterfaces(node, interfaces, routingTable)
 	if err != nil {
 		logging.GetLogger().Errorf("creating interfaces for node %+v: %v", node, err)
 		return nil, false, false, fmt.Errorf("creating interfaces: %v", err)

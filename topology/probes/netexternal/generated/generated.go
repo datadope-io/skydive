@@ -12,7 +12,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
-	"github.com/skydive-project/skydive/topology/probes/netexternal/graphql/model"
+	"github.com/skydive-project/skydive/topology/probes/netexternal/model"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -250,7 +250,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 }
 
 var sources = []*ast.Source{
-	&ast.Source{Name: "graphql/schema.graphqls", Input: `type Mutation {
+	&ast.Source{Name: "schema.graphqls", Input: `type Mutation {
   """
   Create a new VLAN. Does nothing if already exists.
   Return the skydive ID.
@@ -274,7 +274,7 @@ type Query {
   version: String!
 }
 `, BuiltIn: false},
-	&ast.Source{Name: "graphql/schema_l2.graphqls", Input: `"""
+	&ast.Source{Name: "schema_l2.graphqls", Input: `"""
 Values to create a new Switch.
 """
 input SwitchInput {
@@ -286,7 +286,7 @@ input SwitchInput {
   MAC address of the device.
   Allowed formats https://pkg.go.dev/net#ParseMAC
   """
-  MAC: String!
+  MAC: String
   """
   Vendor of the switch, eg.: Cisco, Juniper
   """
@@ -301,6 +301,11 @@ input SwitchInput {
   Interfaces already present are updated.
   """
   Interfaces: [InterfaceInput]
+  """
+  IP routes for switches with this feature.
+  Switches does not have VRF, so we will create only one VRFRouteTable without VRF name.
+  """
+  RoutingTable: [VRFRouteTable!]
 }
 
 """
@@ -395,7 +400,7 @@ type AddVLANPayload {
   ID: String!
 }
 `, BuiltIn: false},
-	&ast.Source{Name: "graphql/schema_l3.graphqls", Input: `"""
+	&ast.Source{Name: "schema_l3.graphqls", Input: `"""
 Values to create a new Router
 """
 input RouterInput {
@@ -417,11 +422,52 @@ input RouterInput {
   Interfaces already present are updated.
   """
   Interfaces: [InterfaceInput]
+  """
+  Routing table. Each element represents a different VRF.
+  """
+  RoutingTable: [VRFRouteTable!]
+}
+
+input VRFRouteTable {
+  """
+  VRF name. If not defined will take value "default"
+  """
+  VRF: String = "default"
+  Routes: [Route!]!
 }
 
 """
+IP route.
+Network could be specified with CIDR or IP+mask
+"""
+input Route {
+  """
+  Specify the network matching using CIDR
+  """
+  CIDR: String
+  """
+  Specify the network matching using IP+mask
+  """
+  IP: String
+  Mask: String
+  """
+  Optinal name for this particular route
+  """
+  Name: String
+  """
+  Use a device as the next hop instead of an IP
+  """
+  DeviceNextHop: String
+  """
+  IP address for next hop
+  """
+  NextHop: String
+}
+
+
+"""
 Level 3 (IP) configuration for interfaces
-TODO: not tested with IPv4
+TODO: not tested with IPv6
 """
 input InterfaceIPInput {
   IP: String!
@@ -431,9 +477,8 @@ input InterfaceIPInput {
   Mask: String!
   """
   This L3 interface belongs to this VRF.
-  If not defined, it will be defaulted to "default"
   """
-  VRF: String
+  VRF: String = "default"
 }
 
 
@@ -468,7 +513,7 @@ func (ec *executionContext) field_Mutation_addRouter_args(ctx context.Context, r
 	args := map[string]interface{}{}
 	var arg0 model.RouterInput
 	if tmp, ok := rawArgs["input"]; ok {
-		arg0, err = ec.unmarshalNRouterInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐRouterInput(ctx, tmp)
+		arg0, err = ec.unmarshalNRouterInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐRouterInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -482,7 +527,7 @@ func (ec *executionContext) field_Mutation_addSwitch_args(ctx context.Context, r
 	args := map[string]interface{}{}
 	var arg0 model.SwitchInput
 	if tmp, ok := rawArgs["input"]; ok {
-		arg0, err = ec.unmarshalNSwitchInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐSwitchInput(ctx, tmp)
+		arg0, err = ec.unmarshalNSwitchInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐSwitchInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -496,7 +541,7 @@ func (ec *executionContext) field_Mutation_addVLAN_args(ctx context.Context, raw
 	args := map[string]interface{}{}
 	var arg0 model.VLANInput
 	if tmp, ok := rawArgs["input"]; ok {
-		arg0, err = ec.unmarshalNVLANInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐVLANInput(ctx, tmp)
+		arg0, err = ec.unmarshalNVLANInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐVLANInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -831,7 +876,7 @@ func (ec *executionContext) _Mutation_addVLAN(ctx context.Context, field graphql
 	}
 	res := resTmp.(*model.AddVLANPayload)
 	fc.Result = res
-	return ec.marshalNAddVLANPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐAddVLANPayload(ctx, field.Selections, res)
+	return ec.marshalNAddVLANPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddVLANPayload(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_addSwitch(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -872,7 +917,7 @@ func (ec *executionContext) _Mutation_addSwitch(ctx context.Context, field graph
 	}
 	res := resTmp.(*model.AddSwitchPayload)
 	fc.Result = res
-	return ec.marshalNAddSwitchPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐAddSwitchPayload(ctx, field.Selections, res)
+	return ec.marshalNAddSwitchPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddSwitchPayload(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_addRouter(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -913,7 +958,7 @@ func (ec *executionContext) _Mutation_addRouter(ctx context.Context, field graph
 	}
 	res := resTmp.(*model.AddRouterPayload)
 	fc.Result = res
-	return ec.marshalNAddRouterPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐAddRouterPayload(ctx, field.Selections, res)
+	return ec.marshalNAddRouterPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddRouterPayload(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_version(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2078,6 +2123,10 @@ func (ec *executionContext) unmarshalInputInterfaceIPInput(ctx context.Context, 
 	var it model.InterfaceIPInput
 	var asMap = obj.(map[string]interface{})
 
+	if _, present := asMap["VRF"]; !present {
+		asMap["VRF"] = "default"
+	}
+
 	for k, v := range asMap {
 		switch k {
 		case "IP":
@@ -2124,13 +2173,13 @@ func (ec *executionContext) unmarshalInputInterfaceInput(ctx context.Context, ob
 			}
 		case "VLAN":
 			var err error
-			it.Vlan, err = ec.unmarshalOInterfaceVLANInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceVLANInput(ctx, v)
+			it.Vlan, err = ec.unmarshalOInterfaceVLANInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceVLANInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
 		case "IP":
 			var err error
-			it.IP, err = ec.unmarshalOInterfaceIPInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceIPInput(ctx, v)
+			it.IP, err = ec.unmarshalOInterfaceIPInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceIPInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2148,7 +2197,7 @@ func (ec *executionContext) unmarshalInputInterfaceVLANInput(ctx context.Context
 		switch k {
 		case "Mode":
 			var err error
-			it.Mode, err = ec.unmarshalNVLAN_MODE2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐVlanMode(ctx, v)
+			it.Mode, err = ec.unmarshalNVLAN_MODE2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐVlanMode(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2161,6 +2210,54 @@ func (ec *executionContext) unmarshalInputInterfaceVLANInput(ctx context.Context
 		case "NativeVID":
 			var err error
 			it.NativeVid, err = ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputRoute(ctx context.Context, obj interface{}) (model.Route, error) {
+	var it model.Route
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "CIDR":
+			var err error
+			it.Cidr, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "IP":
+			var err error
+			it.IP, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Mask":
+			var err error
+			it.Mask, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Name":
+			var err error
+			it.Name, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "DeviceNextHop":
+			var err error
+			it.DeviceNextHop, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "NextHop":
+			var err error
+			it.NextHop, err = ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2196,7 +2293,13 @@ func (ec *executionContext) unmarshalInputRouterInput(ctx context.Context, obj i
 			}
 		case "Interfaces":
 			var err error
-			it.Interfaces, err = ec.unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceInput(ctx, v)
+			it.Interfaces, err = ec.unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "RoutingTable":
+			var err error
+			it.RoutingTable, err = ec.unmarshalOVRFRouteTable2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐVRFRouteTableᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2220,7 +2323,7 @@ func (ec *executionContext) unmarshalInputSwitchInput(ctx context.Context, obj i
 			}
 		case "MAC":
 			var err error
-			it.Mac, err = ec.unmarshalNString2string(ctx, v)
+			it.Mac, err = ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2238,7 +2341,13 @@ func (ec *executionContext) unmarshalInputSwitchInput(ctx context.Context, obj i
 			}
 		case "Interfaces":
 			var err error
-			it.Interfaces, err = ec.unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceInput(ctx, v)
+			it.Interfaces, err = ec.unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "RoutingTable":
+			var err error
+			it.RoutingTable, err = ec.unmarshalOVRFRouteTable2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐVRFRouteTableᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2263,6 +2372,34 @@ func (ec *executionContext) unmarshalInputVLANInput(ctx context.Context, obj int
 		case "Name":
 			var err error
 			it.Name, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputVRFRouteTable(ctx context.Context, obj interface{}) (model.VRFRouteTable, error) {
+	var it model.VRFRouteTable
+	var asMap = obj.(map[string]interface{})
+
+	if _, present := asMap["VRF"]; !present {
+		asMap["VRF"] = "default"
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "VRF":
+			var err error
+			it.Vrf, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Routes":
+			var err error
+			it.Routes, err = ec.unmarshalNRoute2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐRouteᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2711,11 +2848,11 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) marshalNAddRouterPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐAddRouterPayload(ctx context.Context, sel ast.SelectionSet, v model.AddRouterPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNAddRouterPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddRouterPayload(ctx context.Context, sel ast.SelectionSet, v model.AddRouterPayload) graphql.Marshaler {
 	return ec._AddRouterPayload(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNAddRouterPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐAddRouterPayload(ctx context.Context, sel ast.SelectionSet, v *model.AddRouterPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNAddRouterPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddRouterPayload(ctx context.Context, sel ast.SelectionSet, v *model.AddRouterPayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2725,11 +2862,11 @@ func (ec *executionContext) marshalNAddRouterPayload2ᚖgithubᚗcomᚋskydive�
 	return ec._AddRouterPayload(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNAddSwitchPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐAddSwitchPayload(ctx context.Context, sel ast.SelectionSet, v model.AddSwitchPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNAddSwitchPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddSwitchPayload(ctx context.Context, sel ast.SelectionSet, v model.AddSwitchPayload) graphql.Marshaler {
 	return ec._AddSwitchPayload(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNAddSwitchPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐAddSwitchPayload(ctx context.Context, sel ast.SelectionSet, v *model.AddSwitchPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNAddSwitchPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddSwitchPayload(ctx context.Context, sel ast.SelectionSet, v *model.AddSwitchPayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2739,11 +2876,11 @@ func (ec *executionContext) marshalNAddSwitchPayload2ᚖgithubᚗcomᚋskydive�
 	return ec._AddSwitchPayload(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNAddVLANPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐAddVLANPayload(ctx context.Context, sel ast.SelectionSet, v model.AddVLANPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNAddVLANPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddVLANPayload(ctx context.Context, sel ast.SelectionSet, v model.AddVLANPayload) graphql.Marshaler {
 	return ec._AddVLANPayload(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNAddVLANPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐAddVLANPayload(ctx context.Context, sel ast.SelectionSet, v *model.AddVLANPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNAddVLANPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddVLANPayload(ctx context.Context, sel ast.SelectionSet, v *model.AddVLANPayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2810,7 +2947,39 @@ func (ec *executionContext) marshalNInt2ᚕintᚄ(ctx context.Context, sel ast.S
 	return ret
 }
 
-func (ec *executionContext) unmarshalNRouterInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐRouterInput(ctx context.Context, v interface{}) (model.RouterInput, error) {
+func (ec *executionContext) unmarshalNRoute2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐRoute(ctx context.Context, v interface{}) (model.Route, error) {
+	return ec.unmarshalInputRoute(ctx, v)
+}
+
+func (ec *executionContext) unmarshalNRoute2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐRouteᚄ(ctx context.Context, v interface{}) ([]*model.Route, error) {
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]*model.Route, len(vSlice))
+	for i := range vSlice {
+		res[i], err = ec.unmarshalNRoute2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐRoute(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNRoute2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐRoute(ctx context.Context, v interface{}) (*model.Route, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalNRoute2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐRoute(ctx, v)
+	return &res, err
+}
+
+func (ec *executionContext) unmarshalNRouterInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐRouterInput(ctx context.Context, v interface{}) (model.RouterInput, error) {
 	return ec.unmarshalInputRouterInput(ctx, v)
 }
 
@@ -2828,21 +2997,33 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return res
 }
 
-func (ec *executionContext) unmarshalNSwitchInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐSwitchInput(ctx context.Context, v interface{}) (model.SwitchInput, error) {
+func (ec *executionContext) unmarshalNSwitchInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐSwitchInput(ctx context.Context, v interface{}) (model.SwitchInput, error) {
 	return ec.unmarshalInputSwitchInput(ctx, v)
 }
 
-func (ec *executionContext) unmarshalNVLANInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐVLANInput(ctx context.Context, v interface{}) (model.VLANInput, error) {
+func (ec *executionContext) unmarshalNVLANInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐVLANInput(ctx context.Context, v interface{}) (model.VLANInput, error) {
 	return ec.unmarshalInputVLANInput(ctx, v)
 }
 
-func (ec *executionContext) unmarshalNVLAN_MODE2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐVlanMode(ctx context.Context, v interface{}) (model.VlanMode, error) {
+func (ec *executionContext) unmarshalNVLAN_MODE2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐVlanMode(ctx context.Context, v interface{}) (model.VlanMode, error) {
 	var res model.VlanMode
 	return res, res.UnmarshalGQL(v)
 }
 
-func (ec *executionContext) marshalNVLAN_MODE2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐVlanMode(ctx context.Context, sel ast.SelectionSet, v model.VlanMode) graphql.Marshaler {
+func (ec *executionContext) marshalNVLAN_MODE2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐVlanMode(ctx context.Context, sel ast.SelectionSet, v model.VlanMode) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) unmarshalNVRFRouteTable2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐVRFRouteTable(ctx context.Context, v interface{}) (model.VRFRouteTable, error) {
+	return ec.unmarshalInputVRFRouteTable(ctx, v)
+}
+
+func (ec *executionContext) unmarshalNVRFRouteTable2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐVRFRouteTable(ctx context.Context, v interface{}) (*model.VRFRouteTable, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalNVRFRouteTable2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐVRFRouteTable(ctx, v)
+	return &res, err
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {
@@ -3117,23 +3298,23 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	return ec.marshalOInt2int(ctx, sel, *v)
 }
 
-func (ec *executionContext) unmarshalOInterfaceIPInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceIPInput(ctx context.Context, v interface{}) (model.InterfaceIPInput, error) {
+func (ec *executionContext) unmarshalOInterfaceIPInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceIPInput(ctx context.Context, v interface{}) (model.InterfaceIPInput, error) {
 	return ec.unmarshalInputInterfaceIPInput(ctx, v)
 }
 
-func (ec *executionContext) unmarshalOInterfaceIPInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceIPInput(ctx context.Context, v interface{}) (*model.InterfaceIPInput, error) {
+func (ec *executionContext) unmarshalOInterfaceIPInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceIPInput(ctx context.Context, v interface{}) (*model.InterfaceIPInput, error) {
 	if v == nil {
 		return nil, nil
 	}
-	res, err := ec.unmarshalOInterfaceIPInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceIPInput(ctx, v)
+	res, err := ec.unmarshalOInterfaceIPInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceIPInput(ctx, v)
 	return &res, err
 }
 
-func (ec *executionContext) unmarshalOInterfaceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceInput(ctx context.Context, v interface{}) (model.InterfaceInput, error) {
+func (ec *executionContext) unmarshalOInterfaceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceInput(ctx context.Context, v interface{}) (model.InterfaceInput, error) {
 	return ec.unmarshalInputInterfaceInput(ctx, v)
 }
 
-func (ec *executionContext) unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceInput(ctx context.Context, v interface{}) ([]*model.InterfaceInput, error) {
+func (ec *executionContext) unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceInput(ctx context.Context, v interface{}) ([]*model.InterfaceInput, error) {
 	var vSlice []interface{}
 	if v != nil {
 		if tmp1, ok := v.([]interface{}); ok {
@@ -3145,7 +3326,7 @@ func (ec *executionContext) unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiv
 	var err error
 	res := make([]*model.InterfaceInput, len(vSlice))
 	for i := range vSlice {
-		res[i], err = ec.unmarshalOInterfaceInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalOInterfaceInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -3153,23 +3334,23 @@ func (ec *executionContext) unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiv
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalOInterfaceInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceInput(ctx context.Context, v interface{}) (*model.InterfaceInput, error) {
+func (ec *executionContext) unmarshalOInterfaceInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceInput(ctx context.Context, v interface{}) (*model.InterfaceInput, error) {
 	if v == nil {
 		return nil, nil
 	}
-	res, err := ec.unmarshalOInterfaceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceInput(ctx, v)
+	res, err := ec.unmarshalOInterfaceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceInput(ctx, v)
 	return &res, err
 }
 
-func (ec *executionContext) unmarshalOInterfaceVLANInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceVLANInput(ctx context.Context, v interface{}) (model.InterfaceVLANInput, error) {
+func (ec *executionContext) unmarshalOInterfaceVLANInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceVLANInput(ctx context.Context, v interface{}) (model.InterfaceVLANInput, error) {
 	return ec.unmarshalInputInterfaceVLANInput(ctx, v)
 }
 
-func (ec *executionContext) unmarshalOInterfaceVLANInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceVLANInput(ctx context.Context, v interface{}) (*model.InterfaceVLANInput, error) {
+func (ec *executionContext) unmarshalOInterfaceVLANInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceVLANInput(ctx context.Context, v interface{}) (*model.InterfaceVLANInput, error) {
 	if v == nil {
 		return nil, nil
 	}
-	res, err := ec.unmarshalOInterfaceVLANInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋgraphqlᚋmodelᚐInterfaceVLANInput(ctx, v)
+	res, err := ec.unmarshalOInterfaceVLANInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceVLANInput(ctx, v)
 	return &res, err
 }
 
@@ -3194,6 +3375,26 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 		return graphql.Null
 	}
 	return ec.marshalOString2string(ctx, sel, *v)
+}
+
+func (ec *executionContext) unmarshalOVRFRouteTable2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐVRFRouteTableᚄ(ctx context.Context, v interface{}) ([]*model.VRFRouteTable, error) {
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]*model.VRFRouteTable, len(vSlice))
+	for i := range vSlice {
+		res[i], err = ec.unmarshalNVRFRouteTable2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐVRFRouteTable(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

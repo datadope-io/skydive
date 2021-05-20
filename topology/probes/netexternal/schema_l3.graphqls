@@ -20,7 +20,48 @@ input RouterInput {
   Interfaces already present are updated.
   """
   Interfaces: [InterfaceInput]
+  """
+  Routing table. Each element represents a different VRF.
+  """
+  RoutingTable: [VRFRouteTable!]
 }
+
+input VRFRouteTable {
+  """
+  VRF name. If not defined will take value "default"
+  """
+  VRF: String = "default"
+  Routes: [Route!]!
+}
+
+"""
+IP route.
+Network could be specified with CIDR or IP+mask
+"""
+input Route {
+  """
+  Specify the network matching using CIDR
+  """
+  CIDR: String
+  """
+  Specify the network matching using IP+mask
+  """
+  IP: String
+  Mask: String
+  """
+  Optinal name for this particular route
+  """
+  Name: String
+  """
+  Use a device as the next hop instead of an IP
+  """
+  DeviceNextHop: String
+  """
+  IP address for next hop
+  """
+  NextHop: String
+}
+
 
 """
 Level 3 (IP) configuration for interfaces
@@ -34,9 +75,8 @@ input InterfaceIPInput {
   Mask: String!
   """
   This L3 interface belongs to this VRF.
-  If not defined, it will be defaulted to "default"
   """
-  VRF: String
+  VRF: String = "default"
 }
 
 

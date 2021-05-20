@@ -1,4 +1,4 @@
-package graphql
+package netexternal
 
 import (
 	"github.com/skydive-project/skydive/graffiti/graph"

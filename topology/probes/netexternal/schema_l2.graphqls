@@ -10,7 +10,7 @@ input SwitchInput {
   MAC address of the device.
   Allowed formats https://pkg.go.dev/net#ParseMAC
   """
-  MAC: String!
+  MAC: String
   """
   Vendor of the switch, eg.: Cisco, Juniper
   """
@@ -25,6 +25,11 @@ input SwitchInput {
   Interfaces already present are updated.
   """
   Interfaces: [InterfaceInput]
+  """
+  IP routes for switches with this feature.
+  Switches does not have VRF, so we will create only one VRFRouteTable without VRF name.
+  """
+  RoutingTable: [VRFRouteTable!]
 }
 
 """

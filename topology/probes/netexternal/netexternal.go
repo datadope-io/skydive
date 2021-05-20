@@ -30,8 +30,7 @@ import (
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/logging"
 
-	"github.com/skydive-project/skydive/topology/probes/netexternal/graphql"
-	"github.com/skydive-project/skydive/topology/probes/netexternal/graphql/generated"
+	"github.com/skydive-project/skydive/topology/probes/netexternal/generated"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -47,7 +46,7 @@ func (p *Probe) Start() error {
 	listenEndpoint := config.GetString("analyzer.topology.netexternal.listen")
 
 	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{
-		Resolvers: &graphql.Resolver{
+		Resolvers: &Resolver{
 			Graph: p.graph,
 		},
 	}))
@@ -77,4 +76,5 @@ func NewProbe(g *graph.Graph) (*Probe, error) {
 
 // Register called at initialization to register metadata decoders
 func Register() {
+	graph.NodeMetadataDecoders[MetadataRoutingTableKey] = MetadataDecoder
 }
