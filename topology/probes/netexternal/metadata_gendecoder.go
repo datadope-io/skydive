@@ -19,8 +19,6 @@ func (obj *Route) GetFieldString(key string) (string, error) {
 	switch key {
 	case "Name":
 		return string(obj.Name), nil
-	case "Network":
-		return obj.Network.String(), nil
 	case "NextHop":
 		return obj.NextHop.String(), nil
 	case "DeviceNextHop":
@@ -32,7 +30,6 @@ func (obj *Route) GetFieldString(key string) (string, error) {
 func (obj *Route) GetFieldKeys() []string {
 	return []string{
 		"Name",
-		"Network",
 		"NextHop",
 		"DeviceNextHop",
 	}

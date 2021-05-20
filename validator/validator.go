@@ -44,7 +44,7 @@ var (
 	// Validator is the global validator for all Skydive resources
 	Validator *validator
 
-	//IPNotValid validator
+	// IPNotValid validator
 	IPNotValid = func() error {
 		return valid.TextErr{Err: errors.New("Not an IP address")}
 	}
@@ -64,23 +64,23 @@ var (
 	RawPacketLimitNotValid = func(min, max uint32) error {
 		return valid.TextErr{Err: fmt.Errorf("A valid raw packet limit size is > %d && <= %d", min, max)}
 	}
-	//LayerKeyModeNotValid validator
+	// LayerKeyModeNotValid validator
 	LayerKeyModeNotValid = func() error {
 		return valid.TextErr{Err: errors.New("Not a valid layer key mode")}
 	}
-	//CaptureTypeNotValid validator
+	// CaptureTypeNotValid validator
 	CaptureTypeNotValid = func(t string) error {
 		return valid.TextErr{Err: fmt.Errorf("Not a valid capture type: %s, available types: %v", t, probes.ProbeTypes)}
 	}
-	//AddressNotValid validator
+	// AddressNotValid validator
 	AddressNotValid = func() error {
 		return valid.TextErr{Err: errors.New("Not a valid address")}
 	}
-	//MACNotValid validator
+	// MACNotValid validator
 	MACNotValid = func() error {
 		return valid.TextErr{Err: errors.New("Not a MAC address")}
 	}
-	//IPOrCIDRNotValid validator
+	// IPOrCIDRNotValid validator
 	IPOrCIDRNotValid = func() error {
 		return valid.TextErr{Err: errors.New("Not a IP or CIDR address")}
 	}
@@ -179,6 +179,7 @@ func isGremlinExpr(v interface{}, param string) error {
 	tr.AddTraversalExtension(ge.NewAscendantsTraversalExtension())
 	tr.AddTraversalExtension(ge.NewNextHopTraversalExtension())
 	tr.AddTraversalExtension(ge.NewGroupTraversalExtension())
+	tr.AddTraversalExtension(ge.NewL3PathTraversalExtension())
 
 	if _, err := tr.Parse(strings.NewReader(query)); err != nil {
 		return GremlinNotValid(err)

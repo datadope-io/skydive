@@ -7,7 +7,6 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
-	net "net"
 )
 
 // suppress unused package warning
@@ -106,7 +105,9 @@ func easyjsonBa0ee0e3DecodeGithubComSkydiveProjectSkydiveTopologyProbesNetextern
 		case "Name":
 			out.Name = string(in.String())
 		case "Network":
-			easyjsonBa0ee0e3DecodeNet(in, &out.Network)
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.Network).UnmarshalJSON(data))
+			}
 		case "NextHop":
 			if data := in.UnsafeBytes(); in.Ok() {
 				in.AddError((out.NextHop).UnmarshalText(data))
@@ -135,7 +136,7 @@ func easyjsonBa0ee0e3EncodeGithubComSkydiveProjectSkydiveTopologyProbesNetextern
 	{
 		const prefix string = ",\"Network\":"
 		out.RawString(prefix)
-		easyjsonBa0ee0e3EncodeNet(out, in.Network)
+		out.Raw((in.Network).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"NextHop\":"
@@ -172,60 +173,4 @@ func (v *Route) UnmarshalJSON(data []byte) error {
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *Route) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjsonBa0ee0e3DecodeGithubComSkydiveProjectSkydiveTopologyProbesNetexternal1(l, v)
-}
-func easyjsonBa0ee0e3DecodeNet(in *jlexer.Lexer, out *net.IPNet) {
-	isTopLevel := in.IsStart()
-	if in.IsNull() {
-		if isTopLevel {
-			in.Consumed()
-		}
-		in.Skip()
-		return
-	}
-	in.Delim('{')
-	for !in.IsDelim('}') {
-		key := in.UnsafeFieldName(false)
-		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
-		switch key {
-		case "IP":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.IP).UnmarshalText(data))
-			}
-		case "Mask":
-			if in.IsNull() {
-				in.Skip()
-				out.Mask = nil
-			} else {
-				out.Mask = in.Bytes()
-			}
-		default:
-			in.SkipRecursive()
-		}
-		in.WantComma()
-	}
-	in.Delim('}')
-	if isTopLevel {
-		in.Consumed()
-	}
-}
-func easyjsonBa0ee0e3EncodeNet(out *jwriter.Writer, in net.IPNet) {
-	out.RawByte('{')
-	first := true
-	_ = first
-	{
-		const prefix string = ",\"IP\":"
-		out.RawString(prefix[1:])
-		out.RawText((in.IP).MarshalText())
-	}
-	{
-		const prefix string = ",\"Mask\":"
-		out.RawString(prefix)
-		out.Base64Bytes(in.Mask)
-	}
-	out.RawByte('}')
 }

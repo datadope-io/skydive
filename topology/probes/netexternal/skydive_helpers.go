@@ -321,16 +321,17 @@ func (r *Resolver) createVRF(vrf *string, device *graph.Node) (*graph.Node, erro
 
 // createNetwork create a node to represent a IP network
 func (r *Resolver) createNetwork(network net.IPNet) (*graph.Node, error) {
+	baseAddr := network.IP.Mask(network.Mask)
 	metadata := map[string]interface{}{
-		MetadataNameKey: fmt.Sprintf("NET:%s", network.String()),
+		MetadataNameKey: fmt.Sprintf("NET:%s", baseAddr.String()),
 		MetadataTypeKey: TypeNetwork,
-		MetadataCIDRKey: network.String(),
+		MetadataCIDRKey: baseAddr.String(),
 	}
 
 	// Find network node with matching CIDR+Type
 	nodes := r.Graph.GetNodes(graph.Metadata{
 		MetadataTypeKey: TypeNetwork,
-		MetadataCIDRKey: network.String(),
+		MetadataCIDRKey: baseAddr.String(),
 	})
 
 	var node *graph.Node
@@ -361,7 +362,7 @@ func (r *Resolver) createNetwork(network net.IPNet) (*graph.Node, error) {
 func (r *Resolver) createInterfaces(
 	node *graph.Node,
 	interfaces []*model.InterfaceInput,
-	routingTable map[string][]Route,
+	routingTable map[string]RouteTable,
 ) (updated bool, err error) {
 	// Get currently connected interfaces
 	// From the node, get layer2 edges.
@@ -488,7 +489,7 @@ func (r *Resolver) addNodeWithInterfaces(
 	nodes := r.Graph.GetNodes(nodePKey)
 
 	// Map routing table by VRF name
-	routingTable := map[string][]Route{}
+	routingTable := map[string]RouteTable{}
 	if routingTableList != nil {
 		for _, rt := range routingTableList {
 			// Set default VRF name to "default"
@@ -497,8 +498,9 @@ func (r *Resolver) addNodeWithInterfaces(
 				name = *rt.Vrf
 			}
 
-			routes := []Route{}
+			routes := RouteTable{}
 			// Convert the route format to the one that will be stored in skydive
+			// Check that values are correct and store network info as CIDR
 			for _, r := range rt.Routes {
 				var network *net.IPNet
 				if r.Cidr != nil {
@@ -523,7 +525,7 @@ func (r *Resolver) addNodeWithInterfaces(
 					return nil, false, false, fmt.Errorf("Network not specified for routing table")
 				}
 
-				route := Route{Network: *network}
+				route := Route{Network: Prefix(*network)}
 				if r.Name != nil {
 					route.Name = *r.Name
 				}
