@@ -1,22 +1,15 @@
-package graphql
+package netexternal
 
 // This file will be automatically regenerated based on the schema, any resolver implementations
 // will be copied through when generating and any unknown code will be moved to the end.
-//
-// TODO:
-//  - eliminar cosas si desaparecen de la mutation, ejemplo:
-//    - VID que se quitan de una iface
-//    - interfaces que se quitan enteras
-//    - se quita una IP de una interfaz
-//    - etc
 
 import (
 	"context"
 	"net"
 
 	"github.com/skydive-project/skydive/graffiti/graph"
-	"github.com/skydive-project/skydive/topology/probes/netexternal/graphql/generated"
-	"github.com/skydive-project/skydive/topology/probes/netexternal/graphql/model"
+	"github.com/skydive-project/skydive/topology/probes/netexternal/generated"
+	"github.com/skydive-project/skydive/topology/probes/netexternal/model"
 )
 
 func (r *mutationResolver) AddVlan(ctx context.Context, input model.VLANInput) (*model.AddVLANPayload, error) {
@@ -32,17 +25,20 @@ func (r *mutationResolver) AddVlan(ctx context.Context, input model.VLANInput) (
 }
 
 func (r *mutationResolver) AddSwitch(ctx context.Context, input model.SwitchInput) (*model.AddSwitchPayload, error) {
-	hw, err := net.ParseMAC(input.Mac)
-	if err != nil {
-		return nil, err
-	}
-
 	metadata := map[string]interface{}{
 		MetadataNameKey:   input.Name,
 		MetadataTypeKey:   TypeSwitch,
-		MetadataMACKey:    hw.String(),
 		MetadataVendorKey: input.Vendor,
 		MetadataModelKey:  input.Model,
+	}
+
+	// Add MAC address to Metadata if defined
+	if input.Mac != nil {
+		hw, err := net.ParseMAC(*input.Mac)
+		if err != nil {
+			return nil, err
+		}
+		metadata[MetadataMACKey] = hw.String()
 	}
 
 	nodePKeyFilter := graph.Metadata{
@@ -50,7 +46,7 @@ func (r *mutationResolver) AddSwitch(ctx context.Context, input model.SwitchInpu
 		MetadataNameKey: input.Name,
 	}
 
-	node, updated, interfaceUpdated, err := r.addNodeWithInterfaces(metadata, input.Interfaces, nodePKeyFilter)
+	node, updated, interfaceUpdated, err := r.addNodeWithInterfaces(metadata, input.Interfaces, nodePKeyFilter, input.RoutingTable)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +72,7 @@ func (r *mutationResolver) AddRouter(ctx context.Context, input model.RouterInpu
 		MetadataNameKey: input.Name,
 	}
 
-	node, updated, interfaceUpdated, err := r.addNodeWithInterfaces(metadata, input.Interfaces, nodePKeyFilter)
+	node, updated, interfaceUpdated, err := r.addNodeWithInterfaces(metadata, input.Interfaces, nodePKeyFilter, input.RoutingTable)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +95,5 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
-type (
-	mutationResolver struct{ *Resolver }
-	queryResolver    struct{ *Resolver }
-)
+type mutationResolver struct{ *Resolver }
+type queryResolver struct{ *Resolver }

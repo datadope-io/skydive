@@ -37,13 +37,12 @@ type AddVLANPayload struct {
 }
 
 // Level 3 (IP) configuration for interfaces
-// TODO: not tested with IPv4
+// TODO: not tested with IPv6
 type InterfaceIPInput struct {
 	IP string `json:"IP"`
 	// IP mask, format: 255.255.255.0
 	Mask string `json:"Mask"`
 	// This L3 interface belongs to this VRF.
-	// If not defined, it will be defaulted to "default"
 	Vrf *string `json:"VRF"`
 }
 
@@ -72,6 +71,22 @@ type InterfaceVLANInput struct {
 	NativeVid *int `json:"NativeVID"`
 }
 
+// IP route.
+// Network could be specified with CIDR or IP+mask
+type Route struct {
+	// Specify the network matching using CIDR
+	Cidr *string `json:"CIDR"`
+	// Specify the network matching using IP+mask
+	IP   *string `json:"IP"`
+	Mask *string `json:"Mask"`
+	// Optinal name for this particular route
+	Name *string `json:"Name"`
+	// Use a device as the next hop instead of an IP
+	DeviceNextHop *string `json:"DeviceNextHop"`
+	// IP address for next hop
+	NextHop *string `json:"NextHop"`
+}
+
 // Values to create a new Router
 type RouterInput struct {
 	// Router name. Used as the primary key.
@@ -84,6 +99,8 @@ type RouterInput struct {
 	// Undeclared intefaces already present are not deleted.
 	// Interfaces already present are updated.
 	Interfaces []*InterfaceInput `json:"Interfaces"`
+	// Routing table. Each element represents a different VRF.
+	RoutingTable []*VRFRouteTable `json:"RoutingTable"`
 }
 
 // Values to create a new Switch.
@@ -92,7 +109,7 @@ type SwitchInput struct {
 	Name string `json:"Name"`
 	// MAC address of the device.
 	// Allowed formats https://pkg.go.dev/net#ParseMAC
-	Mac string `json:"MAC"`
+	Mac *string `json:"MAC"`
 	// Vendor of the switch, eg.: Cisco, Juniper
 	Vendor *string `json:"Vendor"`
 	// Switch model, eg.: CBS250-8P-E-2G
@@ -101,6 +118,9 @@ type SwitchInput struct {
 	// Undeclared intefaces already present are not deleted.
 	// Interfaces already present are updated.
 	Interfaces []*InterfaceInput `json:"Interfaces"`
+	// IP routes for switches with this feature.
+	// Switches does not have VRF, so we will create only one VRFRouteTable without VRF name.
+	RoutingTable []*VRFRouteTable `json:"RoutingTable"`
 }
 
 // Values to create a new VLAN.
@@ -109,6 +129,12 @@ type VLANInput struct {
 	Vid int `json:"VID"`
 	// Optional VLAN name
 	Name *string `json:"Name"`
+}
+
+type VRFRouteTable struct {
+	// VRF name. If not defined will take value "default"
+	Vrf    *string  `json:"VRF"`
+	Routes []*Route `json:"Routes"`
 }
 
 // VLAN modes
