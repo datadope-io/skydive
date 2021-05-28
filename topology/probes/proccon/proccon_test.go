@@ -2,7 +2,6 @@ package proccon
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -1649,8 +1648,7 @@ func BenchmarkProcessMetricsSameNode(b *testing.B) {
 		})
 	}
 
-	ctx := context.Background()
 	for i := 0; i < b.N; i++ {
-		p.processMetrics(ctx, metrics)
+		p.processMetrics(metrics)
 	}
 }
