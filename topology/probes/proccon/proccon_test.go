@@ -203,7 +203,7 @@ func TestPresentServerCreateSoftwareToOthers(t *testing.T) {
 
 	givenServerName := "hostFoo"
 
-	serverNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	serverNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: givenServerName,
 		MetadataTypeKey: MetadataTypeServer,
 	})
@@ -287,7 +287,7 @@ func TestFillOthersSoftwareNode(t *testing.T) {
 
 	givenServerName := "hostFoo"
 
-	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: givenServerName,
 		MetadataTypeKey: MetadataTypeServer,
 	})
@@ -295,7 +295,7 @@ func TestFillOthersSoftwareNode(t *testing.T) {
 		t.Errorf("Unable to create server %s", givenServerName)
 	}
 
-	givenOtherNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenOtherNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: OthersSoftwareNode,
 		MetadataTypeKey: MetadataTypeSoftware,
 	})
@@ -417,7 +417,7 @@ func TestMetricDateIsUsed(t *testing.T) {
 
 	givenServerName := "hostFoo"
 
-	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: givenServerName,
 		MetadataTypeKey: MetadataTypeServer,
 	})
@@ -425,7 +425,7 @@ func TestMetricDateIsUsed(t *testing.T) {
 		t.Errorf("Unable to create server %s", givenServerName)
 	}
 
-	givenOtherNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenOtherNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: OthersSoftwareNode,
 		MetadataTypeKey: MetadataTypeSoftware,
 	})
@@ -501,7 +501,7 @@ func TestMultipleMetricsToOtherOnlyOneRevision(t *testing.T) {
 
 	givenServerName := "hostFoo"
 
-	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: givenServerName,
 		MetadataTypeKey: MetadataTypeServer,
 	})
@@ -509,7 +509,7 @@ func TestMultipleMetricsToOtherOnlyOneRevision(t *testing.T) {
 		t.Errorf("Unable to create server %s", givenServerName)
 	}
 
-	givenOtherNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenOtherNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: OthersSoftwareNode,
 		MetadataTypeKey: MetadataTypeSoftware,
 	})
@@ -707,7 +707,7 @@ func TestMetricDateIsUsedWhenUpdating(t *testing.T) {
 
 	givenServerName := "hostFoo"
 
-	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: givenServerName,
 		MetadataTypeKey: MetadataTypeServer,
 	})
@@ -715,7 +715,7 @@ func TestMetricDateIsUsedWhenUpdating(t *testing.T) {
 		t.Errorf("Unable to create server %s", givenServerName)
 	}
 
-	givenOtherNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenOtherNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: OthersSoftwareNode,
 		MetadataTypeKey: MetadataTypeSoftware,
 	})
@@ -802,7 +802,7 @@ func TestFillOthersSoftwareNodeWithConnPrefix(t *testing.T) {
 
 	givenServerName := "hostFoo"
 
-	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: givenServerName,
 		MetadataTypeKey: MetadataTypeServer,
 	})
@@ -810,7 +810,7 @@ func TestFillOthersSoftwareNodeWithConnPrefix(t *testing.T) {
 		t.Errorf("Unable to create server %s", givenServerName)
 	}
 
-	givenOtherNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenOtherNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: OthersSoftwareNode,
 		MetadataTypeKey: MetadataTypeSoftware,
 	})
@@ -886,7 +886,7 @@ func TestNewMetricUpdateNetworkMetadata(t *testing.T) {
 	givenOthersSoftwareTCPConnections := []string{"1.2.3.4:80"}
 	givenOthersSoftwareListenEndpoints := []string{"192.168.0.1:22"}
 
-	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: givenServerName,
 		MetadataTypeKey: MetadataTypeServer,
 	})
@@ -894,7 +894,7 @@ func TestNewMetricUpdateNetworkMetadata(t *testing.T) {
 		t.Errorf("Unable to create server %s", givenServerName)
 	}
 
-	givenOtherNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenOtherNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: OthersSoftwareNode,
 		MetadataTypeKey: MetadataTypeSoftware,
 	})
@@ -1014,7 +1014,7 @@ func TestAppendConnectionInfoToOthersSoftwareNode(t *testing.T) {
 	givenOthersSoftwareListenEndpoints := []string{"192.168.0.1:22", "10.0.1.1:22"}
 
 	p.graph.Lock()
-	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: givenServerName,
 		MetadataTypeKey: MetadataTypeServer,
 	})
@@ -1022,7 +1022,7 @@ func TestAppendConnectionInfoToOthersSoftwareNode(t *testing.T) {
 		t.Errorf("Unable to create server %s", givenServerName)
 	}
 
-	givenOtherNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenOtherNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: OthersSoftwareNode,
 		MetadataTypeKey: MetadataTypeSoftware,
 	})
@@ -1116,7 +1116,7 @@ func TestFillKnownSoftwareNode(t *testing.T) {
 	givenSoftwareListenEndpoints := []string{"192.168.0.1:5432", "10.0.1.1:5432"}
 
 	p.graph.Lock()
-	givenNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: givenServerName,
 		MetadataTypeKey: MetadataTypeServer,
 	})
@@ -1124,7 +1124,7 @@ func TestFillKnownSoftwareNode(t *testing.T) {
 		t.Errorf("Unable to create server %s", givenServerName)
 	}
 
-	givenSWNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	givenSWNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey:    givenSoftwareName,
 		MetadataTypeKey:    MetadataTypeSoftware,
 		MetadataCmdlineKey: cmdline,
@@ -1267,7 +1267,7 @@ func TestClearOldConnectionsKeepNewerConnections(t *testing.T) {
 	p := Probe{}
 	p.graph = newGraph(t)
 
-	software, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	software, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey: OthersSoftwareNode,
 		MetadataTypeKey: MetadataTypeSoftware,
 		MetadataTCPConnKey: &NetworkInfo{
@@ -1324,7 +1324,7 @@ func TestCleanTCPListenIfTCPConnIsInvalid(t *testing.T) {
 	p := Probe{}
 	p.graph = newGraph(t)
 
-	software, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	software, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey:    OthersSoftwareNode,
 		MetadataTypeKey:    MetadataTypeSoftware,
 		MetadataTCPConnKey: "",
@@ -1363,7 +1363,7 @@ func TestDoNotPanicIfInvalidTCPConnOrTCPListenDataType(t *testing.T) {
 	p := Probe{}
 	p.graph = newGraph(t)
 
-	software, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	software, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey:           OthersSoftwareNode,
 		MetadataTypeKey:           MetadataTypeSoftware,
 		MetadataTCPConnKey:        "",
@@ -1385,7 +1385,7 @@ func TestDoNotReturnErrorIfTCPConnOrTCPListenKeysDoesNotExists(t *testing.T) {
 	p := Probe{}
 	p.graph = newGraph(t)
 
-	softwareNoTCPConn, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	softwareNoTCPConn, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey:           OthersSoftwareNode,
 		MetadataTypeKey:           MetadataTypeSoftware,
 		MetadataListenEndpointKey: "",
@@ -1394,7 +1394,7 @@ func TestDoNotReturnErrorIfTCPConnOrTCPListenKeysDoesNotExists(t *testing.T) {
 		t.Error("Unable to create software others")
 	}
 
-	softwareNoTCPListen, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	softwareNoTCPListen, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey:    OthersSoftwareNode,
 		MetadataTypeKey:    MetadataTypeSoftware,
 		MetadataTCPConnKey: "",
@@ -1515,7 +1515,7 @@ func TestMigrateConnInfoFromOthersToKnownSoftwareNode(t *testing.T) {
 	// WHEN
 	// Create a software node for netcat linked to "hostFoo" server
 	netcatSoftwareName := "Netcat"
-	netcatNode, err := p.graph.NewNode(graph.GenID(), graph.Metadata{
+	netcatNode, err := p.newNode("host", graph.Metadata{
 		MetadataNameKey:    netcatSoftwareName,
 		MetadataTypeKey:    MetadataTypeSoftware,
 		MetadataCmdlineKey: metricSoftwareCmdline,
@@ -1611,112 +1611,46 @@ func generateProcInfoData(conn []string, metricTimestamp int64) NetworkInfo {
 	return ret
 }
 
-// TODO
-// Como testear que tengamos más o menos nodos en el grafo.
-// Con el tema del map para indexar, como gestionamos que no tengamos datos antiguos o hayan
-// aparecido datos nuevos.
-// Los child los metemos también en el map?
-//
-// BenchmarkProcessMetricSerial run processMetric() func with different number of nodes in the backend
-func BenchmarkProcessMetricSerial(b *testing.B) {
+// BenchmarkProcessMetricsSameNode replicate how this probe will receive the data.
+// Usually each POST will contain only metrics of the same host.
+func BenchmarkProcessMetricsSameNode(b *testing.B) {
 	p := Probe{}
 	p.graph = newGraph(b)
 
-	hostname := "foo"
+	metrics := []Metric{}
 
-	metric := Metric{
-		Name: "foo",
-		Time: MessagePackTime{
-			time: time.Now(),
-		},
-		Tags: map[string]string{
-			"tag1": "foo1",
-			"tag2": "foo2",
-		},
-		Fields: map[string]string{
-			"f1": "f1",
-			"f2": "f2",
-			"f3": "f3",
-		},
+	// Create nodes in the backend
+	for i := 1; i < 10000; i++ {
+		_, err := p.newNode("host", graph.Metadata{
+			MetadataNameKey: fmt.Sprintf("foo-%d", i),
+			MetadataTypeKey: MetadataTypeServer,
+		})
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	// Create an array of 1000 metrics of the same node (same tags.host)
+	for i := 0; i < 1000; i++ {
+		metrics = append(metrics, Metric{
+			Name: "tcp",
+			Time: MessagePackTime{
+				time: time.Now(),
+			},
+			Tags: map[string]string{
+				"host":    "foo",
+				"cmdline": fmt.Sprintf("foo-%d", i),
+			},
+			Fields: map[string]string{
+				"f1": "f1",
+				"f2": "f2",
+				"f3": "f3",
+			},
+		})
 	}
 
 	ctx := context.Background()
-
-	for j := 0; j <= 5; j++ {
-		numberOfNodes := j * 2000
-		p.graph = newGraph(b)
-
-		// Add numberOfNodes to the backend
-		for i := 1; i < numberOfNodes; i++ {
-			_, err := p.newNode(hostname, graph.Metadata{
-				MetadataNameKey: fmt.Sprintf("%s-%d-%d", hostname, i, j),
-				MetadataTypeKey: MetadataTypeServer,
-			})
-			if err != nil {
-				panic(err)
-			}
-		}
-
-		b.Run(fmt.Sprintf("number of nodes: %v", numberOfNodes), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				others := map[*graph.Node][]Metric{}
-				p.processMetric(ctx, metric, others)
-			}
-		})
-	}
-}
-
-// BenchmarkProcessMetricParallel run processMetric() func in parallel with different
-// number of nodes in the backend
-func BenchmarkProcessMetricParallel(b *testing.B) {
-	p := Probe{}
-
-	hostname := "foo"
-
-	metric := Metric{
-		Name: "foo",
-		Time: MessagePackTime{
-			time: time.Now(),
-		},
-		Tags: map[string]string{
-			"tag1": "foo1",
-			"tag2": "foo2",
-		},
-		Fields: map[string]string{
-			"f1": "f1",
-			"f2": "f2",
-			"f3": "f3",
-		},
-	}
-
-	ctx := context.Background()
-
-	for j := 0; j <= 5; j++ {
-		numberOfNodes := j * 2000
-		p.graph = newGraph(b)
-
-		// Add numberOfNodes to the backend
-		for i := 1; i < numberOfNodes; i++ {
-			_, err := p.newNode(hostname, graph.Metadata{
-				MetadataNameKey: fmt.Sprintf("%s-%d-%d", hostname, i, j),
-				MetadataTypeKey: MetadataTypeServer,
-			})
-			if err != nil {
-				panic(err)
-			}
-		}
-
-		// Tests en paralelo
-
-		b.Run(fmt.Sprintf("number of nodes: %v", numberOfNodes), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				b.RunParallel(func(pb *testing.PB) {
-					for pb.Next() {
-						others := map[*graph.Node][]Metric{}
-						p.processMetric(ctx, metric, others)
-					}
-				})
-			}
-		})
+	for i := 0; i < b.N; i++ {
+		p.processMetrics(ctx, metrics)
 	}
 }

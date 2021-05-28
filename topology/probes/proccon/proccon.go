@@ -150,110 +150,120 @@ type Probe struct {
 	tracerStop func()
 }
 
+// processMetrics get an array of metrics, process each one and return the map with conn info
+// which doesn't have a specific Software server
+func (p *Probe) processMetrics(ctx context.Context, metrics []Metric) map[*graph.Node][]Metric {
+	// Accumulate "others" connections to generate only one modification in the node
+	others := map[*graph.Node][]Metric{}
+
+	// Group metrics by host
+	hostMetrics := map[string][]Metric{}
+	for _, m := range metrics {
+		hostMetrics[m.Tags["host"]] = append(hostMetrics[m.Tags["host"]], m)
+	}
+
+	// For each host, process each metrics
+	for host, metrics := range hostMetrics {
+		span := trace.SpanFromContext(ctx)
+		_, metricSpan := span.Tracer().Start(ctx, "metric host", trace.WithAttributes(
+			attribute.Key("host").String(host),
+		))
+		// Get server node
+		p.graph.Lock() // Avoid race condition createing twice the same server node
+		hostNode := p.graph.GetNode(getIdentifier(graph.Metadata{
+			MetadataTypeKey: MetadataTypeServer,
+			MetadataNameKey: host,
+		}))
+
+		var err error
+
+		// Server node does not exists. Create it
+		if hostNode == nil {
+			logging.GetLogger().Debugf("Node not found with Metadata.Name '%s', creating it", host)
+
+			logging.GetLogger().Debugf("newNode(Server, %v)", host)
+			hostNode, err = p.newNode(host, graph.Metadata{
+				MetadataNameKey: host,
+				MetadataTypeKey: MetadataTypeServer,
+			})
+			if err != nil {
+				logging.GetLogger().Errorf("Creating %s server node: %v.", host, err)
+				return nil
+			}
+		}
+		p.graph.Unlock()
+
+		appendToothers, removeFromOthers := p.processMetric(ctx, hostNode, metrics)
+		others[hostNode] = appendToothers
+
+		// Delete this connections from "others" node (in case now we have a software node to put that connections into)
+		// Maybe this function is too expensive? Another option is to leave the connections and the garbageCollector will take care, but we will
+		// have duplicated edges till the garbageCollector cleans others
+		_, removeSpan := span.Tracer().Start(ctx, "remove from others")
+		err = p.removeFromOthers(hostNode, removeFromOthers)
+		if err != nil {
+			logging.GetLogger().Errorf("Trying to delete connections from known software from 'others' software")
+		}
+		removeSpan.End()
+
+		metricSpan.End()
+	}
+
+	return others
+}
+
 // processMetric handle each of the received metrics.
 // Get or create the Server node associated with the metric.
 // Look if any of the Software childs of this node match the cmdline of the metric.
 // Add the connection info to the child or to the "others" software child if no Software matches the cmdline.
 // Delete connection info from "others" in case it has found a specific software.
-func (p *Probe) processMetric(ctx context.Context, metric Metric, others map[*graph.Node][]Metric) {
+// processMetric given a Server node and a list of metrics of that node, for each metric
+// try to find a Software node with the same cmdline.
+// If found, add the network info of the metric to that node and remove it from "others" node.
+// If not found, append that network info to "others"
+func (p *Probe) processMetric(ctx context.Context, hostNode *graph.Node, metrics []Metric) (
+	others []Metric,
+	removeFromOthers []Metric,
+) {
 	span := trace.SpanFromContext(ctx)
-	_, metricSpan := span.Tracer().Start(ctx, "metric", trace.WithAttributes(
-		attribute.Key("metric").String(metric.Name),
-		attribute.Key("host").String(metric.Tags["host"]),
-	))
-	defer metricSpan.End()
-	metricSpan.AddEvent(fmt.Sprintf("metric: %v, host: %v", metric.Name, metric.Tags["host"]))
 
-	// Get lock between querying if the node exists and creating it
-	_, lockSpan := metricSpan.Tracer().Start(ctx, "get lock")
-	p.graph.Lock()
-	lockSpan.End()
+	for _, metric := range metrics {
+		_, childSpan := span.Tracer().Start(ctx, "get child nodes")
+		// Get child Software nodes with matching cmdline
+		childNodes := p.graph.LookupChildren(
+			hostNode,
+			graph.Metadata{MetadataTypeKey: MetadataTypeSoftware, MetadataCmdlineKey: metric.Tags["cmdline"]},
+			graph.Metadata{MetadataRelationTypeKey: RelationTypeHasSoftware},
+		)
+		childSpan.End()
 
-	_, getNodesSpan := metricSpan.Tracer().Start(ctx, "GetNodes")
-
-	// Find server-type nodes with mathing name
-	nodes := p.graph.GetNodes(graph.Metadata{
-		MetadataTypeKey: MetadataTypeServer,
-		MetadataNameKey: metric.Tags["host"],
-	})
-	getNodesSpan.End()
-
-	var hostNode *graph.Node
-	var err error
-
-	if len(nodes) == 0 {
-		_, newNodeSpan := metricSpan.Tracer().Start(ctx, "new node")
-		logging.GetLogger().Debugf("Node not found with Metadata.Name '%s', creating it", metric.Tags["host"])
-
-		logging.GetLogger().Debugf("newNode(Server, %v)", metric.Tags["host"])
-		hostNode, err = p.newNode(metric.Tags["host"], graph.Metadata{
-			MetadataNameKey: metric.Tags["host"],
-			MetadataTypeKey: MetadataTypeServer,
-		})
-		if err != nil {
-			logging.GetLogger().Errorf("Creating %s server node: %v.", metric.Tags["host"], err)
-			return
+		if len(childNodes) == 0 {
+			logging.GetLogger().Debugf("Software node not found for Server node '%v' and cmdline '%s', storing in others", nodeName(hostNode), metric.Tags["cmdline"])
+			// Accumulate changes to "others" to make only one change to the node
+			others = append(others, metric)
+			continue
+		} else if len(childNodes) > 1 {
+			// This should not happen
+			logging.GetLogger().Errorf("Found more than one Software node for Server node '%v' and cmdline '%s': %+v. Ignoring", nodeName(hostNode), metric.Tags["cmdline"], childNodes)
+			continue
 		}
-		newNodeSpan.End()
-	} else if len(nodes) > 1 {
-		logging.GetLogger().Errorf("Found more than one node with Metadata.Name '%s'. This sould not happen. Ignoring", metric.Tags["host"])
-		return
-	} else {
-		hostNode = nodes[0]
-	}
-	// Release lock to allow others operations to progress
-	p.graph.Unlock()
 
-	// Get lock between querying if the node exists and creating it
-	_, lockSpan = metricSpan.Tracer().Start(ctx, "get lock")
-	p.graph.Lock()
-	lockSpan.End()
+		// Software node already exists
+		swNode := childNodes[0]
 
-	_, childSpan := metricSpan.Tracer().Start(ctx, "get child nodes")
-	// Get child Software nodes with matching cmdline
-	childNodes := p.graph.LookupChildren(
-		hostNode,
-		graph.Metadata{MetadataTypeKey: MetadataTypeSoftware, MetadataCmdlineKey: metric.Tags["cmdline"]},
-		graph.Metadata{MetadataRelationTypeKey: RelationTypeHasSoftware},
-	)
-	childSpan.End()
+		// Append this metric to the list to be deleted from others
+		removeFromOthers = append(removeFromOthers, metric)
 
-	// appendToOthers have its own lock handler
-	// TODO: quitar el unlock? O bajar al final de la función?
-	p.graph.Unlock()
-
-	if len(childNodes) == 0 {
-		logging.GetLogger().Debugf("Software node not found for Server node '%v' and cmdline '%s', storing in others", nodeName(hostNode), metric.Tags["cmdline"])
-		// Accumulate changes to "others" to make only one change to the node
-		others[hostNode] = append(others[hostNode], metric)
-		return
-	} else if len(childNodes) > 1 {
-		// This should not happen
-		logging.GetLogger().Errorf("Found more than one Software node for Server node '%v' and cmdline '%s': %+v. Ignoring", nodeName(hostNode), metric.Tags["cmdline"], childNodes)
-		return
+		// Attach that network information to the software node
+		_, addNetworkSpan := span.Tracer().Start(ctx, "addNetworkInfo")
+		err := p.addNetworkInfo(swNode, []Metric{metric})
+		if err != nil {
+			logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %+v)", nodeName(swNode), hostNode)
+		}
+		addNetworkSpan.End()
 	}
 
-	// Software node already exists
-
-	// Delete this connections from "others" node (in case now we have a software node to put that connections into)
-	// Maybe this function is too expensive? Another option is to leave the connections and the garbageCollector will take care, but we will
-	// have duplicated edges till the garbageCollector cleans others
-	_, removeSpan := metricSpan.Tracer().Start(ctx, "remove from others")
-	err = p.removeFromOthers(hostNode, metric)
-	if err != nil {
-		logging.GetLogger().Errorf("Trying to delete connections from known software from 'others' software")
-	}
-	removeSpan.End()
-
-	swNode := childNodes[0]
-
-	// Attach that network information to the software node
-	_, addNetworkSpan := metricSpan.Tracer().Start(ctx, "addNetworkInfo")
-	err = p.addNetworkInfo(swNode, []Metric{metric})
-	if err != nil {
-		logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %+v)", nodeName(swNode), hostNode)
-	}
-	addNetworkSpan.End()
+	return others, removeFromOthers
 }
 
 // ServeHTTP receive HTTP POST requests from Telegraf nodes with processes data
@@ -303,14 +313,8 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	iSpan.End()
 
-	// Accumulate "others" connections to generate only one modification in the node
-	others := map[*graph.Node][]Metric{}
-
 	_, iSpan = span.Tracer().Start(ctx, "process metrics")
-	// For each metric, found the matching node in the graph, or, if it does not exists, create one
-	for _, metric := range metrics {
-		p.processMetric(ctx, metric, others)
-	}
+	others := p.processMetrics(ctx, metrics)
 	iSpan.End()
 
 	// Handle accumulated "others" software connections
@@ -382,7 +386,8 @@ func (p *Probe) generateOthers(others map[*graph.Node][]Metric) {
 }
 
 // removeFromOthers remove connections/listeners from the "others" software node
-func (p *Probe) removeFromOthers(hostNode *graph.Node, metric Metric) error {
+func (p *Probe) removeFromOthers(hostNode *graph.Node, metricsToBeDeleted []Metric) error {
+	// Lock the node while being modified
 	p.graph.Lock()
 	defer p.graph.Unlock()
 
@@ -420,24 +425,26 @@ func (p *Probe) removeFromOthers(hostNode *graph.Node, metric Metric) error {
 		return ret
 	}
 
-	removeTCPConn := func(field interface{}) (ret bool) {
-		metricsTCPConn := strings.Split(metric.Fields[MetricFieldConn], ",")
-		return removeKeysFromList(field, metricsTCPConn)
-	}
+	for _, metric := range metricsToBeDeleted {
+		removeTCPConn := func(field interface{}) (ret bool) {
+			metricsTCPConn := strings.Split(metric.Fields[MetricFieldConn], ",")
+			return removeKeysFromList(field, metricsTCPConn)
+		}
 
-	err := p.graph.UpdateMetadata(otherNode, MetadataTCPConnKey, removeTCPConn)
-	if err != nil {
-		return fmt.Errorf("unable to delete old TCP connections: %v", err)
-	}
+		err := p.graph.UpdateMetadata(otherNode, MetadataTCPConnKey, removeTCPConn)
+		if err != nil {
+			return fmt.Errorf("unable to delete old TCP connections: %v", err)
+		}
 
-	removeListenEndpoints := func(field interface{}) (ret bool) {
-		metricsListenersEndpoints := strings.Split(metric.Fields[MetricFieldListen], ",")
-		return removeKeysFromList(field, metricsListenersEndpoints)
-	}
+		removeListenEndpoints := func(field interface{}) (ret bool) {
+			metricsListenersEndpoints := strings.Split(metric.Fields[MetricFieldListen], ",")
+			return removeKeysFromList(field, metricsListenersEndpoints)
+		}
 
-	err = p.graph.UpdateMetadata(otherNode, MetadataListenEndpointKey, removeListenEndpoints)
-	if err != nil {
-		return fmt.Errorf("unable to delete old listen endpoints: %v", err)
+		err = p.graph.UpdateMetadata(otherNode, MetadataListenEndpointKey, removeListenEndpoints)
+		if err != nil {
+			return fmt.Errorf("unable to delete old listen endpoints: %v", err)
+		}
 	}
 
 	return nil
@@ -664,13 +671,34 @@ func (p *Probe) newEdge(host string, n *graph.Node, c *graph.Node, m graph.Metad
 // newNode creates and inserts a new node in the graph, using known ID, setting the
 // Origin field to "proccon"+g.Origin and the Host field to the param "host"
 func (p *Probe) newNode(host string, m graph.Metadata) (*graph.Node, error) {
-	i := graph.GenID()
+	i := getIdentifier(m)
 	n := graph.CreateNode(i, m, graph.TimeUTC(), host, ProcconOriginName+p.graph.GetOrigin())
 
 	if err := p.graph.AddNode(n); err != nil {
 		return nil, err
 	}
 	return n, nil
+}
+
+// getIdentifier generate a node identifier. Server nodes will get always the same identifier, generated from the values of the metadata. The rets of nodes will get a random one.
+// Server node identifier is generated with: {Metadata.Type}__{Metadata.Name}
+func getIdentifier(metadata graph.Metadata) graph.Identifier {
+	name, err := metadata.GetField(MetadataNameKey)
+	if err != nil {
+		panic("node metadata should always have 'Name'")
+	}
+	mType, err := metadata.GetField(MetadataTypeKey)
+	if err != nil {
+		panic("node metadata should always have 'Type'")
+	}
+
+	// Nodes with fixed identifiers
+	switch mType {
+	case MetadataTypeServer:
+		return graph.Identifier(mType.(string) + "__" + name.(string))
+	}
+
+	return graph.GenID()
 }
 
 // initTracer setup the OpenTelemetry instrumentation
