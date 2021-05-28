@@ -2,6 +2,8 @@ package proccon
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -21,7 +23,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func newGraph(t *testing.T) *graph.Graph {
+func newGraph(t testing.TB) *graph.Graph {
 	b, err := graph.NewMemoryBackend()
 	if err != nil {
 		t.Error(err.Error())
@@ -1607,4 +1609,114 @@ func generateProcInfoData(conn []string, metricTimestamp int64) NetworkInfo {
 	}
 
 	return ret
+}
+
+// TODO
+// Como testear que tengamos más o menos nodos en el grafo.
+// Con el tema del map para indexar, como gestionamos que no tengamos datos antiguos o hayan
+// aparecido datos nuevos.
+// Los child los metemos también en el map?
+//
+// BenchmarkProcessMetricSerial run processMetric() func with different number of nodes in the backend
+func BenchmarkProcessMetricSerial(b *testing.B) {
+	p := Probe{}
+	p.graph = newGraph(b)
+
+	hostname := "foo"
+
+	metric := Metric{
+		Name: "foo",
+		Time: MessagePackTime{
+			time: time.Now(),
+		},
+		Tags: map[string]string{
+			"tag1": "foo1",
+			"tag2": "foo2",
+		},
+		Fields: map[string]string{
+			"f1": "f1",
+			"f2": "f2",
+			"f3": "f3",
+		},
+	}
+
+	ctx := context.Background()
+
+	for j := 0; j <= 5; j++ {
+		numberOfNodes := j * 2000
+		p.graph = newGraph(b)
+
+		// Add numberOfNodes to the backend
+		for i := 1; i < numberOfNodes; i++ {
+			_, err := p.newNode(hostname, graph.Metadata{
+				MetadataNameKey: fmt.Sprintf("%s-%d-%d", hostname, i, j),
+				MetadataTypeKey: MetadataTypeServer,
+			})
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		b.Run(fmt.Sprintf("number of nodes: %v", numberOfNodes), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				others := map[*graph.Node][]Metric{}
+				p.processMetric(ctx, metric, others)
+			}
+		})
+	}
+}
+
+// BenchmarkProcessMetricParallel run processMetric() func in parallel with different
+// number of nodes in the backend
+func BenchmarkProcessMetricParallel(b *testing.B) {
+	p := Probe{}
+
+	hostname := "foo"
+
+	metric := Metric{
+		Name: "foo",
+		Time: MessagePackTime{
+			time: time.Now(),
+		},
+		Tags: map[string]string{
+			"tag1": "foo1",
+			"tag2": "foo2",
+		},
+		Fields: map[string]string{
+			"f1": "f1",
+			"f2": "f2",
+			"f3": "f3",
+		},
+	}
+
+	ctx := context.Background()
+
+	for j := 0; j <= 5; j++ {
+		numberOfNodes := j * 2000
+		p.graph = newGraph(b)
+
+		// Add numberOfNodes to the backend
+		for i := 1; i < numberOfNodes; i++ {
+			_, err := p.newNode(hostname, graph.Metadata{
+				MetadataNameKey: fmt.Sprintf("%s-%d-%d", hostname, i, j),
+				MetadataTypeKey: MetadataTypeServer,
+			})
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		// Tests en paralelo
+
+		b.Run(fmt.Sprintf("number of nodes: %v", numberOfNodes), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				b.RunParallel(func(pb *testing.PB) {
+					for pb.Next() {
+						others := map[*graph.Node][]Metric{}
+						p.processMetric(ctx, metric, others)
+					}
+				})
+			}
+		})
+	}
 }
