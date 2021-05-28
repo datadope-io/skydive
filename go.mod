@@ -29,6 +29,7 @@ require (
 	github.com/golang/protobuf v1.3.2
 	github.com/golangci/golangci-lint v1.18.0
 	github.com/gomatic/renderizer v1.0.1
+	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/google/gopacket v1.1.17
 	github.com/gophercloud/gophercloud v0.13.0
 	github.com/gorilla/mux v1.8.0
@@ -89,11 +90,6 @@ require (
 	github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
 	github.com/voxelbrain/goptions v0.0.0-20180630082107-58cddc247ea2 // indirect
 	github.com/weaveworks/tcptracer-bpf v0.0.0-20170817155301-e080bd747dc6
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.20.0
-	go.opentelemetry.io/otel v0.20.0
-	go.opentelemetry.io/otel/exporters/trace/jaeger v0.20.0
-	go.opentelemetry.io/otel/sdk v0.20.0
-	go.opentelemetry.io/otel/trace v0.20.0
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f

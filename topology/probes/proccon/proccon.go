@@ -77,11 +77,9 @@
 package proccon
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -93,15 +91,6 @@ import (
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/logging"
 	"github.com/tinylib/msgp/msgp"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/trace/jaeger"
-	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/semconv"
-	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -145,14 +134,11 @@ type Probe struct {
 	// A small number will produce a lot of modifications in the backend because of network info updates.
 	// A big number will leave behind the backend, loosing info in case of a restart of skydive
 	nodeRevisionForceFlush int64
-
-	// tracerStop store the function that should be called when stopping the probe
-	tracerStop func()
 }
 
 // processMetrics get an array of metrics, process each one and return the map with conn info
 // which doesn't have a specific Software server
-func (p *Probe) processMetrics(ctx context.Context, metrics []Metric) map[*graph.Node][]Metric {
+func (p *Probe) processMetrics(metrics []Metric) map[*graph.Node][]Metric {
 	// Accumulate "others" connections to generate only one modification in the node
 	others := map[*graph.Node][]Metric{}
 
@@ -164,10 +150,6 @@ func (p *Probe) processMetrics(ctx context.Context, metrics []Metric) map[*graph
 
 	// For each host, process each metrics
 	for host, metrics := range hostMetrics {
-		span := trace.SpanFromContext(ctx)
-		_, metricSpan := span.Tracer().Start(ctx, "metric host", trace.WithAttributes(
-			attribute.Key("host").String(host),
-		))
 		// Get server node
 		p.graph.Lock() // Avoid race condition createing twice the same server node
 		hostNode := p.graph.GetNode(getIdentifier(graph.Metadata{
@@ -193,20 +175,16 @@ func (p *Probe) processMetrics(ctx context.Context, metrics []Metric) map[*graph
 		}
 		p.graph.Unlock()
 
-		appendToothers, removeFromOthers := p.processMetric(ctx, hostNode, metrics)
+		appendToothers, removeFromOthers := p.processMetric(hostNode, metrics)
 		others[hostNode] = appendToothers
 
 		// Delete this connections from "others" node (in case now we have a software node to put that connections into)
 		// Maybe this function is too expensive? Another option is to leave the connections and the garbageCollector will take care, but we will
 		// have duplicated edges till the garbageCollector cleans others
-		_, removeSpan := span.Tracer().Start(ctx, "remove from others")
 		err = p.removeFromOthers(hostNode, removeFromOthers)
 		if err != nil {
 			logging.GetLogger().Errorf("Trying to delete connections from known software from 'others' software")
 		}
-		removeSpan.End()
-
-		metricSpan.End()
 	}
 
 	return others
@@ -221,21 +199,17 @@ func (p *Probe) processMetrics(ctx context.Context, metrics []Metric) map[*graph
 // try to find a Software node with the same cmdline.
 // If found, add the network info of the metric to that node and remove it from "others" node.
 // If not found, append that network info to "others"
-func (p *Probe) processMetric(ctx context.Context, hostNode *graph.Node, metrics []Metric) (
+func (p *Probe) processMetric(hostNode *graph.Node, metrics []Metric) (
 	others []Metric,
 	removeFromOthers []Metric,
 ) {
-	span := trace.SpanFromContext(ctx)
-
 	for _, metric := range metrics {
-		_, childSpan := span.Tracer().Start(ctx, "get child nodes")
 		// Get child Software nodes with matching cmdline
 		childNodes := p.graph.LookupChildren(
 			hostNode,
 			graph.Metadata{MetadataTypeKey: MetadataTypeSoftware, MetadataCmdlineKey: metric.Tags["cmdline"]},
 			graph.Metadata{MetadataRelationTypeKey: RelationTypeHasSoftware},
 		)
-		childSpan.End()
 
 		if len(childNodes) == 0 {
 			logging.GetLogger().Debugf("Software node not found for Server node '%v' and cmdline '%s', storing in others", nodeName(hostNode), metric.Tags["cmdline"])
@@ -255,12 +229,10 @@ func (p *Probe) processMetric(ctx context.Context, hostNode *graph.Node, metrics
 		removeFromOthers = append(removeFromOthers, metric)
 
 		// Attach that network information to the software node
-		_, addNetworkSpan := span.Tracer().Start(ctx, "addNetworkInfo")
 		err := p.addNetworkInfo(swNode, []Metric{metric})
 		if err != nil {
 			logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %+v)", nodeName(swNode), hostNode)
 		}
-		addNetworkSpan.End()
 	}
 
 	return others, removeFromOthers
@@ -272,31 +244,21 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
-	// context for OpenTelemetry
-	ctx := r.Context()
-
-	span := trace.SpanFromContext(ctx)
-
-	_, iSpan := span.Tracer().Start(ctx, "read msgpack message")
 	// Read the Telegraf packet
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	iSpan.End()
 
 	// Get original client from X-Forwarded-For for error logging purposes
-	_, iSpan = span.Tracer().Start(ctx, "get X-Forwarded-For header")
 	source := ""
 	if h := r.Header.Get("X-Forwarded-For"); h != "" {
 		source = strings.Split(h, ",")[0]
 	} else {
 		source = strings.Split(r.RemoteAddr, ":")[0]
 	}
-	iSpan.End()
 
-	_, iSpan = span.Tracer().Start(ctx, "Unmarshal msgpack message")
 	for {
 		var metric Metric
 		leftovervalues, err := metric.UnmarshalMsg(body)
@@ -311,16 +273,11 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	iSpan.End()
 
-	_, iSpan = span.Tracer().Start(ctx, "process metrics")
-	others := p.processMetrics(ctx, metrics)
-	iSpan.End()
+	others := p.processMetrics(metrics)
 
 	// Handle accumulated "others" software connections
-	_, generateOthersSpan := span.Tracer().Start(ctx, "generateOthers")
 	p.generateOthers(others)
-	generateOthersSpan.End()
 
 	w.Write([]byte("OK"))
 }
@@ -701,68 +658,13 @@ func getIdentifier(metadata graph.Metadata) graph.Identifier {
 	return graph.GenID()
 }
 
-// initTracer setup the OpenTelemetry instrumentation
-func initTracer(config map[string]string) func() {
-	endpoint := config["endpoint"]
-
-	ctx := context.Background()
-
-	// otlp not supported, incompatible version of grpc, forced by etcd
-	/*
-		driver := otlpgrpc.NewDriver(
-			otlpgrpc.WithInsecure(),
-			otlpgrpc.WithEndpoint(endpoint),
-			otlpgrpc.WithDialOption(grpc.WithBlock()), // useful for testing
-		)
-		exporter, err := otlp.NewExporter(ctx, driver)
-		if err != nil {
-			log.Fatalf("%s: %v", "failed to create exporter", err)
-		}
-	*/
-
-	exporter, err := jaeger.NewRawExporter(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(endpoint)))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Using WithSpanProcessor, aggregate spans and send at the end (instead of WithSyncer which sends to the exporter in each span)
-	bsp := sdktrace.NewBatchSpanProcessor(exporter)
-
-	// For the demonstration, use sdktrace.AlwaysSample sampler to sample all traces.
-	// In a production application, use sdktrace.ProbabilitySampler with a desired probability.
-	tracerProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-		sdktrace.WithSpanProcessor(bsp),
-		sdktrace.WithResource(resource.NewWithAttributes(semconv.ServiceNameKey.String("Skydive"))),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	otel.SetTracerProvider(tracerProvider)
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
-
-	return func() {
-		// Shutdown will flush any remaining spans and shut down the exporter.
-		err = tracerProvider.Shutdown(ctx)
-		if err != nil {
-			log.Fatalf("%s: %v", "failed to shutdown TracerProvider", err)
-		}
-	}
-}
-
 // Start initilizates the proccon probe, starting a web server to receive data and the garbage collector to delete old info
 func (p *Probe) Start() error {
 	// Register msgp MessagePackTime extension
 	msgp.RegisterExtension(-1, func() msgp.Extension { return new(MessagePackTime) })
 
-	// Configure OpenTelemetry
-	p.tracerStop = initTracer(config.GetStringMapString("analyzer.topology.proccon.opentelemetry"))
-
-	// Instrument http server with OpenTelemetry
-	otelHandler := otelhttp.NewHandler(p, "proccon")
-
 	listenEndpoint := config.GetString("analyzer.topology.proccon.listen")
-	go http.ListenAndServe(listenEndpoint, otelHandler)
+	go http.ListenAndServe(listenEndpoint, p)
 	logging.GetLogger().Infof("Listening for new network metrics on %v", listenEndpoint)
 
 	p.GCdone = make(chan bool)
@@ -789,7 +691,6 @@ func (p *Probe) Start() error {
 // Stop garbageCollector
 func (p *Probe) Stop() {
 	p.GCdone <- true
-	p.tracerStop()
 }
 
 // NewProbe initialize the probe with the parameters from the config file
