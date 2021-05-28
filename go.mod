@@ -34,6 +34,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uitable v0.0.0-20160404203958-36ee7e946282 // indirect
+	github.com/grpc-ecosystem/grpc-gateway v1.11.3 // indirect
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/hydrogen18/stoppableListener v0.0.0-20151210151943-dadc9ccc400c
 	github.com/inconshreveable/log15 v0.0.0-20201112154412-8562bdadbbac // indirect
@@ -50,7 +51,6 @@ require (
 	github.com/lunixbochs/struc v0.0.0-20180408203800-02e4c2afbb2a
 	github.com/lxc/lxd v0.0.0-20200330183600-518f06676866
 	github.com/mailru/easyjson v0.7.6
-	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/goveralls v0.0.2
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
@@ -79,7 +79,7 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.0
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.7.0
 	github.com/t-yuki/gocover-cobertura v0.0.0-20180217150009-aaee18c8195c
 	github.com/tebeka/go2xunit v1.4.10
 	github.com/tebeka/selenium v0.0.0-20170314201507-657e45ec600f
@@ -89,9 +89,16 @@ require (
 	github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
 	github.com/voxelbrain/goptions v0.0.0-20180630082107-58cddc247ea2 // indirect
 	github.com/weaveworks/tcptracer-bpf v0.0.0-20170817155301-e080bd747dc6
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.20.0
+	go.opentelemetry.io/otel v0.20.0
+	go.opentelemetry.io/otel/exporters/trace/jaeger v0.20.0
+	go.opentelemetry.io/otel/sdk v0.20.0
+	go.opentelemetry.io/otel/trace v0.20.0
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974
+	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
 	golang.org/x/tools v0.0.0-20210106214847-113979e3529a
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/grpc v1.23.1
 	gopkg.in/fsnotify/fsnotify.v1 v1.0.0-20180110053347-c2828203cd70
 	gopkg.in/macaroon-bakery.v2 v2.2.0 // indirect
