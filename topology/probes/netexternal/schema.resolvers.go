@@ -5,6 +5,7 @@ package netexternal
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/skydive-project/skydive/graffiti/graph"
@@ -83,6 +84,10 @@ func (r *mutationResolver) AddRouter(ctx context.Context, input model.RouterInpu
 		InterfaceUpdated: interfaceUpdated,
 	}
 	return &payload, nil
+}
+
+func (r *mutationResolver) AddEvent(ctx context.Context, input model.EventInput) (*model.EventPayload, error) {
+	panic(fmt.Errorf("not implemented"))
 }
 
 func (r *queryResolver) Version(ctx context.Context) (string, error) {

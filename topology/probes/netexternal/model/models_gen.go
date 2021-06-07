@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"time"
 )
 
 // Return value when creating a new Router.
@@ -34,6 +35,41 @@ type AddSwitchPayload struct {
 type AddVLANPayload struct {
 	// Internal ID for the node in Skydive
 	ID string `json:"ID"`
+}
+
+// Datos de entrada para crear un evento y asociarlo a un nodo
+type EventInput struct {
+	// Nombre del nodo al que queremos añadir un evento.
+	// Solo algunos tipos de nodos pueden recibir eventos, son aquellos que se pueden
+	// identificar unívocamente por su Name+Type: servers, software, routers, switches, etc
+	// Otros como las interfaces, tienen el mismo Name+Type y se diferencian por su relación
+	// con otros nodos del primer tipo. A estos últimos no podemos añadir alarmas directamente.
+	Name string `json:"Name"`
+	// Cadena obligatoria con la que podamos relacionar eventos generados por el mismo origen.
+	// Por ejemplo, para Zabbix, la pkey será el triggerID, con el que logramos identificar
+	// que distintos eventos proceden del mismo origen.
+	// En el caso de alarmas enviadas por Elastic-ML, tendrá que ser una combinación de
+	// nombre de la función y otros parámetros con los que logremos distinguir que eventos
+	// con los "mismos" enviados en distintos momentos en el tiempo.
+	Pkey string `json:"Pkey"`
+	// Para los nodos tipo Router o Switch, se permite pasar, de manera opcional, el nombre
+	// de la interfaz involucrada en el evento.
+	// En caso de que dicha interfaz exista asociada al router/switch, se meterá la alarma
+	// en el nodo interfaz. En caso contrario, la alarma se asociará al router/switch.
+	Interface *string `json:"Interface"`
+	// Fecha del evento. En caso de no estar definido se usará la fecha actual
+	Time *time.Time `json:"Time"`
+	// Texto con formato JSON donde añadimos información extra del evento.
+	// Aquí podemos añadir, por ejemplo, la criticidad del evento, un texto descriptivo, etc
+	Metadata string `json:"Metadata"`
+}
+
+// Respuesta enviada al usuario al crear un evento
+type EventPayload struct {
+	// Return if the addEvent mutation was processed correctly
+	Ok bool `json:"Ok"`
+	// En caso de ok:false, retornamos un mensaje de error.
+	Error *string `json:"Error"`
 }
 
 // Level 3 (IP) configuration for interfaces

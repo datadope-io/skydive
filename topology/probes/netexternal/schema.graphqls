@@ -16,8 +16,12 @@ type Mutation {
   VLANs and networks will be created if they doesn't already exists.
   """
   addRouter(input: RouterInput!): AddRouterPayload!
+
+  addEvent(input: EventInput!): EventPayload!
 }
 
 type Query {
   version: String!
 }
+
+scalar Time
