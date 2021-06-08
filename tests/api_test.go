@@ -40,6 +40,7 @@ func getCrudClient() (c *shttp.CrudClient, err error) {
 	})
 	return
 }
+
 func TestAlertAPI(t *testing.T) {
 	client, err := getCrudClient()
 	if err != nil {
@@ -620,6 +621,100 @@ func TestAPIPatchNodeTable(t *testing.T) {
 				t.Error("UpdatedAt is not being updated by PATCH")
 			}
 		})
+	}
+}
+
+// TestAPIPatchNodeTypedMetadata tries to patch a node where some of its metadata contains
+// typed variables, not just plain dict/lists
+func TestAPIPatchNodeTypedMetadata(t *testing.T) {
+	// Types to test that stored metadata values keep its type after patching
+	type ProcInfo struct {
+		CreatedAt int64
+		UpdatedAt int64
+		Revision  int64
+	}
+	type NetworkInfo map[string]ProcInfo
+
+	client, err := getCrudClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create node
+	originalNodeBytes := []byte(`{
+		"ID": "test1",
+		"Metadata": {
+			"TID": "test1",
+			"Name": "name1",
+			"Type": "type1",
+			"foo": "bar"
+		},
+		"Host": "host1",
+		"Origin": "origin1",
+		"CreatedAt": 0,
+		"UpdatedAt": 0,
+		"Revision":  0
+	}`)
+	originalNode := types.Node{}
+	if err := json.Unmarshal(originalNodeBytes, &originalNode); err != nil {
+		t.Fatalf("error unmarshal originalNode: %v", err)
+	}
+
+	// Add typed metadata
+	ni := NetworkInfo{}
+	ni["test"] = ProcInfo{
+		CreatedAt: 1622466640,
+		UpdatedAt: 1622466640,
+		Revision:  1,
+	}
+
+	originalNode.Metadata.SetField("NetworkInfo", ni)
+
+	if err := client.Create("node", &originalNode, nil); err != nil {
+		t.Fatalf("Failed to create originalNode: %s", err.Error())
+	}
+
+	patchedNode := types.Node{}
+
+	// Apply a patch that will do nothing
+	patch := []JSONPatch{
+		{
+			Op:    "add",
+			Path:  "/Metadata/foo",
+			Value: "bar",
+		},
+	}
+
+	// Patch node
+	_, err = client.Update("node", originalNode.GetID(), patch, &patchedNode)
+	if err != nil {
+		t.Fatalf("Failed to apply patch: %s", err.Error())
+	}
+
+	getPatchedNode := types.Node{}
+	err = client.Get("node", originalNode.GetID(), &getPatchedNode)
+	if err != nil {
+		t.Fatalf("Failed to get node after patching: %s", err.Error())
+	}
+
+	// Compare nodes
+	neighOriginalRaw, err := originalNode.Metadata.GetField("NetworkInfo")
+	if err != nil {
+		panic(err)
+	}
+	neighPatchesRaw, err := getPatchedNode.Metadata.GetField("NetworkInfo")
+	if err != nil {
+		panic(err)
+	}
+
+	_, ok := neighOriginalRaw.(NetworkInfo)
+	if !ok {
+		panic(fmt.Sprintf("Unable to convert original node Metadata.NetworkInfo to type NetworkInfo: %v (%T)", neighOriginalRaw, neighOriginalRaw))
+	}
+
+	_, ok = neighPatchesRaw.(NetworkInfo)
+	if !ok {
+		panic(fmt.Sprintf("Unable to convert patches node Metadata.NetworkInfo to type NetworkInfo: %v (%T)", neighPatchesRaw, neighPatchesRaw))
 	}
 }
 
