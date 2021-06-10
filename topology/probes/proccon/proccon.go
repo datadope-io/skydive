@@ -173,7 +173,6 @@ func (p *Probe) processMetrics(metrics []Metric) map[*graph.Node][]Metric {
 				return nil
 			}
 		}
-		p.graph.Unlock()
 
 		appendToothers, removeFromOthers := p.processMetric(hostNode, metrics)
 		others[hostNode] = appendToothers
@@ -185,6 +184,7 @@ func (p *Probe) processMetrics(metrics []Metric) map[*graph.Node][]Metric {
 		if err != nil {
 			logging.GetLogger().Errorf("Trying to delete connections from known software from 'others' software")
 		}
+		p.graph.Unlock()
 	}
 
 	return others
@@ -289,7 +289,7 @@ func (p *Probe) generateOthers(others map[*graph.Node][]Metric) {
 	for hostNode, metrics := range others {
 		host := hostNode.Host
 
-		// Get the lock to avoid a race condition between asking if the node exists and creating it
+		// Get the lock to avoid a race condition between asking if the node exists, creating it and adding the new metric data
 		p.graph.Lock()
 
 		othersNodes := p.graph.LookupChildren(
@@ -332,22 +332,17 @@ func (p *Probe) generateOthers(others map[*graph.Node][]Metric) {
 			otherNode = othersNodes[0]
 		}
 
-		// Frees graph lock before addNetworkInfo, as that function grab also the lock
-		p.graph.Unlock()
-
 		err = p.addNetworkInfo(otherNode, metrics)
 		if err != nil {
 			logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %v): %v", nodeName(otherNode), nodeName(hostNode), err)
 		}
+
+		p.graph.Unlock()
 	}
 }
 
 // removeFromOthers remove connections/listeners from the "others" software node
 func (p *Probe) removeFromOthers(hostNode *graph.Node, metricsToBeDeleted []Metric) error {
-	// Lock the node while being modified
-	p.graph.Lock()
-	defer p.graph.Unlock()
-
 	othersNodes := p.graph.LookupChildren(
 		hostNode,
 		graph.Metadata{MetadataTypeKey: MetadataTypeSoftware, MetadataNameKey: OthersSoftwareNode},
@@ -491,9 +486,6 @@ func (p *Probe) addNetworkInfo(node *graph.Node, metrics []Metric) error {
 		appendProcInfoData(listenEndpoints, timestampMs, listenEndpointsStruct)
 	}
 
-	p.graph.Lock()
-	defer p.graph.Unlock()
-
 	// Updates nodes metadata
 	errTCPConn := p.graph.UpdateMetadata(node, MetadataTCPConnKey, func(field interface{}) bool {
 		return p.updateNetworkMetadata(field, tcpConnStruct, node.Revision)
@@ -524,9 +516,6 @@ func (p *Probe) addNetworkInfo(node *graph.Node, metrics []Metric) error {
 // removeOldNetworkInformation delete TCP connections and listen endpoints which update time
 // is less than "thresholdTime"
 func (p *Probe) removeOldNetworkInformation(node *graph.Node, thresholdTime time.Time) error {
-	p.graph.Lock()
-	defer p.graph.Unlock()
-
 	tt := graph.Time(thresholdTime)
 
 	removeOld := func(field interface{}) (ret bool) {
@@ -568,6 +557,12 @@ func (p *Probe) removeOldNetworkInformation(node *graph.Node, thresholdTime time
 // "now" is the current time (parametrized to be able to test this function)
 // "expiredConnection" is used to determine if connections/listeners are too old
 func (p *Probe) cleanSoftwareNodes(expiredConnectionThreshold time.Time) {
+	// Lock the graph while cleaning.
+	// Once we get the nodes, we are using that info to update its metadata.
+	// We have to avoid changes in those hosts while running this cleaner.
+	p.graph.Lock()
+	defer p.graph.Unlock()
+
 	softwareNodeFilter := graph.NewElementFilter(filters.NewTermStringFilter(MetadataTypeKey, MetadataTypeSoftware))
 	softwareNodes := p.graph.GetNodes(softwareNodeFilter)
 
