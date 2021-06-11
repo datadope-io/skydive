@@ -150,8 +150,9 @@ func (p *Probe) processMetrics(metrics []Metric) map[*graph.Node][]Metric {
 
 	// For each host, process each metrics
 	for host, metrics := range hostMetrics {
-		// Get server node
 		p.graph.Lock() // Avoid race condition createing twice the same server node
+
+		// Get server node
 		hostNode := p.graph.GetNode(getIdentifier(graph.Metadata{
 			MetadataTypeKey: MetadataTypeServer,
 			MetadataNameKey: host,
@@ -174,7 +175,7 @@ func (p *Probe) processMetrics(metrics []Metric) map[*graph.Node][]Metric {
 			}
 		}
 
-		appendToothers, removeFromOthers := p.processMetric(hostNode, metrics)
+		appendToothers, removeFromOthers := p.processHostMetrics(hostNode, metrics)
 		others[hostNode] = appendToothers
 
 		// Delete this connections from "others" node (in case now we have a software node to put that connections into)
@@ -190,35 +191,35 @@ func (p *Probe) processMetrics(metrics []Metric) map[*graph.Node][]Metric {
 	return others
 }
 
-// processMetric handle each of the received metrics.
+// processHostMetrics handle each of the received metrics.
 // Get or create the Server node associated with the metric.
 // Look if any of the Software childs of this node match the cmdline of the metric.
 // Add the connection info to the child or to the "others" software child if no Software matches the cmdline.
 // Delete connection info from "others" in case it has found a specific software.
-// processMetric given a Server node and a list of metrics of that node, for each metric
+// processHostMetrics given a Server node and a list of metrics of that node, for each metric
 // try to find a Software node with the same cmdline.
 // If found, add the network info of the metric to that node and remove it from "others" node.
 // If not found, append that network info to "others"
-func (p *Probe) processMetric(hostNode *graph.Node, metrics []Metric) (
+func (p *Probe) processHostMetrics(serverNode *graph.Node, metrics []Metric) (
 	others []Metric,
 	removeFromOthers []Metric,
 ) {
 	for _, metric := range metrics {
 		// Get child Software nodes with matching cmdline
 		childNodes := p.graph.LookupChildren(
-			hostNode,
+			serverNode,
 			graph.Metadata{MetadataTypeKey: MetadataTypeSoftware, MetadataCmdlineKey: metric.Tags["cmdline"]},
 			graph.Metadata{MetadataRelationTypeKey: RelationTypeHasSoftware},
 		)
 
 		if len(childNodes) == 0 {
-			logging.GetLogger().Debugf("Software node not found for Server node '%v' and cmdline '%s', storing in others", nodeName(hostNode), metric.Tags["cmdline"])
+			logging.GetLogger().Debugf("Software node not found for Server node '%v' and cmdline '%s', storing in others", nodeName(serverNode), metric.Tags["cmdline"])
 			// Accumulate changes to "others" to make only one change to the node
 			others = append(others, metric)
 			continue
 		} else if len(childNodes) > 1 {
 			// This should not happen
-			logging.GetLogger().Errorf("Found more than one Software node for Server node '%v' and cmdline '%s': %+v. Ignoring", nodeName(hostNode), metric.Tags["cmdline"], childNodes)
+			logging.GetLogger().Errorf("Found more than one Software node for Server node '%v' and cmdline '%s': %+v. Ignoring", nodeName(serverNode), metric.Tags["cmdline"], childNodes)
 			continue
 		}
 
@@ -231,7 +232,7 @@ func (p *Probe) processMetric(hostNode *graph.Node, metrics []Metric) (
 		// Attach that network information to the software node
 		err := p.addNetworkInfo(swNode, []Metric{metric})
 		if err != nil {
-			logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %+v)", nodeName(swNode), hostNode)
+			logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %+v)", nodeName(swNode), serverNode)
 		}
 	}
 
@@ -336,7 +337,6 @@ func (p *Probe) generateOthers(others map[*graph.Node][]Metric) {
 		if err != nil {
 			logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %v): %v", nodeName(otherNode), nodeName(hostNode), err)
 		}
-
 		p.graph.Unlock()
 	}
 }
@@ -659,7 +659,8 @@ func (p *Probe) Start() error {
 	msgp.RegisterExtension(-1, func() msgp.Extension { return new(MessagePackTime) })
 
 	listenEndpoint := config.GetString("analyzer.topology.proccon.listen")
-	go http.ListenAndServe(listenEndpoint, p)
+	http.Handle("/", p)
+	go http.ListenAndServe(listenEndpoint, nil)
 	logging.GetLogger().Infof("Listening for new network metrics on %v", listenEndpoint)
 
 	p.GCdone = make(chan bool)
