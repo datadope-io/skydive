@@ -137,73 +137,80 @@ type Probe struct {
 }
 
 // processMetrics get an array of metrics, process each one and return the map with conn info
-// which doesn't have a specific Software server
-func (p *Probe) processMetrics(metrics []Metric) map[*graph.Node][]Metric {
-	// Accumulate "others" connections to generate only one modification in the node
-	others := map[*graph.Node][]Metric{}
+// which doesn't have a specific Software server.
+// Return the number of metrics not proccessed or which returned errors
+func (p *Probe) processMetrics(metrics []Metric) int {
+	numberOfErrors := 0
 
 	// Group metrics by host
 	hostMetrics := map[string][]Metric{}
 	for _, m := range metrics {
-		hostMetrics[m.Tags["host"]] = append(hostMetrics[m.Tags["host"]], m)
+		host, ok := m.Tags["host"]
+		if !ok {
+			logging.GetLogger().Warningf("Metric without host tag: %+v. Ignored", m)
+			numberOfErrors++
+			continue
+		}
+		hostMetrics[host] = append(hostMetrics[host], m)
 	}
 
 	// For each host, process each metrics
 	for host, metrics := range hostMetrics {
-		p.graph.Lock() // Avoid race condition createing twice the same server node
-
-		// Get server node
-		hostNode := p.graph.GetNode(getIdentifier(graph.Metadata{
-			MetadataTypeKey: MetadataTypeServer,
-			MetadataNameKey: host,
-		}))
-
-		var err error
-
-		// Server node does not exists. Create it
-		if hostNode == nil {
-			logging.GetLogger().Debugf("Node not found with Metadata.Name '%s', creating it", host)
-
-			logging.GetLogger().Debugf("newNode(Server, %v)", host)
-			hostNode, err = p.newNode(host, graph.Metadata{
-				MetadataNameKey: host,
-				MetadataTypeKey: MetadataTypeServer,
-			})
-			if err != nil {
-				logging.GetLogger().Errorf("Creating %s server node: %v.", host, err)
-				return nil
-			}
-		}
-
-		appendToothers, removeFromOthers := p.processHostMetrics(hostNode, metrics)
-		others[hostNode] = appendToothers
-
-		// Delete this connections from "others" node (in case now we have a software node to put that connections into)
-		// Maybe this function is too expensive? Another option is to leave the connections and the garbageCollector will take care, but we will
-		// have duplicated edges till the garbageCollector cleans others
-		err = p.removeFromOthers(hostNode, removeFromOthers)
+		numErr, err := p.processHost(host, metrics)
 		if err != nil {
-			logging.GetLogger().Errorf("Trying to delete connections from known software from 'others' software")
+			logging.GetLogger().Errorf("Processing metrics for host %s: %v", host, err)
 		}
-		p.graph.Unlock()
+		numberOfErrors += numErr
 	}
-
-	return others
+	return numberOfErrors
 }
 
-// processHostMetrics handle each of the received metrics.
-// Get or create the Server node associated with the metric.
-// Look if any of the Software childs of this node match the cmdline of the metric.
-// Add the connection info to the child or to the "others" software child if no Software matches the cmdline.
-// Delete connection info from "others" in case it has found a specific software.
+// processHost handle a group of metrics belonging to the same server.
+// Get or create a Server node from the host string and add/update metrics to that
+// server node.
+func (p *Probe) processHost(host string, metrics []Metric) (int, error) {
+	logging.GetLogger().Debugf("processHost, host=%s, metrics=%+v", host, metrics)
+
+	p.graph.Lock() // Avoid race condition createing twice the same server node
+	defer p.graph.Unlock()
+
+	// Get server node
+	hostNode := p.graph.GetNode(getIdentifier(graph.Metadata{
+		MetadataTypeKey: MetadataTypeServer,
+		MetadataNameKey: host,
+	}))
+
+	var err error
+
+	// Server node does not exists. Create it
+	if hostNode == nil {
+		logging.GetLogger().Debugf("Node not found with Metadata.Name '%s', creating it", host)
+
+		logging.GetLogger().Debugf("newNode(Server, %v)", host)
+		hostNode, err = p.newNode(host, graph.Metadata{
+			MetadataNameKey: host,
+			MetadataTypeKey: MetadataTypeServer,
+		})
+		if err != nil {
+			return len(metrics), fmt.Errorf("creating %s server node: %v", host, err)
+		}
+	}
+
+	numberOfErrors := p.processHostMetrics(hostNode, metrics)
+
+	return numberOfErrors, nil
+}
+
 // processHostMetrics given a Server node and a list of metrics of that node, for each metric
 // try to find a Software node with the same cmdline.
 // If found, add the network info of the metric to that node and remove it from "others" node.
-// If not found, append that network info to "others"
-func (p *Probe) processHostMetrics(serverNode *graph.Node, metrics []Metric) (
-	others []Metric,
-	removeFromOthers []Metric,
-) {
+// If not found, append that network info to "others".
+// Return the number of errors seen
+func (p *Probe) processHostMetrics(serverNode *graph.Node, metrics []Metric) int {
+	addToOthers := []Metric{}
+	removeFromOthers := []Metric{}
+	numberOfErrors := 0
+
 	for _, metric := range metrics {
 		// Get child Software nodes with matching cmdline
 		childNodes := p.graph.LookupChildren(
@@ -215,11 +222,12 @@ func (p *Probe) processHostMetrics(serverNode *graph.Node, metrics []Metric) (
 		if len(childNodes) == 0 {
 			logging.GetLogger().Debugf("Software node not found for Server node '%v' and cmdline '%s', storing in others", nodeName(serverNode), metric.Tags["cmdline"])
 			// Accumulate changes to "others" to make only one change to the node
-			others = append(others, metric)
+			addToOthers = append(addToOthers, metric)
 			continue
 		} else if len(childNodes) > 1 {
 			// This should not happen
 			logging.GetLogger().Errorf("Found more than one Software node for Server node '%v' and cmdline '%s': %+v. Ignoring", nodeName(serverNode), metric.Tags["cmdline"], childNodes)
+			numberOfErrors++
 			continue
 		}
 
@@ -233,10 +241,17 @@ func (p *Probe) processHostMetrics(serverNode *graph.Node, metrics []Metric) (
 		err := p.addNetworkInfo(swNode, []Metric{metric})
 		if err != nil {
 			logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %+v)", nodeName(swNode), serverNode)
+			numberOfErrors++
 		}
 	}
 
-	return others, removeFromOthers
+	err := p.handleOthers(serverNode, addToOthers, removeFromOthers)
+	if err != nil {
+		logging.GetLogger().Errorf("Not able to handle 'others' Software node: %v", err)
+		numberOfErrors++
+	}
+
+	return numberOfErrors
 }
 
 // ServeHTTP receive HTTP POST requests from Telegraf nodes with processes data
@@ -275,74 +290,29 @@ func (p *Probe) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	others := p.processMetrics(metrics)
+	numberOfErrors := p.processMetrics(metrics)
 
-	// Handle accumulated "others" software connections
-	p.generateOthers(others)
-
-	w.Write([]byte("OK"))
+	w.Write([]byte(fmt.Sprintf("total:%d error:%d", len(metrics), numberOfErrors)))
 }
 
-// generateOthers get the accumulated values of metrics that should be written to the "others" node.
-// This node stores all connections that does not have a custom Software node.
-// This funcion will create the "others" software node if needed.
-func (p *Probe) generateOthers(others map[*graph.Node][]Metric) {
-	for hostNode, metrics := range others {
-		host := hostNode.Host
+// handleOthers given a Server and two list of metrics, one with the metrics to be
+// added to the linked 'others' Software node, and the other list with the metrics to
+// be removed from that 'others' node.
+// Create the 'others' node if needed.
+func (p *Probe) handleOthers(
+	hostNode *graph.Node,
+	metricsToBeAdded []Metric,
+	metricsToBeDeleted []Metric,
+) error {
+	var otherNode *graph.Node
+	var err error
 
-		// Get the lock to avoid a race condition between asking if the node exists, creating it and adding the new metric data
-		p.graph.Lock()
+	logging.GetLogger().Debugf("Handling %d adds and %d removes to other host of Server %s",
+		len(metricsToBeAdded),
+		len(metricsToBeDeleted),
+		nodeName(hostNode),
+	)
 
-		othersNodes := p.graph.LookupChildren(
-			hostNode,
-			graph.Metadata{MetadataTypeKey: MetadataTypeSoftware, MetadataNameKey: OthersSoftwareNode},
-			graph.Metadata{MetadataRelationTypeKey: RelationTypeHasSoftware},
-		)
-
-		var otherNode *graph.Node
-		var err error
-
-		if len(othersNodes) == 0 {
-			// Create the node
-			logging.GetLogger().Debugf("newNode(Software, others)")
-			otherNode, err = p.newNode(host, graph.Metadata{
-				MetadataNameKey: OthersSoftwareNode,
-				MetadataTypeKey: MetadataTypeSoftware,
-			})
-			if err != nil {
-				logging.GetLogger().Errorf("Creating 'others' Software node for Server node '%+v': %v.", hostNode, err)
-				return
-			}
-
-			// Create edge to link to the host
-			logging.GetLogger().Debugf("newEdge(%v, %v, has_software)", hostNode, otherNode)
-			_, err = p.newEdge(host, hostNode, otherNode, graph.Metadata{
-				MetadataRelationTypeKey: RelationTypeHasSoftware,
-			})
-			if err != nil {
-				logging.GetLogger().Errorf("Linking 'others' Software node to host Server node '%+v': %v.", hostNode, err)
-				return
-			}
-
-		} else if len(othersNodes) > 1 {
-			logging.GetLogger().Errorf("Found more than one 'others' Software node for Server node '%+v'. This should not happen. Not adding metrics", hostNode)
-			return
-
-		} else {
-			// Append info
-			otherNode = othersNodes[0]
-		}
-
-		err = p.addNetworkInfo(otherNode, metrics)
-		if err != nil {
-			logging.GetLogger().Errorf("Not able to add network info to Software '%s' (host %v): %v", nodeName(otherNode), nodeName(hostNode), err)
-		}
-		p.graph.Unlock()
-	}
-}
-
-// removeFromOthers remove connections/listeners from the "others" software node
-func (p *Probe) removeFromOthers(hostNode *graph.Node, metricsToBeDeleted []Metric) error {
 	othersNodes := p.graph.LookupChildren(
 		hostNode,
 		graph.Metadata{MetadataTypeKey: MetadataTypeSoftware, MetadataNameKey: OthersSoftwareNode},
@@ -350,15 +320,52 @@ func (p *Probe) removeFromOthers(hostNode *graph.Node, metricsToBeDeleted []Metr
 	)
 
 	if len(othersNodes) == 0 {
-		// do nothing
-		return nil
+		if len(metricsToBeAdded) == 0 {
+			// do nothing if there is no 'others' node and nothing to add
+			return nil
+		}
+
+		// create 'others' node
+		logging.GetLogger().Debugf("newNode(Software, others)")
+		otherNode, err = p.newNode(hostNode.Host, graph.Metadata{
+			MetadataNameKey: OthersSoftwareNode,
+			MetadataTypeKey: MetadataTypeSoftware,
+		})
+		if err != nil {
+			return fmt.Errorf("creating 'others' Software node for Server node '%+v': %v", hostNode, err)
+		}
+
+		// Create edge to link to the host
+		logging.GetLogger().Debugf("newEdge(%v, %v, has_software)", hostNode, otherNode)
+		_, err = p.newEdge(hostNode.Host, hostNode, otherNode, graph.Metadata{
+			MetadataRelationTypeKey: RelationTypeHasSoftware,
+		})
+		if err != nil {
+			return fmt.Errorf("linking 'others' Software node to host Server node '%+v': %v", hostNode, err)
+		}
 	} else if len(othersNodes) > 1 {
 		// This should not happen
 		return fmt.Errorf("Found more than one 'others' Software node for Server node '%+v'. Not removing metrics", hostNode)
+	} else {
+		otherNode = othersNodes[0]
 	}
 
-	otherNode := othersNodes[0]
+	err = p.removeFromOthers(otherNode, metricsToBeDeleted)
+	if err != nil {
+		return fmt.Errorf("removing connections from the other node of Server %s: %v", nodeName(hostNode), err)
+	}
 
+	// If removeFromOthers fail, this function will not be executed
+	err = p.addNetworkInfo(otherNode, metricsToBeAdded)
+	if err != nil {
+		return fmt.Errorf("adding connections to the other node of Server %s: %v", nodeName(hostNode), err)
+	}
+
+	return nil
+}
+
+// removeFromOthers remove connections/listeners from the "others" software node
+func (p *Probe) removeFromOthers(otherNode *graph.Node, metricsToBeDeleted []Metric) error {
 	// Remove from connections/listeners lists in otherNode the values found in "metric"
 	removeKeysFromList := func(field interface{}, metrics []string) (ret bool) {
 		infoPtr, ok := field.(*NetworkInfo)
@@ -448,6 +455,8 @@ func (p *Probe) updateNetworkMetadata(field interface{}, newData NetworkInfo, no
 
 // addNetworkInfo append connection and listen endpoints to the metadata of the server
 func (p *Probe) addNetworkInfo(node *graph.Node, metrics []Metric) error {
+	logging.GetLogger().Debugf("addNetworkInfo, node:%s, metrics:%+v", nodeName(node), metrics)
+
 	// Accumulate conn/endpoint of all metrics in this vars
 	tcpConnStruct := NetworkInfo{}
 	listenEndpointsStruct := NetworkInfo{}
