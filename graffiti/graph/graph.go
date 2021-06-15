@@ -1213,6 +1213,11 @@ func (g *Graph) GetNode(i Identifier) *Node {
 	return nil
 }
 
+// GetNodeAll from Identifier, all revisions
+func (g *Graph) GetNodeAll(i Identifier) []*Node {
+	return g.backend.GetNode(i, g.context)
+}
+
 // CreateNode returns a new node not bound to a graph
 func CreateNode(i Identifier, m Metadata, t Time, h string, o string) *Node {
 	n := &Node{
