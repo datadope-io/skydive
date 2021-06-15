@@ -104,24 +104,29 @@ func InterfaceEvents(ctx traversal.StepContext, tv *traversal.GraphTraversalV, k
 	// events accumulate the events for each node id
 	events := map[graph.Identifier]map[string][]interface{}{}
 
-	for _, newNode := range tv.GetNodes() {
+	for _, node := range tv.GetNodes() {
 		// TODO afecta la paginación a esta función? Cuando se usa esta paginación?
 		if it.Done() {
 			break
 		}
 
-		// Store only the most recent nodes
-		storedNode, ok := uniqNodes[newNode.ID]
-		if !ok {
-			uniqNodes[newNode.ID] = newNode
-		} else {
-			if storedNode.Revision < newNode.Revision {
-				uniqNodes[newNode.ID] = newNode
-			}
-		}
+		// Get all revisions for this node
+		revisionNodes := tv.GraphTraversal.Graph.GetNodeAll(node.ID)
 
-		// Store events from nodes into the "events" variable
-		events[newNode.ID] = mergeEvents(newNode, key, events[newNode.ID])
+		// Store only the most recent nodes
+		for _, rNode := range revisionNodes {
+			storedNode, ok := uniqNodes[rNode.ID]
+			if !ok {
+				uniqNodes[rNode.ID] = rNode
+			} else {
+				if storedNode.Revision < rNode.Revision {
+					uniqNodes[rNode.ID] = rNode
+				}
+			}
+
+			// Store events from all revisions into the "events" variable
+			events[rNode.ID] = mergeEvents(rNode, key, events[rNode.ID])
+		}
 	}
 
 	// Move the nodes from the uniqNodes map to an slice required by TraversalV
