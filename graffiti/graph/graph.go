@@ -1054,6 +1054,46 @@ func (g *Graph) LookupChildren(n *Node, f ElementMatcher, em ElementMatcher) (no
 	return nodes
 }
 
+// LookupNeighbor returns a list of neighbor nodes
+func (g *Graph) LookupNeighbor(n *Node, f ElementMatcher, em ElementMatcher) (nodes []*Node) {
+	for _, e := range g.backend.GetNodeEdges(n, g.context, em) {
+		if e.Parent == n.ID {
+			_, children := g.backend.GetEdgeNodes(e, g.context, nil, f)
+			for _, child := range children {
+				nodes = append(nodes, child)
+			}
+		} else {
+			parents, _ := g.backend.GetEdgeNodes(e, g.context, f, nil)
+			for _, parent := range parents {
+				nodes = append(nodes, parent)
+			}
+		}
+	}
+
+	return nodes
+}
+
+// LookupNeighborIgnoreVisited returns a list of neighbor nodes ignoring the ones in the visited slice
+func (g *Graph) LookupNeighborIgnoreVisited(n *Node, f ElementMatcher, em ElementMatcher, visited map[Identifier]bool) (nodes []*Node) {
+	for _, e := range g.backend.GetNodeEdges(n, g.context, em) {
+		// Only get neighbor nodes if the node is not yet in the visited list
+		// If our node is the parent, we skip the visit if the child is in the visited list
+		if _, ok := visited[e.Child]; !ok && e.Parent == n.ID {
+			_, children := g.backend.GetEdgeNodes(e, g.context, nil, f)
+			for _, child := range children {
+				nodes = append(nodes, child)
+			}
+		} else if _, ok := visited[e.Parent]; !ok && e.Child == n.ID {
+			parents, _ := g.backend.GetEdgeNodes(e, g.context, f, nil)
+			for _, parent := range parents {
+				nodes = append(nodes, parent)
+			}
+		}
+	}
+
+	return nodes
+}
+
 // AreLinked returns true if nodes n1, n2 are linked
 func (g *Graph) AreLinked(n1 *Node, n2 *Node, m ElementMatcher) bool {
 	for _, e := range g.backend.GetNodeEdges(n1, g.context, m) {
