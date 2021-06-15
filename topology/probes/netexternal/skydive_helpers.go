@@ -115,6 +115,27 @@ func (r *Resolver) newNode(m graph.Metadata, createdAt *time.Time) (*graph.Node,
 	return n, nil
 }
 
+func (r *Resolver) updateNode(id string, m graph.Metadata, modifiedAt *time.Time) (*graph.Node, error) {
+	r.Graph.Lock()
+	defer r.Graph.Unlock()
+
+	old_node := r.Graph.GetNode(graph.Identifier(id))
+	if old_node == nil {
+		return nil, fmt.Errorf("Node doesn't exist")
+	}
+
+	new_node := graph.CreateNode(old_node.ID, m, old_node.CreatedAt, old_node.Host, old_node.Origin)
+	// Increment revision
+	new_node.Revision = old_node.Revision + 1
+
+	err := r.Graph.NodeUpdated(new_node)
+	if err != nil {
+		return nil, fmt.Errorf("Updating node")
+	}
+
+	return new_node, nil
+}
+
 // addVLANsToInterface for each VLAN add a link of type "Mode" to each
 // of the VLANs defined in the "VID" array.
 func (r *Resolver) addVLANsToInterface(iface *graph.Node, vlan model.InterfaceVLANInput, createdAt *time.Time) error {
