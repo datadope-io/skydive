@@ -137,6 +137,9 @@ type RouterInput struct {
 	Interfaces []*InterfaceInput `json:"Interfaces"`
 	// Routing table. Each element represents a different VRF.
 	RoutingTable []*VRFRouteTable `json:"RoutingTable"`
+	// Campo opcional donde forzamos la fecha de creación del dispositivo a un momento determinado del pasado.
+	// En caso de no definirse se usará la fecha actual.
+	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
 // Values to create a new Switch.
@@ -157,6 +160,9 @@ type SwitchInput struct {
 	// IP routes for switches with this feature.
 	// Switches does not have VRF, so we will create only one VRFRouteTable without VRF name.
 	RoutingTable []*VRFRouteTable `json:"RoutingTable"`
+	// Campo opcional donde forzamos la fecha de creación del dispositivo a un momento determinado del pasado.
+	// En caso de no definirse se usará la fecha actual.
+	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
 // Values to create a new VLAN.

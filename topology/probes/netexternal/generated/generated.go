@@ -402,6 +402,11 @@ input SwitchInput {
   Switches does not have VRF, so we will create only one VRFRouteTable without VRF name.
   """
   RoutingTable: [VRFRouteTable!]
+  """
+  Campo opcional donde forzamos la fecha de creación del dispositivo a un momento determinado del pasado.
+  En caso de no definirse se usará la fecha actual.
+  """
+  CreatedAt: Time
 }
 
 """
@@ -522,6 +527,11 @@ input RouterInput {
   Routing table. Each element represents a different VRF.
   """
   RoutingTable: [VRFRouteTable!]
+  """
+  Campo opcional donde forzamos la fecha de creación del dispositivo a un momento determinado del pasado.
+  En caso de no definirse se usará la fecha actual.
+  """
+  CreatedAt: Time
 }
 
 input VRFRouteTable {
@@ -2668,6 +2678,14 @@ func (ec *executionContext) unmarshalInputRouterInput(ctx context.Context, obj i
 			if err != nil {
 				return it, err
 			}
+		case "CreatedAt":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("CreatedAt"))
+			it.CreatedAt, err = ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -2725,6 +2743,14 @@ func (ec *executionContext) unmarshalInputSwitchInput(ctx context.Context, obj i
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("RoutingTable"))
 			it.RoutingTable, err = ec.unmarshalOVRFRouteTable2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐVRFRouteTableᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "CreatedAt":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("CreatedAt"))
+			it.CreatedAt, err = ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
 			if err != nil {
 				return it, err
 			}

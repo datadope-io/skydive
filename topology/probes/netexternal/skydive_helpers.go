@@ -3,6 +3,7 @@ package netexternal
 import (
 	"fmt"
 	"net"
+	"time"
 
 	uuid "github.com/nu7hatch/gouuid"
 	"github.com/skydive-project/skydive/graffiti/filters"
@@ -79,11 +80,17 @@ const (
 )
 
 // newEdge create a new edge in Skydive with a custom Origin field
-func (r *Resolver) newEdge(n *graph.Node, c *graph.Node, m graph.Metadata) (*graph.Edge, error) {
+func (r *Resolver) newEdge(n *graph.Node, c *graph.Node, m graph.Metadata, createdAt *time.Time) (*graph.Edge, error) {
 	u, _ := uuid.NewV5(uuid.NamespaceOID, []byte(n.ID+c.ID))
 	i := graph.Identifier(u.String())
 
-	e := graph.CreateEdge(i, n, c, m, graph.TimeUTC(), r.Graph.GetHost(), PrefixOriginName+r.Graph.GetOrigin())
+	var timestamp graph.Time
+	if createdAt != nil {
+		timestamp = graph.Time(*createdAt)
+	} else {
+		timestamp = graph.TimeUTC()
+	}
+	e := graph.CreateEdge(i, n, c, m, timestamp, r.Graph.GetHost(), PrefixOriginName+r.Graph.GetOrigin())
 
 	if err := r.Graph.AddEdge(e); err != nil {
 		return nil, err
@@ -92,9 +99,15 @@ func (r *Resolver) newEdge(n *graph.Node, c *graph.Node, m graph.Metadata) (*gra
 }
 
 // newNode create a new edge in Skydive with a custom Origin field
-func (r *Resolver) newNode(m graph.Metadata) (*graph.Node, error) {
+func (r *Resolver) newNode(m graph.Metadata, createdAt *time.Time) (*graph.Node, error) {
 	i := graph.GenID()
-	n := graph.CreateNode(i, m, graph.TimeUTC(), r.Graph.GetHost(), PrefixOriginName+r.Graph.GetOrigin())
+	var timestamp graph.Time
+	if createdAt != nil {
+		timestamp = graph.Time(*createdAt)
+	} else {
+		timestamp = graph.TimeUTC()
+	}
+	n := graph.CreateNode(i, m, timestamp, r.Graph.GetHost(), PrefixOriginName+r.Graph.GetOrigin())
 
 	if err := r.Graph.AddNode(n); err != nil {
 		return nil, err
@@ -104,10 +117,10 @@ func (r *Resolver) newNode(m graph.Metadata) (*graph.Node, error) {
 
 // addVLANsToInterface for each VLAN add a link of type "Mode" to each
 // of the VLANs defined in the "VID" array.
-func (r *Resolver) addVLANsToInterface(iface *graph.Node, vlan model.InterfaceVLANInput) error {
+func (r *Resolver) addVLANsToInterface(iface *graph.Node, vlan model.InterfaceVLANInput, createdAt *time.Time) error {
 	for _, vid := range vlan.Vid {
 		// Create or get VLAN node
-		vlanNode, err := r.createVLAN(vid, "")
+		vlanNode, err := r.createVLAN(vid, "", createdAt)
 		if err != nil {
 			return err
 		}
@@ -119,7 +132,7 @@ func (r *Resolver) addVLANsToInterface(iface *graph.Node, vlan model.InterfaceVL
 		if !r.Graph.AreLinked(vlanNode, iface, vlanEdgeFilter) {
 			_, err = r.newEdge(vlanNode, iface, map[string]interface{}{
 				MetadataRelationTypeKey: string(vlan.Mode),
-			})
+			}, createdAt)
 			if err != nil {
 				return fmt.Errorf("unable to link VLAN (%d) to interface (%+v): %v", vid, iface, err)
 			}
@@ -132,7 +145,7 @@ func (r *Resolver) addVLANsToInterface(iface *graph.Node, vlan model.InterfaceVL
 // createVLAN add a new node to Skydive to represent a VLAN.
 // If a VLAN with this VID already exists return the node.
 // Sets a default name if "name" param is not defined
-func (r *Resolver) createVLAN(vid int, name string) (*graph.Node, error) {
+func (r *Resolver) createVLAN(vid int, name string, createdAt *time.Time) (*graph.Node, error) {
 	if name == "" {
 		name = fmt.Sprintf("VLAN:%d", vid)
 	}
@@ -156,7 +169,7 @@ func (r *Resolver) createVLAN(vid int, name string) (*graph.Node, error) {
 	// Return internal ID if it exists.
 	// Error if there more than one node matching
 	if len(nodes) == 0 {
-		node, err = r.newNode(metadata)
+		node, err = r.newNode(metadata, createdAt)
 		if err != nil {
 			return nil, err
 		}
@@ -182,7 +195,7 @@ func (r *Resolver) createVLAN(vid int, name string) (*graph.Node, error) {
 // It also links the IP node to its network node.
 // The network is also linked to the VRF node.
 // Create the network node if it does not exists.
-func (r *Resolver) createIP(ip net.IP, mask net.IPMask, iface *graph.Node, vrfNode *graph.Node) (*graph.Node, error) {
+func (r *Resolver) createIP(ip net.IP, mask net.IPMask, iface *graph.Node, vrfNode *graph.Node, createdAt *time.Time) (*graph.Node, error) {
 	metadata := map[string]interface{}{
 		MetadataNameKey: fmt.Sprintf("IP:%s", ip),
 		MetadataTypeKey: TypeIP,
@@ -207,7 +220,7 @@ func (r *Resolver) createIP(ip net.IP, mask net.IPMask, iface *graph.Node, vrfNo
 	// Return internal ID if it exists.
 	// Error if there more than one node matching
 	if len(nodes) == 0 {
-		ipNode, err = r.newNode(metadata)
+		ipNode, err = r.newNode(metadata, createdAt)
 		if err != nil {
 			return nil, err
 		}
@@ -222,7 +235,7 @@ func (r *Resolver) createIP(ip net.IP, mask net.IPMask, iface *graph.Node, vrfNo
 	if !r.Graph.AreLinked(iface, ipNode, ipEdgeFilter) {
 		_, err = r.newEdge(iface, ipNode, map[string]interface{}{
 			MetadataRelationTypeKey: RelationTypeInterfaceIP,
-		})
+		}, createdAt)
 		if err != nil {
 			return nil, fmt.Errorf("unable to link interface (%+v) to IP (%+v): %v", iface, ipNode, err)
 		}
@@ -231,7 +244,7 @@ func (r *Resolver) createIP(ip net.IP, mask net.IPMask, iface *graph.Node, vrfNo
 	// Link the IP to its network
 	// Create or get network node
 	network := net.IPNet{IP: ip, Mask: mask}
-	networkNode, err := r.createNetwork(network)
+	networkNode, err := r.createNetwork(network, createdAt)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +255,7 @@ func (r *Resolver) createIP(ip net.IP, mask net.IPMask, iface *graph.Node, vrfNo
 	if !r.Graph.AreLinked(networkNode, ipNode, networkEdgeFilter) {
 		_, err = r.newEdge(networkNode, ipNode, map[string]interface{}{
 			MetadataRelationTypeKey: RelationTypeNetworkIP,
-		})
+		}, createdAt)
 		if err != nil {
 			return nil, fmt.Errorf("unable to link network (%+v) to IP (%+v): %v", networkNode, ipNode, err)
 		}
@@ -255,7 +268,7 @@ func (r *Resolver) createIP(ip net.IP, mask net.IPMask, iface *graph.Node, vrfNo
 	if !r.Graph.AreLinked(vrfNode, networkNode, vrfNetworkEdgeFilter) {
 		_, err = r.newEdge(vrfNode, networkNode, map[string]interface{}{
 			MetadataRelationTypeKey: RelationTypeVRFNetwork,
-		})
+		}, createdAt)
 		if err != nil {
 			return nil, fmt.Errorf("unable to link VRF (%+v) to network (%+v): %v", vrfNode, networkNode, err)
 		}
@@ -265,7 +278,7 @@ func (r *Resolver) createIP(ip net.IP, mask net.IPMask, iface *graph.Node, vrfNo
 }
 
 // createVRF create a VRF node linked to the device node.
-func (r *Resolver) createVRF(vrf *string, device *graph.Node) (*graph.Node, error) {
+func (r *Resolver) createVRF(vrf *string, device *graph.Node, createdAt *time.Time) (*graph.Node, error) {
 	var name string
 	if vrf == nil {
 		name = "default"
@@ -295,7 +308,7 @@ func (r *Resolver) createVRF(vrf *string, device *graph.Node) (*graph.Node, erro
 	// Return internal ID if it exists.
 	// Error if there more than one node matching
 	if len(nodes) == 0 {
-		vrfNode, err = r.newNode(metadata)
+		vrfNode, err = r.newNode(metadata, createdAt)
 		if err != nil {
 			return nil, err
 		}
@@ -310,7 +323,7 @@ func (r *Resolver) createVRF(vrf *string, device *graph.Node) (*graph.Node, erro
 	if !r.Graph.AreLinked(device, vrfNode, vrfEdgeFilter) {
 		_, err = r.newEdge(device, vrfNode, map[string]interface{}{
 			MetadataRelationTypeKey: RelationTypeDeviceVRF,
-		})
+		}, createdAt)
 		if err != nil {
 			return nil, fmt.Errorf("unable to link device (%+v) to VRF (%+v): %v", device, vrfNode, err)
 		}
@@ -320,7 +333,7 @@ func (r *Resolver) createVRF(vrf *string, device *graph.Node) (*graph.Node, erro
 }
 
 // createNetwork create a node to represent a IP network
-func (r *Resolver) createNetwork(network net.IPNet) (*graph.Node, error) {
+func (r *Resolver) createNetwork(network net.IPNet, createdAt *time.Time) (*graph.Node, error) {
 	baseAddr := network.IP.Mask(network.Mask)
 	metadata := map[string]interface{}{
 		MetadataNameKey: fmt.Sprintf("NET:%s", baseAddr.String()),
@@ -341,7 +354,7 @@ func (r *Resolver) createNetwork(network net.IPNet) (*graph.Node, error) {
 	// Return internal ID if it exists.
 	// Error if there more than one node matching
 	if len(nodes) == 0 {
-		node, err = r.newNode(metadata)
+		node, err = r.newNode(metadata, createdAt)
 		if err != nil {
 			return nil, err
 		}
@@ -363,6 +376,7 @@ func (r *Resolver) createInterfaces(
 	node *graph.Node,
 	interfaces []*model.InterfaceInput,
 	routingTable map[string]RouteTable,
+	createdAt *time.Time,
 ) (updated bool, err error) {
 	// Get currently connected interfaces
 	// From the node, get layer2 edges.
@@ -435,7 +449,7 @@ func (r *Resolver) createInterfaces(
 			}
 		} else {
 			// Create the interface and assign the node to "iface" var
-			iface, err = r.newNode(ifaceMetadata)
+			iface, err = r.newNode(ifaceMetadata, createdAt)
 			if err != nil {
 				logging.GetLogger().Errorf("unable to create interface %+v: %v", ifaceMetadata, err)
 				return updated, fmt.Errorf("unable to create interface: %v", err)
@@ -446,7 +460,7 @@ func (r *Resolver) createInterfaces(
 		if !r.Graph.AreLinked(node, iface, interfaceEdgeFilter) {
 			_, err = r.newEdge(node, iface, map[string]interface{}{
 				MetadataRelationTypeKey: RelationTypeDeviceInterface,
-			})
+			}, createdAt)
 			if err != nil {
 				return updated, fmt.Errorf("unable to link node (%+v) to interface (%+v): %v", node, iface, err)
 			}
@@ -454,7 +468,7 @@ func (r *Resolver) createInterfaces(
 
 		// Add VLANs if defined
 		if userIface.Vlan != nil {
-			err := r.addVLANsToInterface(iface, *userIface.Vlan)
+			err := r.addVLANsToInterface(iface, *userIface.Vlan, createdAt)
 			if err != nil {
 				return updated, err
 			}
@@ -462,7 +476,7 @@ func (r *Resolver) createInterfaces(
 
 		// Add VRF/IP if defined
 		if userIface.IP != nil {
-			err := r.addIPToInterface(node, iface, *userIface.IP)
+			err := r.addIPToInterface(node, iface, *userIface.IP, createdAt)
 			if err != nil {
 				return updated, err
 			}
@@ -484,6 +498,7 @@ func (r *Resolver) addNodeWithInterfaces(
 	interfaces []*model.InterfaceInput,
 	nodePKey graph.Metadata,
 	routingTableList []*model.VRFRouteTable,
+	createdAt *time.Time,
 ) (node *graph.Node, updated bool, interfaceUpdated bool, err error) {
 	// Find switch node with matching Name+Type
 	nodes := r.Graph.GetNodes(nodePKey)
@@ -549,7 +564,7 @@ func (r *Resolver) addNodeWithInterfaces(
 	// Return internal ID if it exists.
 	// Error if there more than one node matching
 	if len(nodes) == 0 {
-		node, err = r.newNode(metadata)
+		node, err = r.newNode(metadata, createdAt)
 		if err != nil {
 			return node, updated, interfaceUpdated, err
 		}
@@ -574,7 +589,7 @@ func (r *Resolver) addNodeWithInterfaces(
 	}
 
 	// Interfaces
-	interfaceUpdated, err = r.createInterfaces(node, interfaces, routingTable)
+	interfaceUpdated, err = r.createInterfaces(node, interfaces, routingTable, createdAt)
 	if err != nil {
 		logging.GetLogger().Errorf("creating interfaces for node %+v: %v", node, err)
 		return nil, false, false, fmt.Errorf("creating interfaces: %v", err)
@@ -586,7 +601,7 @@ func (r *Resolver) addNodeWithInterfaces(
 // addIPToInterface add to the interface the IP node.
 // Links de IP also to its network. And the network to the VRF.
 // Create the network and VRF if it does not exists yet.
-func (r *Resolver) addIPToInterface(device *graph.Node, iface *graph.Node, ip model.InterfaceIPInput) error {
+func (r *Resolver) addIPToInterface(device *graph.Node, iface *graph.Node, ip model.InterfaceIPInput, createdAt *time.Time) error {
 	parsedIP := net.ParseIP(ip.IP)
 	if parsedIP == nil {
 		return fmt.Errorf("invalid IP address: %s", ip.IP)
@@ -599,14 +614,14 @@ func (r *Resolver) addIPToInterface(device *graph.Node, iface *graph.Node, ip mo
 	parsedMask := net.IPMask(parsedMaskIP)
 
 	// Create VRF node and link to this device
-	vrfNode, err := r.createVRF(ip.Vrf, device)
+	vrfNode, err := r.createVRF(ip.Vrf, device, createdAt)
 	if err != nil {
 		return err
 	}
 
 	// Create IP node and link to this interface
 	// Also links the IP to its network
-	_, err = r.createIP(parsedIP, parsedMask, iface, vrfNode)
+	_, err = r.createIP(parsedIP, parsedMask, iface, vrfNode, createdAt)
 	if err != nil {
 		return err
 	}

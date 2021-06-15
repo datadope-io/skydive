@@ -30,6 +30,11 @@ input SwitchInput {
   Switches does not have VRF, so we will create only one VRFRouteTable without VRF name.
   """
   RoutingTable: [VRFRouteTable!]
+  """
+  Campo opcional donde forzamos la fecha de creación del dispositivo a un momento determinado del pasado.
+  En caso de no definirse se usará la fecha actual.
+  """
+  CreatedAt: Time
 }
 
 """

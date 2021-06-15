@@ -14,7 +14,7 @@ import (
 )
 
 func (r *mutationResolver) AddVlan(ctx context.Context, input model.VLANInput) (*model.AddVLANPayload, error) {
-	node, err := r.createVLAN(input.Vid, *input.Name)
+	node, err := r.createVLAN(input.Vid, *input.Name, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,8 @@ func (r *mutationResolver) AddSwitch(ctx context.Context, input model.SwitchInpu
 		MetadataNameKey: input.Name,
 	}
 
-	node, updated, interfaceUpdated, err := r.addNodeWithInterfaces(metadata, input.Interfaces, nodePKeyFilter, input.RoutingTable)
+	node, updated, interfaceUpdated, err := r.addNodeWithInterfaces(metadata, input.Interfaces, nodePKeyFilter,
+		input.RoutingTable, input.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +74,8 @@ func (r *mutationResolver) AddRouter(ctx context.Context, input model.RouterInpu
 		MetadataNameKey: input.Name,
 	}
 
-	node, updated, interfaceUpdated, err := r.addNodeWithInterfaces(metadata, input.Interfaces, nodePKeyFilter, input.RoutingTable)
+	node, updated, interfaceUpdated, err := r.addNodeWithInterfaces(metadata, input.Interfaces,
+		nodePKeyFilter, input.RoutingTable, input.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
