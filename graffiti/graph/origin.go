@@ -18,6 +18,7 @@
 package graph
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/skydive-project/skydive/graffiti/service"
@@ -30,8 +31,8 @@ func ClientOrigin(c ws.Speaker) string {
 }
 
 // DelSubGraphOfOrigin deletes all the nodes with a specified origin
-func DelSubGraphOfOrigin(g *Graph, origin string) {
-	g.DelNodes(Metadata{"Origin": origin})
+func DelSubGraphOfOrigin(ctx context.Context, g *Graph, origin string) {
+	g.DelNodes(ctx, Metadata{"Origin": origin})
 }
 
 func Origin(hostID string, kind service.Type) string {

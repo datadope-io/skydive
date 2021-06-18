@@ -18,6 +18,7 @@
 package endpoints
 
 import (
+	"context"
 	"errors"
 	"net/url"
 	"strings"
@@ -73,6 +74,9 @@ type ReplicationEndpoint struct {
 // OnConnected is called when the peer gets connected then the whole graph
 // is send to initialize it.
 func (p *ReplicatorPeer) OnConnected(c ws.Speaker) error {
+	ctx, span := tracer.Start(context.Background(), "ReplicatorPeer.OnConnected")
+	defer span.End()
+
 	p.endpoint.Lock()
 	defer p.endpoint.Unlock()
 
@@ -100,7 +104,7 @@ func (p *ReplicatorPeer) OnConnected(c ws.Speaker) error {
 	state.cnt++
 
 	msg := &messages.SyncMsg{
-		Elements: p.Graph.Elements(),
+		Elements: p.Graph.Elements(ctx),
 	}
 
 	if err := p.wsspeaker.SendMessage(messages.NewStructMessage(messages.SyncMsgType, msg)); err != nil {
@@ -112,6 +116,9 @@ func (p *ReplicatorPeer) OnConnected(c ws.Speaker) error {
 
 // OnDisconnected is called when the peer gets disconnected
 func (p *ReplicatorPeer) OnDisconnected(c ws.Speaker) {
+	ctx, span := tracer.Start(context.Background(), "ReplicationEndpoint.OnDisconnected")
+	defer span.End()
+
 	p.endpoint.Lock()
 	defer p.endpoint.Unlock()
 
@@ -135,7 +142,7 @@ func (p *ReplicatorPeer) OnDisconnected(c ws.Speaker) {
 	delete(p.endpoint.peerStates, host)
 
 	p.Graph.Lock()
-	graph.DelSubGraphOfOrigin(p.Graph, origin)
+	graph.DelSubGraphOfOrigin(ctx, p.Graph, origin)
 	p.Graph.Unlock()
 }
 
@@ -200,6 +207,9 @@ func (t *ReplicationEndpoint) DisconnectPeers() {
 
 // OnStructMessage is triggered by message coming from an other peer.
 func (t *ReplicationEndpoint) OnStructMessage(c ws.Speaker, msg *ws.StructMessage) {
+	ctx, span := tracer.Start(context.Background(), "ReplicationEndpoint.OnStructMessage")
+	defer span.End()
+
 	if c.GetRemoteHost() == t.Graph.GetHost() {
 		t.logger.Debugf("Ignore message from myself(%s), %s", c.GetURL().String())
 		return
@@ -226,39 +236,39 @@ func (t *ReplicationEndpoint) OnStructMessage(c ws.Speaker, msg *ws.StructMessag
 		r := obj.(*messages.SyncMsg)
 
 		for _, n := range r.Nodes {
-			if t.Graph.GetNode(n.ID) == nil {
-				if err := t.Graph.NodeAdded(n); err != nil {
+			if t.Graph.GetNode(ctx, n.ID) == nil {
+				if err := t.Graph.NodeAdded(ctx, n); err != nil {
 					t.logger.Errorf("%s, %+v", err, n)
 				}
 			}
 		}
 		for _, e := range r.Edges {
-			if t.Graph.GetEdge(e.ID) == nil {
-				if err := t.Graph.EdgeAdded(e); err != nil {
+			if t.Graph.GetEdge(ctx, e.ID) == nil {
+				if err := t.Graph.EdgeAdded(ctx, e); err != nil {
 					t.logger.Errorf("%s, %+v", err, e)
 				}
 			}
 		}
 	case messages.NodeUpdatedMsgType:
-		err = t.Graph.NodeUpdated(obj.(*graph.Node))
+		err = t.Graph.NodeUpdated(ctx, obj.(*graph.Node))
 	case messages.NodeDeletedMsgType:
-		err = t.Graph.NodeDeleted(obj.(*graph.Node))
+		err = t.Graph.NodeDeleted(ctx, obj.(*graph.Node))
 	case messages.NodeAddedMsgType:
-		err = t.Graph.NodeAdded(obj.(*graph.Node))
+		err = t.Graph.NodeAdded(ctx, obj.(*graph.Node))
 	case messages.EdgeUpdatedMsgType:
-		err = t.Graph.EdgeUpdated(obj.(*graph.Edge))
+		err = t.Graph.EdgeUpdated(ctx, obj.(*graph.Edge))
 	case messages.EdgeDeletedMsgType:
-		if err = t.Graph.EdgeDeleted(obj.(*graph.Edge)); err == graph.ErrEdgeNotFound {
+		if err = t.Graph.EdgeDeleted(ctx, obj.(*graph.Edge)); err == graph.ErrEdgeNotFound {
 			return
 		}
 	case messages.EdgeAddedMsgType:
-		err = t.Graph.EdgeAdded(obj.(*graph.Edge))
+		err = t.Graph.EdgeAdded(ctx, obj.(*graph.Edge))
 	case messages.NodePartiallyUpdatedMsgType:
 		updateMsg := obj.(*messages.PartiallyUpdatedMsg)
-		err = t.Graph.NodePartiallyUpdated(updateMsg.ID, updateMsg.Revision, updateMsg.UpdatedAt, updateMsg.Ops...)
+		err = t.Graph.NodePartiallyUpdated(ctx, updateMsg.ID, updateMsg.Revision, updateMsg.UpdatedAt, updateMsg.Ops...)
 	case messages.EdgePartiallyUpdatedMsgType:
 		updateMsg := obj.(*messages.PartiallyUpdatedMsg)
-		err = t.Graph.EdgePartiallyUpdated(updateMsg.ID, updateMsg.Revision, updateMsg.UpdatedAt, updateMsg.Ops...)
+		err = t.Graph.EdgePartiallyUpdated(ctx, updateMsg.ID, updateMsg.Revision, updateMsg.UpdatedAt, updateMsg.Ops...)
 	}
 
 	if err != nil {
@@ -273,7 +283,7 @@ func (t *ReplicationEndpoint) notifyPeers(msg *ws.StructMessage) {
 }
 
 // OnNodeUpdated graph node updated event. Implements the EventListener interface.
-func (t *ReplicationEndpoint) OnNodeUpdated(n *graph.Node, ops []graph.PartiallyUpdatedOp) {
+func (t *ReplicationEndpoint) OnNodeUpdated(ctx context.Context, n *graph.Node, ops []graph.PartiallyUpdatedOp) {
 	if t.replicateMsg.Load() == true {
 		msg := messages.NewStructMessage(
 			messages.NodePartiallyUpdatedMsgType,
@@ -289,7 +299,7 @@ func (t *ReplicationEndpoint) OnNodeUpdated(n *graph.Node, ops []graph.Partially
 }
 
 // OnNodeAdded graph node added event. Implements the EventListener interface.
-func (t *ReplicationEndpoint) OnNodeAdded(n *graph.Node) {
+func (t *ReplicationEndpoint) OnNodeAdded(ctx context.Context, n *graph.Node) {
 	if t.replicateMsg.Load() == true {
 		msg := messages.NewStructMessage(messages.NodeAddedMsgType, n)
 		t.notifyPeers(msg)
@@ -297,7 +307,7 @@ func (t *ReplicationEndpoint) OnNodeAdded(n *graph.Node) {
 }
 
 // OnNodeDeleted graph node deleted event. Implements the EventListener interface.
-func (t *ReplicationEndpoint) OnNodeDeleted(n *graph.Node) {
+func (t *ReplicationEndpoint) OnNodeDeleted(ctx context.Context, n *graph.Node) {
 	if t.replicateMsg.Load() == true {
 		msg := messages.NewStructMessage(messages.NodeDeletedMsgType, n)
 		t.notifyPeers(msg)
@@ -305,7 +315,7 @@ func (t *ReplicationEndpoint) OnNodeDeleted(n *graph.Node) {
 }
 
 // OnEdgeUpdated graph edge updated event. Implements the EventListener interface.
-func (t *ReplicationEndpoint) OnEdgeUpdated(e *graph.Edge, ops []graph.PartiallyUpdatedOp) {
+func (t *ReplicationEndpoint) OnEdgeUpdated(ctx context.Context, e *graph.Edge, ops []graph.PartiallyUpdatedOp) {
 	if t.replicateMsg.Load() == true {
 		msg := messages.NewStructMessage(
 			messages.EdgePartiallyUpdatedMsgType,
@@ -321,7 +331,7 @@ func (t *ReplicationEndpoint) OnEdgeUpdated(e *graph.Edge, ops []graph.Partially
 }
 
 // OnEdgeAdded graph edge added event. Implements the EventListener interface.
-func (t *ReplicationEndpoint) OnEdgeAdded(e *graph.Edge) {
+func (t *ReplicationEndpoint) OnEdgeAdded(ctx context.Context, e *graph.Edge) {
 	if t.replicateMsg.Load() == true {
 		msg := messages.NewStructMessage(messages.EdgeAddedMsgType, e)
 		t.notifyPeers(msg)
@@ -329,7 +339,7 @@ func (t *ReplicationEndpoint) OnEdgeAdded(e *graph.Edge) {
 }
 
 // OnEdgeDeleted graph edge deleted event. Implements the EventListener interface.
-func (t *ReplicationEndpoint) OnEdgeDeleted(e *graph.Edge) {
+func (t *ReplicationEndpoint) OnEdgeDeleted(ctx context.Context, e *graph.Edge) {
 	if t.replicateMsg.Load() == true {
 		msg := messages.NewStructMessage(messages.EdgeDeletedMsgType, e)
 		t.notifyPeers(msg)
@@ -353,6 +363,9 @@ func (t *ReplicationEndpoint) GetSpeakers() []ws.Speaker {
 
 // OnConnected is called when an incoming peer got connected.
 func (t *ReplicationEndpoint) OnConnected(c ws.Speaker) error {
+	ctx, span := tracer.Start(context.Background(), "ReplicationEndpoint.OnConnected")
+	defer span.End()
+
 	t.Lock()
 	defer t.Unlock()
 
@@ -382,7 +395,7 @@ func (t *ReplicationEndpoint) OnConnected(c ws.Speaker) error {
 	defer t.Graph.RUnlock()
 
 	msg := &messages.SyncMsg{
-		Elements: t.Graph.Elements(),
+		Elements: t.Graph.Elements(ctx),
 	}
 
 	return c.SendMessage(messages.NewStructMessage(messages.SyncMsgType, msg))

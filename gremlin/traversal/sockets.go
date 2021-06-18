@@ -18,6 +18,7 @@
 package traversal
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/skydive-project/skydive/graffiti/filters"
@@ -63,12 +64,12 @@ func (e *SocketsTraversalExtension) ParseStep(t traversal.Token, p traversal.Gre
 }
 
 // Exec executes the metrics step
-func (s *SocketsGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (s *SocketsGremlinTraversalStep) Exec(ctx context.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	switch tv := last.(type) {
 	case *traversal.GraphTraversalV:
 		return Sockets(s.StepContext, tv), nil
 	case *FlowTraversalStep:
-		return tv.Sockets(s.StepContext), nil
+		return tv.Sockets(ctx, s.StepContext), nil
 	}
 	return nil, traversal.ErrExecutionError
 }
@@ -184,7 +185,7 @@ func getSockets(n *graph.Node) (sockets []*socketinfo.ConnectionInfo) {
 }
 
 // NewSocketIndexer returns a new socket graph indexer
-func NewSocketIndexer(g *graph.Graph) *graph.Indexer {
+func NewSocketIndexer(ctx context.Context, g *graph.Graph) *graph.Indexer {
 	hashNode := func(n *graph.Node) map[string]interface{} {
 		sockets := getSockets(n)
 		kv := make(map[string]interface{}, len(sockets))
@@ -196,8 +197,8 @@ func NewSocketIndexer(g *graph.Graph) *graph.Indexer {
 
 	graphIndexer := graph.NewIndexer(g, g, hashNode, true)
 	socketFilter := graph.NewElementFilter(filters.NewNotNullFilter("Sockets"))
-	for _, node := range g.GetNodes(socketFilter) {
-		graphIndexer.OnNodeAdded(node)
+	for _, node := range g.GetNodes(ctx, socketFilter) {
+		graphIndexer.OnNodeAdded(ctx, node)
 	}
 	return graphIndexer
 }

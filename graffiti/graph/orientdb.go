@@ -18,6 +18,7 @@
 package graph
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -371,14 +372,14 @@ func (o *OrientDBBackend) FlushElements(e ElementMatcher) error {
 }
 
 // Sync adds all the nodes and edges with the specified filter into an other graph
-func (o *OrientDBBackend) Sync(g *Graph, elementFilter *ElementFilter) error {
+func (o *OrientDBBackend) Sync(ctx context.Context, g *Graph, elementFilter *ElementFilter) error {
 	// re-insert valid nodes and edges
 	for _, node := range o.GetNodes(Context{}, nil, elementFilter) {
-		g.NodeAdded(node)
+		g.NodeAdded(ctx, node)
 	}
 
 	for _, edge := range o.GetEdges(Context{}, nil, elementFilter) {
-		g.EdgeAdded(edge)
+		g.EdgeAdded(ctx, edge)
 	}
 
 	return nil

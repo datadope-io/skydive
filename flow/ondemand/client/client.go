@@ -18,6 +18,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -46,7 +47,7 @@ func (h *onDemandFlowHandler) DecodeMessage(msg json.RawMessage) (rest.Resource,
 	return &capture, nil
 }
 
-func (h *onDemandFlowHandler) EncodeMessage(nodeID graph.Identifier, resource rest.Resource) (json.RawMessage, error) {
+func (h *onDemandFlowHandler) EncodeMessage(ctx context.Context, nodeID graph.Identifier, resource rest.Resource) (json.RawMessage, error) {
 	bytes, err := json.Marshal(resource)
 	return json.RawMessage(bytes), err
 }
@@ -97,7 +98,8 @@ func (h *onDemandFlowHandler) GetNodeResources(resource rest.Resource) []client.
 }
 
 func (h *onDemandFlowHandler) applyGremlinExpr(query string) []interface{} {
-	res, err := ge.TopologyGremlinQuery(h.graph, query)
+	// TODO donde debe generarse esta petición?
+	res, err := ge.TopologyGremlinQuery(context.Background(), h.graph, query)
 	if err != nil {
 		logging.GetLogger().Errorf("Gremlin %s error: %s", query, err)
 		return nil

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	gocontext "context"
 
 	"github.com/skydive-project/skydive/common"
 	"github.com/skydive-project/skydive/config"
@@ -105,7 +106,7 @@ type BpfGremlinTraversalStep struct {
 }
 
 // Out returns the B node
-func (f *FlowTraversalStep) Out(ctx traversal.StepContext, s ...interface{}) *traversal.GraphTraversalV {
+func (f *FlowTraversalStep) Out(gCtx gocontext.Context, ctx traversal.StepContext, s ...interface{}) *traversal.GraphTraversalV {
 	var nodes []*graph.Node
 
 	if f.error != nil {
@@ -138,7 +139,7 @@ func (f *FlowTraversalStep) Out(ctx traversal.StepContext, s ...interface{}) *tr
 			filter2 := filters.NewOrFilter(f1, f2)
 			matcher := graph.NewElementFilter(filters.NewAndFilter(filter1, filter2))
 
-			if node := f.GraphTraversal.Graph.LookupFirstNode(matcher); node != nil && it.Next() {
+			if node := f.GraphTraversal.Graph.LookupFirstNode(gCtx, matcher); node != nil && it.Next() {
 				nodes = append(nodes, node)
 			}
 		}
@@ -148,7 +149,7 @@ func (f *FlowTraversalStep) Out(ctx traversal.StepContext, s ...interface{}) *tr
 }
 
 // In returns the A node
-func (f *FlowTraversalStep) In(ctx traversal.StepContext, s ...interface{}) *traversal.GraphTraversalV {
+func (f *FlowTraversalStep) In(gCtx gocontext.Context, ctx traversal.StepContext, s ...interface{}) *traversal.GraphTraversalV {
 	var nodes []*graph.Node
 
 	if f.error != nil {
@@ -182,7 +183,7 @@ func (f *FlowTraversalStep) In(ctx traversal.StepContext, s ...interface{}) *tra
 			filter2 := filters.NewOrFilter(f1, f2)
 			matcher := graph.NewElementFilter(filters.NewAndFilter(filter1, filter2))
 
-			if node := f.GraphTraversal.Graph.LookupFirstNode(matcher); node != nil && it.Next() {
+			if node := f.GraphTraversal.Graph.LookupFirstNode(gCtx, matcher); node != nil && it.Next() {
 				nodes = append(nodes, node)
 			}
 		}
@@ -192,7 +193,7 @@ func (f *FlowTraversalStep) In(ctx traversal.StepContext, s ...interface{}) *tra
 }
 
 // Both returns A and B nodes
-func (f *FlowTraversalStep) Both(ctx traversal.StepContext, s ...interface{}) *traversal.GraphTraversalV {
+func (f *FlowTraversalStep) Both(gCtx gocontext.Context, ctx traversal.StepContext, s ...interface{}) *traversal.GraphTraversalV {
 	var nodes []*graph.Node
 
 	if f.error != nil {
@@ -227,7 +228,7 @@ func (f *FlowTraversalStep) Both(ctx traversal.StepContext, s ...interface{}) *t
 
 			matcher := graph.NewElementFilter(filters.NewAndFilter(filter1, filter2))
 
-			if node := f.GraphTraversal.Graph.LookupFirstNode(matcher); node != nil && it.Next() {
+			if node := f.GraphTraversal.Graph.LookupFirstNode(gCtx, matcher); node != nil && it.Next() {
 				nodes = append(nodes, node)
 			}
 		}
@@ -243,7 +244,7 @@ func (f *FlowTraversalStep) Both(ctx traversal.StepContext, s ...interface{}) *t
 			filter2 := filters.NewOrFilter(f1, f2)
 			matcher := graph.NewElementFilter(filters.NewAndFilter(filter1, filter2))
 
-			if node := f.GraphTraversal.Graph.LookupFirstNode(matcher); node != nil && it.Next() {
+			if node := f.GraphTraversal.Graph.LookupFirstNode(gCtx, matcher); node != nil && it.Next() {
 				nodes = append(nodes, node)
 			}
 		}
@@ -253,7 +254,7 @@ func (f *FlowTraversalStep) Both(ctx traversal.StepContext, s ...interface{}) *t
 }
 
 // Nodes returns A, B and the capture nodes
-func (f *FlowTraversalStep) Nodes(ctx traversal.StepContext, s ...interface{}) *traversal.GraphTraversalV {
+func (f *FlowTraversalStep) Nodes(gCtx gocontext.Context, ctx traversal.StepContext, s ...interface{}) *traversal.GraphTraversalV {
 	var nodes []*graph.Node
 
 	if f.error != nil {
@@ -277,20 +278,20 @@ func (f *FlowTraversalStep) Nodes(ctx traversal.StepContext, s ...interface{}) *
 
 		if flow.NodeTID != "" {
 			filter := filters.NewAndFilter(filter1, filters.NewTermStringFilter("TID", flow.NodeTID))
-			if node := f.GraphTraversal.Graph.LookupFirstNode(graph.NewElementFilter(filter)); node != nil && it.Next() {
+			if node := f.GraphTraversal.Graph.LookupFirstNode(gCtx, graph.NewElementFilter(filter)); node != nil && it.Next() {
 				nodes = append(nodes, node)
 			}
 		}
 
 		if flow.Link.A != "" {
 			filter := filters.NewAndFilter(filter1, filters.NewTermStringFilter("MAC", flow.Link.A))
-			if node := f.GraphTraversal.Graph.LookupFirstNode(graph.NewElementFilter(filter)); node != nil && it.Next() {
+			if node := f.GraphTraversal.Graph.LookupFirstNode(gCtx, graph.NewElementFilter(filter)); node != nil && it.Next() {
 				nodes = append(nodes, node)
 			}
 		}
 		if flow.Link.B != "" {
 			filter := filters.NewAndFilter(filter1, filters.NewTermStringFilter("MAC", flow.Link.B))
-			if node := f.GraphTraversal.Graph.LookupFirstNode(graph.NewElementFilter(filter)); node != nil && it.Next() {
+			if node := f.GraphTraversal.Graph.LookupFirstNode(gCtx, graph.NewElementFilter(filter)); node != nil && it.Next() {
 				nodes = append(nodes, node)
 			}
 		}
@@ -299,7 +300,7 @@ func (f *FlowTraversalStep) Nodes(ctx traversal.StepContext, s ...interface{}) *
 }
 
 // Hops returns all the capture nodes where the flow was seen
-func (f *FlowTraversalStep) Hops(ctx traversal.StepContext, s ...interface{}) *traversal.GraphTraversalV {
+func (f *FlowTraversalStep) Hops(gCtx gocontext.Context, ctx traversal.StepContext, s ...interface{}) *traversal.GraphTraversalV {
 	var nodes []*graph.Node
 
 	if f.error != nil {
@@ -322,7 +323,7 @@ func (f *FlowTraversalStep) Hops(ctx traversal.StepContext, s ...interface{}) *t
 		}
 
 		filter := filters.NewAndFilter(filter1, filters.NewTermStringFilter("TID", fl.NodeTID))
-		if node := f.GraphTraversal.Graph.LookupFirstNode(graph.NewElementFilter(filter)); node != nil && it.Next() {
+		if node := f.GraphTraversal.Graph.LookupFirstNode(gCtx, graph.NewElementFilter(filter)); node != nil && it.Next() {
 			nodes = append(nodes, node)
 		}
 	}
@@ -429,7 +430,7 @@ func (f *FlowTraversalStep) Dedup(ctx traversal.StepContext, keys ...interface{}
 }
 
 // CaptureNode step
-func (f *FlowTraversalStep) CaptureNode(ctx traversal.StepContext, s ...interface{}) *traversal.GraphTraversalV {
+func (f *FlowTraversalStep) CaptureNode(gCtx gocontext.Context, ctx traversal.StepContext, s ...interface{}) *traversal.GraphTraversalV {
 	var nodes []*graph.Node
 
 	if f.error != nil {
@@ -452,7 +453,7 @@ func (f *FlowTraversalStep) CaptureNode(ctx traversal.StepContext, s ...interfac
 		}
 
 		filter := filters.NewAndFilter(filter1, filters.NewTermStringFilter("TID", fl.NodeTID))
-		if node := f.GraphTraversal.Graph.LookupFirstNode(graph.NewElementFilter(filter)); node != nil && it.Next() {
+		if node := f.GraphTraversal.Graph.LookupFirstNode(gCtx, graph.NewElementFilter(filter)); node != nil && it.Next() {
 			nodes = append(nodes, node)
 		}
 	}
@@ -647,7 +648,7 @@ func (f *FlowTraversalStep) RawPackets(ctx traversal.StepContext) *RawPacketsTra
 }
 
 // Sockets returns the sockets at both sides of the specified flows
-func (f *FlowTraversalStep) Sockets(ctx traversal.StepContext, s ...interface{}) *SocketsTraversalStep {
+func (f *FlowTraversalStep) Sockets(gCtx gocontext.Context, ctx traversal.StepContext, s ...interface{}) *SocketsTraversalStep {
 	if f.error != nil {
 		return &SocketsTraversalStep{error: f.error}
 	}
@@ -656,7 +657,7 @@ func (f *FlowTraversalStep) Sockets(ctx traversal.StepContext, s ...interface{})
 		return &SocketsTraversalStep{error: fmt.Errorf("Sockets requires no parameter")}
 	}
 
-	indexer := NewSocketIndexer(f.GraphTraversal.Graph)
+	indexer := NewSocketIndexer(gCtx, f.GraphTraversal.Graph)
 
 	flowSockets := make(map[string][]*socketinfo.ConnectionInfo)
 	for _, fl := range f.flowset.Flows {
@@ -668,13 +669,13 @@ func (f *FlowTraversalStep) Sockets(ctx traversal.StepContext, s ...interface{})
 			protocol := transport.GetProtocol()
 
 			hash := socketinfo.HashTuple(protocol, net.ParseIP(fl.GetNetwork().GetA()), int64(localPort), net.ParseIP(fl.GetNetwork().GetB()), int64(remotePort))
-			_, socks := indexer.FromHash(hash)
+			_, socks := indexer.FromHash(gCtx, hash)
 			for _, socket := range socks {
 				sockets = append(sockets, socket.(*socketinfo.ConnectionInfo))
 			}
 
 			hash = socketinfo.HashTuple(protocol, net.ParseIP(fl.GetNetwork().GetB()), int64(remotePort), net.ParseIP(fl.GetNetwork().GetA()), int64(localPort))
-			_, socks = indexer.FromHash(hash)
+			_, socks = indexer.FromHash(gCtx, hash)
 			for _, socket := range socks {
 				sockets = append(sockets, socket.(*socketinfo.ConnectionInfo))
 			}
@@ -857,7 +858,7 @@ func (s *FlowGremlinTraversalStep) addTimeFilter(fsq *filters.SearchQuery, timeC
 }
 
 // Exec flow step
-func (s *FlowGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (s *FlowGremlinTraversalStep) Exec(ctx gocontext.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	var graphTraversal *traversal.GraphTraversal
 	var err error
 	var context graph.Context
@@ -1027,11 +1028,11 @@ func (s *FlowGremlinTraversalStep) Context() *traversal.GremlinTraversalContext 
 }
 
 // Exec hops step
-func (s *HopsGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (s *HopsGremlinTraversalStep) Exec(ctx gocontext.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	switch last.(type) {
 	case *FlowTraversalStep:
 		fts := last.(*FlowTraversalStep)
-		return fts.Hops(s.StepContext, s.Params...), nil
+		return fts.Hops(ctx, s.StepContext, s.Params...), nil
 	}
 
 	return nil, traversal.ErrExecutionError
@@ -1052,11 +1053,11 @@ func (s *HopsGremlinTraversalStep) Context() *traversal.GremlinTraversalContext 
 }
 
 // Exec Nodes step
-func (s *NodesGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (s *NodesGremlinTraversalStep) Exec(ctx gocontext.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	switch last.(type) {
 	case *FlowTraversalStep:
 		fts := last.(*FlowTraversalStep)
-		return fts.Nodes(s.StepContext, s.Params...), nil
+		return fts.Nodes(ctx, s.StepContext, s.Params...), nil
 	}
 	return nil, traversal.ErrExecutionError
 }
@@ -1076,11 +1077,11 @@ func (s *NodesGremlinTraversalStep) Context() *traversal.GremlinTraversalContext
 }
 
 // Exec Capture step
-func (s *CaptureNodeGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (s *CaptureNodeGremlinTraversalStep) Exec(ctx gocontext.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	switch last.(type) {
 	case *FlowTraversalStep:
 		fs := last.(*FlowTraversalStep)
-		return fs.CaptureNode(s.StepContext, s.Params...), nil
+		return fs.CaptureNode(ctx, s.StepContext, s.Params...), nil
 	}
 
 	return nil, traversal.ErrExecutionError
@@ -1101,7 +1102,7 @@ func (s *CaptureNodeGremlinTraversalStep) Context() *traversal.GremlinTraversalC
 }
 
 // Exec Aggregates step
-func (a *AggregatesGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (a *AggregatesGremlinTraversalStep) Exec(ctx gocontext.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	switch last.(type) {
 	case *MetricsTraversalStep:
 		mts := last.(*MetricsTraversalStep)
@@ -1122,7 +1123,7 @@ func (a *AggregatesGremlinTraversalStep) Context() *traversal.GremlinTraversalCo
 }
 
 // Exec BPF step
-func (s *BpfGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (s *BpfGremlinTraversalStep) Exec(ctx gocontext.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	switch last.(type) {
 	case *RawPacketsTraversalStep:
 		rs := last.(*RawPacketsTraversalStep)

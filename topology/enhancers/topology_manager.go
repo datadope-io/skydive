@@ -18,6 +18,7 @@
 package usertopology
 
 import (
+	"context"
 	"errors"
 	"strings"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/skydive-project/skydive/graffiti/logging"
 	ge "github.com/skydive-project/skydive/gremlin/traversal"
 	"github.com/skydive-project/skydive/topology"
+	"go.opentelemetry.io/otel"
 )
 
 // TopologyManager describes topology manager
@@ -42,6 +44,8 @@ type TopologyManager struct {
 	graph       *graph.Graph
 }
 
+var tracer = otel.Tracer("topology.enhancers.usertopology")
+
 // OnStartAsMaster event
 func (tm *TopologyManager) OnStartAsMaster() {
 }
@@ -52,29 +56,32 @@ func (tm *TopologyManager) OnStartAsSlave() {
 
 // OnSwitchToMaster event
 func (tm *TopologyManager) OnSwitchToMaster() {
-	tm.syncTopology()
+	ctx, span := tracer.Start(context.Background(), "TopologyManager.OnSwitchToMaster")
+	defer span.End()
+
+	tm.syncTopology(ctx)
 }
 
 // OnSwitchToSlave event
 func (tm *TopologyManager) OnSwitchToSlave() {
 }
 
-func (tm *TopologyManager) syncTopology() {
-	nodes := tm.nodeHandler.Index()
-	edges := tm.edgeHandler.Index()
+func (tm *TopologyManager) syncTopology(ctx context.Context) {
+	nodes := tm.nodeHandler.Index(ctx)
+	edges := tm.edgeHandler.Index(ctx)
 
 	for _, node := range nodes {
 		n := node.(*types.NodeRule)
-		tm.handleCreateNode(n)
+		tm.handleCreateNode(ctx, n)
 	}
 
 	for _, edge := range edges {
 		e := edge.(*types.EdgeRule)
-		tm.createEdge(e)
+		tm.createEdge(ctx, e)
 	}
 }
 
-func (tm *TopologyManager) createEdge(edge *types.EdgeRule) error {
+func (tm *TopologyManager) createEdge(ctx context.Context, edge *types.EdgeRule) error {
 	src := tm.getNodes(edge.Src)
 	dst := tm.getNodes(edge.Dst)
 	if len(src) < 1 || len(dst) < 1 {
@@ -84,20 +91,20 @@ func (tm *TopologyManager) createEdge(edge *types.EdgeRule) error {
 
 	switch edge.Metadata["RelationType"] {
 	case "layer2":
-		if !topology.HaveLayer2Link(tm.graph, src[0], dst[0]) {
-			topology.AddLayer2Link(tm.graph, src[0], dst[0], edge.Metadata)
+		if !topology.HaveLayer2Link(ctx, tm.graph, src[0], dst[0]) {
+			topology.AddLayer2Link(ctx, tm.graph, src[0], dst[0], edge.Metadata)
 		}
 	case "ownership":
-		if !topology.HaveOwnershipLink(tm.graph, src[0], dst[0]) {
-			topology.AddOwnershipLink(tm.graph, src[0], dst[0], nil)
+		if !topology.HaveOwnershipLink(ctx, tm.graph, src[0], dst[0]) {
+			topology.AddOwnershipLink(ctx, tm.graph, src[0], dst[0], nil)
 		}
 	default:
 		// check nodes are already linked
-		if tm.graph.AreLinked(src[0], dst[0], graph.Metadata{"RelationType": edge.Metadata["RelationType"]}) {
+		if tm.graph.AreLinked(ctx, src[0], dst[0], graph.Metadata{"RelationType": edge.Metadata["RelationType"]}) {
 			return errors.New("Nodes are already linked")
 		}
 		id := graph.GenID(string(src[0].ID) + string(dst[0].ID) + edge.Metadata["RelationType"].(string))
-		_, err := tm.graph.NewEdge(id, src[0], dst[0], edge.Metadata)
+		_, err := tm.graph.NewEdge(ctx, id, src[0], dst[0], edge.Metadata)
 		if err != nil {
 			return err
 		}
@@ -109,12 +116,12 @@ func (tm *TopologyManager) nodeID(node *types.NodeRule) graph.Identifier {
 	return graph.GenID(node.Metadata["Type"].(string), node.Metadata["Name"].(string))
 }
 
-func (tm *TopologyManager) createNode(node *types.NodeRule) error {
+func (tm *TopologyManager) createNode(ctx context.Context, node *types.NodeRule) error {
 	id := tm.nodeID(node)
 	node.Metadata.SetField("TID", string(id))
 
 	//check node already exist
-	if n := tm.graph.GetNode(id); n != nil {
+	if n := tm.graph.GetNode(ctx, id); n != nil {
 		return nil
 	}
 
@@ -122,42 +129,42 @@ func (tm *TopologyManager) createNode(node *types.NodeRule) error {
 		node.Metadata["Probe"] = "fabric"
 	}
 
-	tm.graph.NewNode(id, node.Metadata, "")
+	tm.graph.NewNode(ctx, id, node.Metadata, "")
 	return nil
 }
 
-func (tm *TopologyManager) updateMetadata(query string, mdata graph.Metadata) error {
+func (tm *TopologyManager) updateMetadata(ctx context.Context, query string, mdata graph.Metadata) error {
 	nodes := tm.getNodes(query)
 	for _, n := range nodes {
 		mt := tm.graph.StartMetadataTransaction(n)
 		for k, v := range mdata {
 			mt.AddMetadata(k, v)
 		}
-		mt.Commit()
+		mt.Commit(ctx)
 	}
 	return nil
 }
 
-func (tm *TopologyManager) deleteMetadata(query string, mdata graph.Metadata) error {
+func (tm *TopologyManager) deleteMetadata(ctx context.Context, query string, mdata graph.Metadata) error {
 	nodes := tm.getNodes(query)
 	for _, n := range nodes {
 		mt := tm.graph.StartMetadataTransaction(n)
 		for k := range mdata {
 			mt.DelMetadata(k)
 		}
-		mt.Commit()
+		mt.Commit(ctx)
 	}
 
-	tm.syncTopology()
+	tm.syncTopology(ctx)
 	return nil
 }
 
-func (tm *TopologyManager) handleCreateNode(node *types.NodeRule) error {
+func (tm *TopologyManager) handleCreateNode(ctx context.Context, node *types.NodeRule) error {
 	switch strings.ToLower(node.Action) {
 	case "create":
-		return tm.createNode(node)
+		return tm.createNode(ctx, node)
 	case "update":
-		return tm.updateMetadata(node.Query, node.Metadata)
+		return tm.updateMetadata(ctx, node.Query, node.Metadata)
 	default:
 		logging.GetLogger().Errorf("Query format is wrong. supported prefixes: create and update")
 		return errors.New("Query format is wrong")
@@ -166,7 +173,8 @@ func (tm *TopologyManager) handleCreateNode(node *types.NodeRule) error {
 
 /*This needs to be replaced by gremlin + JS query*/
 func (tm *TopologyManager) getNodes(gremlinQuery string) []*graph.Node {
-	res, err := ge.TopologyGremlinQuery(tm.graph, gremlinQuery)
+	// TODO esto son los node/edge rules. Donde considerar que empieza la petición?
+	res, err := ge.TopologyGremlinQuery(context.Background(), tm.graph, gremlinQuery)
 	if err != nil {
 		return nil
 	}
@@ -183,30 +191,30 @@ func (tm *TopologyManager) getNodes(gremlinQuery string) []*graph.Node {
 	return nodes
 }
 
-func (tm *TopologyManager) handleNodeRuleRequest(action string, resource rest.Resource) error {
+func (tm *TopologyManager) handleNodeRuleRequest(ctx context.Context, action string, resource rest.Resource) error {
 	node := resource.(*types.NodeRule)
 	switch action {
 	case "create", "set":
-		return tm.handleCreateNode(node)
+		return tm.handleCreateNode(ctx, node)
 	case "delete":
 		switch strings.ToLower(node.Action) {
 		case "create":
 			id := tm.nodeID(node)
-			if n := tm.graph.GetNode(id); n != nil {
-				tm.graph.DelNode(n)
+			if n := tm.graph.GetNode(ctx, id); n != nil {
+				tm.graph.DelNode(ctx, n)
 			}
 		case "update":
-			tm.deleteMetadata(node.Query, node.Metadata)
+			tm.deleteMetadata(ctx, node.Query, node.Metadata)
 		}
 	}
 	return nil
 }
 
-func (tm *TopologyManager) handleEdgeRuleRequest(action string, resource rest.Resource) error {
+func (tm *TopologyManager) handleEdgeRuleRequest(ctx context.Context, action string, resource rest.Resource) error {
 	edge := resource.(*types.EdgeRule)
 	switch action {
 	case "create", "set":
-		return tm.createEdge(edge)
+		return tm.createEdge(ctx, edge)
 	case "delete":
 		src := tm.getNodes(edge.Src)
 		dst := tm.getNodes(edge.Dst)
@@ -215,8 +223,8 @@ func (tm *TopologyManager) handleEdgeRuleRequest(action string, resource rest.Re
 			return nil
 		}
 
-		if link := tm.graph.GetFirstLink(src[0], dst[0], edge.Metadata); link != nil {
-			if err := tm.graph.DelEdge(link); err != nil {
+		if link := tm.graph.GetFirstLink(ctx, src[0], dst[0], edge.Metadata); link != nil {
+			if err := tm.graph.DelEdge(ctx, link); err != nil {
 				logging.GetLogger().Errorf("Delete Edge failed, error: %v", err)
 				return nil
 			}
@@ -228,27 +236,36 @@ func (tm *TopologyManager) handleEdgeRuleRequest(action string, resource rest.Re
 }
 
 func (tm *TopologyManager) onAPIWatcherEvent(action string, id string, resource rest.Resource) {
+	ctx, span := tracer.Start(context.Background(), "onAPIWatcherEvent")
+	defer span.End()
+
 	switch resource.(type) {
 	case *types.NodeRule:
 		tm.graph.Lock()
-		tm.handleNodeRuleRequest(action, resource)
+		tm.handleNodeRuleRequest(ctx, action, resource)
 		tm.graph.Unlock()
 	case *types.EdgeRule:
 		logging.GetLogger().Debugf("onAPIWatcherEvent edgerule")
 		tm.graph.Lock()
-		tm.handleEdgeRuleRequest(action, resource)
+		tm.handleEdgeRuleRequest(ctx, action, resource)
 		tm.graph.Unlock()
 	}
 }
 
 // OnNodeAdded event
-func (tm *TopologyManager) OnNodeAdded(n *graph.Node) {
-	tm.syncTopology()
+func (tm *TopologyManager) OnNodeAdded(ctx context.Context, n *graph.Node) {
+	ctx, span := tracer.Start(context.Background(), "OnNodeAdded")
+	defer span.End()
+
+	tm.syncTopology(ctx)
 }
 
 // OnNodeUpdated event
-func (tm *TopologyManager) OnNodeUpdated(n *graph.Node, ops []graph.PartiallyUpdatedOp) {
-	tm.syncTopology()
+func (tm *TopologyManager) OnNodeUpdated(ctx context.Context, n *graph.Node, ops []graph.PartiallyUpdatedOp) {
+	ctx, span := tracer.Start(context.Background(), "OnNodeUpdated")
+	defer span.End()
+
+	tm.syncTopology(ctx)
 }
 
 // Start start the topology manager
@@ -273,6 +290,9 @@ func (tm *TopologyManager) Stop() {
 
 // NewTopologyManager returns new topology manager
 func NewTopologyManager(etcdClient *etcd.Client, nodeHandler *api.NodeRuleAPI, edgeHandler *api.EdgeRuleAPI, g *graph.Graph) *TopologyManager {
+	ctx, span := tracer.Start(context.Background(), "NewTopologyManager")
+	defer span.End()
+
 	tm := &TopologyManager{
 		nodeHandler: nodeHandler,
 		edgeHandler: edgeHandler,
@@ -283,7 +303,7 @@ func NewTopologyManager(etcdClient *etcd.Client, nodeHandler *api.NodeRuleAPI, e
 	tm.MasterElection.AddEventListener(tm)
 
 	tm.graph.Lock()
-	tm.syncTopology()
+	tm.syncTopology(ctx)
 	tm.graph.Unlock()
 	return tm
 }

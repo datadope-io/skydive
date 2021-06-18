@@ -18,12 +18,14 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/safchain/insanelock"
+	"go.opentelemetry.io/otel"
 
 	"github.com/skydive-project/skydive/graffiti/api/rest"
 	"github.com/skydive-project/skydive/graffiti/graph"
@@ -63,6 +65,8 @@ type OnDemandServerHandler interface {
 
 // ErrTaskNotFound used when a task is not found for a specific node
 var ErrTaskNotFound = errors.New("task not found")
+
+var tracer = otel.Tracer("graffiti.ondemand.server")
 
 func (o *OnDemandServer) registerTask(n *graph.Node, resource rest.Resource) bool {
 	logging.GetLogger().Debugf("Attempting to register %s %s on node %s", o.resourceName, resource.GetID(), n.ID)
@@ -156,11 +160,14 @@ func (o *OnDemandServer) OnStructMessage(c ws.Speaker, msg *ws.StructMessage) {
 
 	status := http.StatusBadRequest
 
+	ctx, span := tracer.Start(context.Background(), "OnDemandServer.OnStructMessage")
+	defer span.End()
+
 	o.Graph.Lock()
 
 	switch msg.Type {
 	case "Start":
-		n := o.Graph.GetNode(graph.Identifier(query.NodeID))
+		n := o.Graph.GetNode(ctx, graph.Identifier(query.NodeID))
 		if n == nil {
 			logging.GetLogger().Errorf("Unknown node %s for new %s", query.NodeID, o.resourceName)
 			status = http.StatusNotFound
@@ -177,7 +184,7 @@ func (o *OnDemandServer) OnStructMessage(c ws.Speaker, msg *ws.StructMessage) {
 		}
 
 	case "Stop":
-		n := o.Graph.GetNode(graph.Identifier(query.NodeID))
+		n := o.Graph.GetNode(ctx, graph.Identifier(query.NodeID))
 		if n == nil {
 			logging.GetLogger().Errorf("Unknown node %s for new %s", query.NodeID, o.resourceName)
 			status = http.StatusNotFound
@@ -204,7 +211,7 @@ func (o *OnDemandServer) OnStructMessage(c ws.Speaker, msg *ws.StructMessage) {
 }
 
 // OnNodeDeleted graph event
-func (o *OnDemandServer) OnNodeDeleted(n *graph.Node) {
+func (o *OnDemandServer) OnNodeDeleted(ctx context.Context, n *graph.Node) {
 	o.RLock()
 	tasks, found := o.activeTasks[n.ID]
 	if found {

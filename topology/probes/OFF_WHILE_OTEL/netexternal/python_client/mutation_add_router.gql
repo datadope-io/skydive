@@ -1,0 +1,55 @@
+# Write your query or mutation here
+mutation addRouterIPs {
+  addRouter(input:{
+    Name:"rBCN01x"
+    Vendor:"Cisco"
+    Model:"9600"
+    Interfaces:[
+      {
+        Name:"tr/1/0"
+        Aggregation:false
+        VLAN: {
+          Mode:TRUNK
+          VID:[123,124,125]
+          NativeVID:20
+        }
+        IP: {
+          IP:"10.0.1.1"
+          Mask:"255.255.255.0"
+        }
+      },
+      {
+        Name:"tr/1/1"
+        Aggregation:false
+        VLAN: {
+          Mode:TRUNK
+          VID:[99,199]
+          NativeVID:20
+        }
+        IP: {
+          IP:"192.168.1.1"
+          Mask:"255.255.0.0"
+          VRF:"MGMT"
+        }
+      },
+      {
+        Name:"tr/2/2"
+        Aggregation:false
+        VLAN: {
+          Mode:TRUNK
+          VID:[90]
+          NativeVID:20
+        }
+        IP: {
+          IP:"10.0.2.1"
+          Mask:"255.255.255.0"
+        }
+      }
+    ]
+
+  }) {
+    Updated
+    InterfaceUpdated
+    ID
+  }
+}

@@ -18,6 +18,7 @@
 package graph
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -25,6 +26,7 @@ import (
 
 	uuid "github.com/nu7hatch/gouuid"
 	"github.com/safchain/insanelock"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/skydive-project/skydive/graffiti/filters"
 	"github.com/skydive-project/skydive/graffiti/getter"
@@ -51,12 +53,12 @@ type Identifier string
 
 // EventListener describes the graph events interface mechanism
 type EventListener interface {
-	OnNodeUpdated(n *Node, ops []PartiallyUpdatedOp)
-	OnNodeAdded(n *Node)
-	OnNodeDeleted(n *Node)
-	OnEdgeUpdated(e *Edge, ops []PartiallyUpdatedOp)
-	OnEdgeAdded(e *Edge)
-	OnEdgeDeleted(e *Edge)
+	OnNodeUpdated(ctx context.Context, n *Node, ops []PartiallyUpdatedOp)
+	OnNodeAdded(ctx context.Context, n *Node)
+	OnNodeDeleted(ctx context.Context, n *Node)
+	OnEdgeUpdated(ctx context.Context, e *Edge, ops []PartiallyUpdatedOp)
+	OnEdgeAdded(ctx context.Context, e *Edge)
+	OnEdgeDeleted(ctx context.Context, e *Edge)
 }
 
 type graphEvent struct {
@@ -103,20 +105,20 @@ var (
 
 // Backend interface mechanism used as storage
 type Backend interface {
-	NodeAdded(n *Node) error
-	NodeDeleted(n *Node) error
-	GetNode(i Identifier, at Context) []*Node
-	GetNodeEdges(n *Node, at Context, m ElementMatcher) []*Edge
+	NodeAdded(ctx context.Context, n *Node) error
+	NodeDeleted(ctx context.Context, n *Node) error
+	GetNode(ctx context.Context, i Identifier, at Context) []*Node
+	GetNodeEdges(ctx context.Context, n *Node, at Context, m ElementMatcher) []*Edge
 
-	EdgeAdded(e *Edge) error
-	EdgeDeleted(e *Edge) error
-	GetEdge(i Identifier, at Context) []*Edge
-	GetEdgeNodes(e *Edge, at Context, parentMetadata, childMetadata ElementMatcher) ([]*Node, []*Node)
+	EdgeAdded(ctx context.Context, e *Edge) error
+	EdgeDeleted(ctx context.Context, e *Edge) error
+	GetEdge(ctx context.Context, i Identifier, at Context) []*Edge
+	GetEdgeNodes(ctx context.Context, e *Edge, at Context, parentMetadata, childMetadata ElementMatcher) ([]*Node, []*Node)
 
-	MetadataUpdated(e interface{}) error
+	MetadataUpdated(ctx context.Context, e interface{}) error
 
-	GetNodes(t Context, m ElementMatcher, e ElementMatcher) []*Node
-	GetEdges(t Context, m ElementMatcher, e ElementMatcher) []*Edge
+	GetNodes(ctx context.Context, t Context, m ElementMatcher, e ElementMatcher) []*Node
+	GetEdges(ctx context.Context, t Context, m ElementMatcher, e ElementMatcher) []*Edge
 
 	IsHistorySupported() bool
 }
@@ -130,8 +132,8 @@ type PersistentBackend interface {
 	Backend
 
 	AddListener(listener PersistentBackendListener)
-	FlushElements(m ElementMatcher) error
-	Sync(*Graph, *ElementFilter) error
+	FlushElements(ctx context.Context, m ElementMatcher) error
+	Sync(context.Context, *Graph, *ElementFilter) error
 
 	Start() error
 	Stop()
@@ -179,27 +181,27 @@ type DefaultGraphListener struct {
 }
 
 // OnNodeUpdated event
-func (c *DefaultGraphListener) OnNodeUpdated(n *Node, ops []PartiallyUpdatedOp) {
+func (c *DefaultGraphListener) OnNodeUpdated(ctx context.Context, n *Node, ops []PartiallyUpdatedOp) {
 }
 
 // OnNodeAdded event
-func (c *DefaultGraphListener) OnNodeAdded(n *Node) {
+func (c *DefaultGraphListener) OnNodeAdded(ctx context.Context, n *Node) {
 }
 
 // OnNodeDeleted event
-func (c *DefaultGraphListener) OnNodeDeleted(n *Node) {
+func (c *DefaultGraphListener) OnNodeDeleted(ctx context.Context, n *Node) {
 }
 
 // OnEdgeUpdated event
-func (c *DefaultGraphListener) OnEdgeUpdated(e *Edge, ops []PartiallyUpdatedOp) {
+func (c *DefaultGraphListener) OnEdgeUpdated(ctx context.Context, e *Edge, ops []PartiallyUpdatedOp) {
 }
 
 // OnEdgeAdded event
-func (c *DefaultGraphListener) OnEdgeAdded(e *Edge) {
+func (c *DefaultGraphListener) OnEdgeAdded(ctx context.Context, e *Edge) {
 }
 
 // OnEdgeDeleted event
-func (c *DefaultGraphListener) OnEdgeDeleted(e *Edge) {
+func (c *DefaultGraphListener) OnEdgeDeleted(ctx context.Context, e *Edge) {
 }
 
 // ListenerHandler describes an other that manages a set of event listeners
@@ -246,7 +248,7 @@ type EdgePartiallyUpdated struct {
 	Ops  []PartiallyUpdatedOp
 }
 
-func (g *EventHandler) notifyListeners(ge graphEvent) {
+func (g *EventHandler) notifyListeners(ctx context.Context, ge graphEvent) {
 	// notify only once per listener as if more than once we are in a recursion
 	// and we wont to notify a listener which generated a graph element
 	g.RLock()
@@ -259,24 +261,24 @@ func (g *EventHandler) notifyListeners(ge graphEvent) {
 
 		switch ge.kind {
 		case NodeAdded:
-			g.currentEventListener.OnNodeAdded(ge.element.(*Node))
+			g.currentEventListener.OnNodeAdded(ctx, ge.element.(*Node))
 		case NodeUpdated:
-			g.currentEventListener.OnNodeUpdated(ge.element.(*Node), ge.ops)
+			g.currentEventListener.OnNodeUpdated(ctx, ge.element.(*Node), ge.ops)
 		case NodeDeleted:
-			g.currentEventListener.OnNodeDeleted(ge.element.(*Node))
+			g.currentEventListener.OnNodeDeleted(ctx, ge.element.(*Node))
 		case EdgeAdded:
-			g.currentEventListener.OnEdgeAdded(ge.element.(*Edge))
+			g.currentEventListener.OnEdgeAdded(ctx, ge.element.(*Edge))
 		case EdgeUpdated:
-			g.currentEventListener.OnEdgeUpdated(ge.element.(*Edge), ge.ops)
+			g.currentEventListener.OnEdgeUpdated(ctx, ge.element.(*Edge), ge.ops)
 		case EdgeDeleted:
-			g.currentEventListener.OnEdgeDeleted(ge.element.(*Edge))
+			g.currentEventListener.OnEdgeDeleted(ctx, ge.element.(*Edge))
 		}
 	}
 }
 
 // NotifyEvent notifies all the listeners of an event. NotifyEvent
 // makes sure that we don't enter a notify endless loop.
-func (g *EventHandler) NotifyEvent(kind graphEventType, element interface{}, ops ...PartiallyUpdatedOp) {
+func (g *EventHandler) NotifyEvent(ctx context.Context, kind graphEventType, element interface{}, ops ...PartiallyUpdatedOp) {
 	// push event to chan so that nested notification will be sent in the
 	// right order. Associate the event with the current event listener so
 	// we can avoid loop by not triggering event for the current listener.
@@ -292,7 +294,7 @@ func (g *EventHandler) NotifyEvent(kind graphEventType, element interface{}, ops
 
 	for len(g.eventChan) > 0 {
 		ge = <-g.eventChan
-		g.notifyListeners(ge)
+		g.notifyListeners(ctx, ge)
 	}
 	g.currentEventListener = nil
 	g.eventConsumed = false
@@ -700,18 +702,21 @@ func dedupEdges(edges []*Edge) []*Edge {
 }
 
 // NodeUpdated updates a node
-func (g *Graph) NodeUpdated(n *Node) error {
-	if node := g.GetNode(n.ID); node != nil {
+func (g *Graph) NodeUpdated(ctx context.Context, n *Node) error {
+	ctx, span := tracer.Start(ctx, "Graph.NodeUpdated")
+	defer span.End()
+
+	if node := g.GetNode(ctx, n.ID); node != nil {
 		if node.Revision < n.Revision {
 			node.Metadata = n.Metadata
 			node.UpdatedAt = n.UpdatedAt
 			node.Revision = n.Revision
 
-			if err := g.backend.MetadataUpdated(node); err != nil {
+			if err := g.backend.MetadataUpdated(ctx, node); err != nil {
 				return err
 			}
 
-			g.eventHandler.NotifyEvent(NodeUpdated, node)
+			g.eventHandler.NotifyEvent(ctx, NodeUpdated, node)
 		}
 		return nil
 	}
@@ -719,18 +724,21 @@ func (g *Graph) NodeUpdated(n *Node) error {
 }
 
 // NodePartiallyUpdated partially updates a node
-func (g *Graph) NodePartiallyUpdated(id Identifier, revision int64, updatedAt Time, ops ...PartiallyUpdatedOp) error {
-	if node := g.GetNode(id); node != nil {
+func (g *Graph) NodePartiallyUpdated(ctx context.Context, id Identifier, revision int64, updatedAt Time, ops ...PartiallyUpdatedOp) error {
+	ctx, span := tracer.Start(ctx, "Graph.NodePartiallyUpdated")
+	defer span.End()
+
+	if node := g.GetNode(ctx, id); node != nil {
 		if node.Revision < revision {
 			node.Revision = revision
 			node.UpdatedAt = updatedAt
 			node.Metadata.ApplyUpdates(ops...)
 
-			if err := g.backend.MetadataUpdated(node); err != nil {
+			if err := g.backend.MetadataUpdated(ctx, node); err != nil {
 				return err
 			}
 
-			g.eventHandler.NotifyEvent(NodeUpdated, node, ops...)
+			g.eventHandler.NotifyEvent(ctx, NodeUpdated, node, ops...)
 		}
 		return nil
 	}
@@ -738,17 +746,20 @@ func (g *Graph) NodePartiallyUpdated(id Identifier, revision int64, updatedAt Ti
 }
 
 // EdgeUpdated updates an edge
-func (g *Graph) EdgeUpdated(e *Edge, ops ...PartiallyUpdatedOp) error {
-	if edge := g.GetEdge(e.ID); edge != nil {
+func (g *Graph) EdgeUpdated(ctx context.Context, e *Edge, ops ...PartiallyUpdatedOp) error {
+	ctx, span := tracer.Start(ctx, "Graph.EdgeUpdated")
+	defer span.End()
+
+	if edge := g.GetEdge(ctx, e.ID); edge != nil {
 		if edge.Revision < e.Revision {
 			edge.Metadata = e.Metadata
 			edge.UpdatedAt = e.UpdatedAt
 
-			if err := g.backend.MetadataUpdated(edge); err != nil {
+			if err := g.backend.MetadataUpdated(ctx, edge); err != nil {
 				return err
 			}
 
-			g.eventHandler.NotifyEvent(EdgeUpdated, edge, ops...)
+			g.eventHandler.NotifyEvent(ctx, EdgeUpdated, edge, ops...)
 			return nil
 		}
 	}
@@ -756,18 +767,21 @@ func (g *Graph) EdgeUpdated(e *Edge, ops ...PartiallyUpdatedOp) error {
 }
 
 // EdgePartiallyUpdated partially updates an edge
-func (g *Graph) EdgePartiallyUpdated(id Identifier, revision int64, updatedAt Time, ops ...PartiallyUpdatedOp) error {
-	if edge := g.GetEdge(id); edge != nil {
+func (g *Graph) EdgePartiallyUpdated(ctx context.Context, id Identifier, revision int64, updatedAt Time, ops ...PartiallyUpdatedOp) error {
+	ctx, span := tracer.Start(ctx, "Graph.EdgePartiallyUpdated")
+	defer span.End()
+
+	if edge := g.GetEdge(ctx, id); edge != nil {
 		if edge.Revision < revision {
 			edge.Revision = revision
 			edge.UpdatedAt = updatedAt
 			edge.Metadata.ApplyUpdates(ops...)
 
-			if err := g.backend.MetadataUpdated(edge); err != nil {
+			if err := g.backend.MetadataUpdated(ctx, edge); err != nil {
 				return err
 			}
 
-			g.eventHandler.NotifyEvent(EdgeUpdated, edge, ops...)
+			g.eventHandler.NotifyEvent(ctx, EdgeUpdated, edge, ops...)
 		}
 		return nil
 	}
@@ -775,7 +789,10 @@ func (g *Graph) EdgePartiallyUpdated(id Identifier, revision int64, updatedAt Ti
 }
 
 // SetMetadata associate metadata to an edge or node
-func (g *Graph) SetMetadata(i interface{}, m Metadata) error {
+func (g *Graph) SetMetadata(ctx context.Context, i interface{}, m Metadata) error {
+	ctx, span := tracer.Start(ctx, "Graph.SetMetadata")
+	defer span.End()
+
 	var e *graphElement
 	var kind graphEventType
 
@@ -796,16 +813,19 @@ func (g *Graph) SetMetadata(i interface{}, m Metadata) error {
 	e.UpdatedAt = TimeUTC()
 	e.Revision++
 
-	if err := g.backend.MetadataUpdated(i); err != nil {
+	if err := g.backend.MetadataUpdated(ctx, i); err != nil {
 		return err
 	}
 
-	g.eventHandler.NotifyEvent(kind, i)
+	g.eventHandler.NotifyEvent(ctx, kind, i)
 	return nil
 }
 
 // DelMetadata delete a metadata to an associated edge or node
-func (g *Graph) DelMetadata(i interface{}, k string) error {
+func (g *Graph) DelMetadata(ctx context.Context, i interface{}, k string) error {
+	ctx, span := tracer.Start(ctx, "Graph.DelMetadata")
+	defer span.End()
+
 	var e *graphElement
 	var kind graphEventType
 
@@ -825,16 +845,19 @@ func (g *Graph) DelMetadata(i interface{}, k string) error {
 	e.UpdatedAt = TimeUTC()
 	e.Revision++
 
-	if err := g.backend.MetadataUpdated(i); err != nil {
+	if err := g.backend.MetadataUpdated(ctx, i); err != nil {
 		return err
 	}
 
 	op := PartiallyUpdatedOp{Type: PartiallyUpdatedDelOpType, Key: k}
-	g.eventHandler.NotifyEvent(kind, i, op)
+	g.eventHandler.NotifyEvent(ctx, kind, i, op)
 	return nil
 }
 
-func (g *Graph) addMetadata(i interface{}, k string, v interface{}, t Time) error {
+func (g *Graph) addMetadata(ctx context.Context, i interface{}, k string, v interface{}, t Time) error {
+	ctx, span := tracer.Start(ctx, "Graph.addMetadata")
+	defer span.End()
+
 	var e *graphElement
 	var kind graphEventType
 
@@ -858,22 +881,25 @@ func (g *Graph) addMetadata(i interface{}, k string, v interface{}, t Time) erro
 	e.UpdatedAt = t
 	e.Revision++
 
-	if err := g.backend.MetadataUpdated(i); err != nil {
+	if err := g.backend.MetadataUpdated(ctx, i); err != nil {
 		return err
 	}
 
 	op := PartiallyUpdatedOp{Type: PartiallyUpdatedAddOpType, Key: k, Value: v}
-	g.eventHandler.NotifyEvent(kind, i, op)
+	g.eventHandler.NotifyEvent(ctx, kind, i, op)
 	return nil
 }
 
 // AddMetadata add a metadata to an associated edge or node
-func (g *Graph) AddMetadata(i interface{}, k string, v interface{}) error {
-	return g.addMetadata(i, k, v, TimeUTC())
+func (g *Graph) AddMetadata(ctx context.Context, i interface{}, k string, v interface{}) error {
+	return g.addMetadata(ctx, i, k, v, TimeUTC())
 }
 
 // UpdateMetadata retrieves a value and calls a callback that can modify it then notify listeners of the update
-func (g *Graph) UpdateMetadata(i interface{}, key string, mutator func(obj interface{}) bool) error {
+func (g *Graph) UpdateMetadata(ctx context.Context, i interface{}, key string, mutator func(obj interface{}) bool) error {
+	ctx, span := tracer.Start(ctx, "Graph.UpdateMetadata")
+	defer span.End()
+
 	var e *graphElement
 
 	switch i.(type) {
@@ -892,10 +918,10 @@ func (g *Graph) UpdateMetadata(i interface{}, key string, mutator func(obj inter
 	e.Revision++
 
 	if updated := mutator(field); updated {
-		if err := g.backend.MetadataUpdated(i); err != nil {
+		if err := g.backend.MetadataUpdated(ctx, i); err != nil {
 			return err
 		}
-		g.eventHandler.NotifyEvent(NodeUpdated, i)
+		g.eventHandler.NotifyEvent(ctx, NodeUpdated, i)
 	}
 
 	return nil
@@ -912,9 +938,12 @@ func (g *Graph) StartMetadataTransaction(i interface{}) *MetadataTransaction {
 	return &t
 }
 
-func (g *Graph) getNeighborNodes(n *Node, em ElementMatcher) (nodes []*Node) {
-	for _, e := range g.backend.GetNodeEdges(n, g.context, em) {
-		parents, children := g.backend.GetEdgeNodes(e, g.context, nil, nil)
+func (g *Graph) getNeighborNodes(ctx context.Context, n *Node, em ElementMatcher) (nodes []*Node) {
+	ctx, span := tracer.Start(ctx, "Graph.getNeighborNodes")
+	defer span.End()
+
+	for _, e := range g.backend.GetNodeEdges(ctx, n, g.context, em) {
+		parents, children := g.backend.GetEdgeNodes(ctx, e, g.context, nil, nil)
 		nodes = append(nodes, parents...)
 		nodes = append(nodes, children...)
 	}
@@ -955,8 +984,11 @@ func getNodeMinDistance(nodesMap map[Identifier]*Node, distance map[Identifier]u
 }
 
 // GetNodesMap returns a map of nodes within a time slice
-func (g *Graph) GetNodesMap(t Context) map[Identifier]*Node {
-	nodes := g.backend.GetNodes(t, nil, nil)
+func (g *Graph) GetNodesMap(ctx context.Context, t Context) map[Identifier]*Node {
+	ctx, span := tracer.Start(ctx, "Graph.GetNodesMap")
+	defer span.End()
+
+	nodes := g.backend.GetNodes(ctx, t, nil, nil)
 	nodesMap := make(map[Identifier]*Node, len(nodes))
 	for _, n := range nodes {
 		nodesMap[n.ID] = n
@@ -965,8 +997,11 @@ func (g *Graph) GetNodesMap(t Context) map[Identifier]*Node {
 }
 
 // LookupShortestPath based on Dijkstra algorithm
-func (g *Graph) LookupShortestPath(n *Node, m ElementMatcher, em ElementMatcher) []*Node {
-	nodesMap := g.GetNodesMap(g.context)
+func (g *Graph) LookupShortestPath(ctx context.Context, n *Node, m ElementMatcher, em ElementMatcher) []*Node {
+	ctx, span := tracer.Start(ctx, "Graph.LookupShortestPath")
+	defer span.End()
+
+	nodesMap := g.GetNodesMap(ctx, g.context)
 	target := g.findNodeMatchMetadata(nodesMap, m)
 	if target == nil {
 		return []*Node{}
@@ -986,7 +1021,7 @@ func (g *Graph) LookupShortestPath(n *Node, m ElementMatcher, em ElementMatcher)
 		}
 		delete(nodesMap, u.ID)
 
-		for _, v := range g.getNeighborNodes(u, em) {
+		for _, v := range g.getNeighborNodes(ctx, u, em) {
 			if _, ok := nodesMap[v.ID]; !ok {
 				continue
 			}
@@ -1018,10 +1053,13 @@ func (g *Graph) LookupShortestPath(n *Node, m ElementMatcher, em ElementMatcher)
 }
 
 // LookupParents returns the associated parents edge of a node
-func (g *Graph) LookupParents(n *Node, f ElementMatcher, em ElementMatcher) (nodes []*Node) {
-	for _, e := range g.backend.GetNodeEdges(n, g.context, em) {
+func (g *Graph) LookupParents(ctx context.Context, n *Node, f ElementMatcher, em ElementMatcher) (nodes []*Node) {
+	ctx, span := tracer.Start(ctx, "Graph.LookupParents")
+	defer span.End()
+
+	for _, e := range g.backend.GetNodeEdges(ctx, n, g.context, em) {
 		if e.Child == n.ID {
-			parents, _ := g.backend.GetEdgeNodes(e, g.context, f, nil)
+			parents, _ := g.backend.GetEdgeNodes(ctx, e, g.context, f, nil)
 			for _, parent := range parents {
 				nodes = append(nodes, parent)
 			}
@@ -1032,8 +1070,11 @@ func (g *Graph) LookupParents(n *Node, f ElementMatcher, em ElementMatcher) (nod
 }
 
 // LookupFirstChild returns the child
-func (g *Graph) LookupFirstChild(n *Node, f ElementMatcher) *Node {
-	nodes := g.LookupChildren(n, f, nil)
+func (g *Graph) LookupFirstChild(ctx context.Context, n *Node, f ElementMatcher) *Node {
+	ctx, span := tracer.Start(ctx, "Graph.LookupFirstChild")
+	defer span.End()
+
+	nodes := g.LookupChildren(ctx, n, f, nil)
 	if len(nodes) > 0 {
 		return nodes[0]
 	}
@@ -1041,10 +1082,16 @@ func (g *Graph) LookupFirstChild(n *Node, f ElementMatcher) *Node {
 }
 
 // LookupChildren returns a list of children nodes
-func (g *Graph) LookupChildren(n *Node, f ElementMatcher, em ElementMatcher) (nodes []*Node) {
-	for _, e := range g.backend.GetNodeEdges(n, g.context, em) {
+func (g *Graph) LookupChildren(ctx context.Context, n *Node, f ElementMatcher, em ElementMatcher) (nodes []*Node) {
+	ctx, span := tracer.Start(ctx, "Graph.LookupChildren")
+	span.SetAttributes(attribute.Key("node.id").String(string(n.ID)))
+	addFilterAttribute(span, em, "edge.metadata.filter")
+	addFilterAttribute(span, f, "child.metadata.filter")
+	defer span.End()
+
+	for _, e := range g.backend.GetNodeEdges(ctx, n, g.context, em) {
 		if e.Parent == n.ID {
-			_, children := g.backend.GetEdgeNodes(e, g.context, nil, f)
+			_, children := g.backend.GetEdgeNodes(ctx, e, g.context, nil, f)
 			for _, child := range children {
 				nodes = append(nodes, child)
 			}
@@ -1055,15 +1102,18 @@ func (g *Graph) LookupChildren(n *Node, f ElementMatcher, em ElementMatcher) (no
 }
 
 // LookupNeighbor returns a list of neighbor nodes
-func (g *Graph) LookupNeighbor(n *Node, f ElementMatcher, em ElementMatcher) (nodes []*Node) {
-	for _, e := range g.backend.GetNodeEdges(n, g.context, em) {
+func (g *Graph) LookupNeighbor(ctx context.Context, n *Node, f ElementMatcher, em ElementMatcher) (nodes []*Node) {
+	ctx, span := tracer.Start(ctx, "Graph.LookupNeighbor")
+	defer span.End()
+
+	for _, e := range g.backend.GetNodeEdges(ctx, n, g.context, em) {
 		if e.Parent == n.ID {
-			_, children := g.backend.GetEdgeNodes(e, g.context, nil, f)
+			_, children := g.backend.GetEdgeNodes(ctx, e, g.context, nil, f)
 			for _, child := range children {
 				nodes = append(nodes, child)
 			}
 		} else {
-			parents, _ := g.backend.GetEdgeNodes(e, g.context, f, nil)
+			parents, _ := g.backend.GetEdgeNodes(ctx, e, g.context, f, nil)
 			for _, parent := range parents {
 				nodes = append(nodes, parent)
 			}
@@ -1074,17 +1124,24 @@ func (g *Graph) LookupNeighbor(n *Node, f ElementMatcher, em ElementMatcher) (no
 }
 
 // LookupNeighborIgnoreVisited returns a list of neighbor nodes ignoring the ones in the visited slice
-func (g *Graph) LookupNeighborIgnoreVisited(n *Node, f ElementMatcher, em ElementMatcher, visited map[Identifier]bool) (nodes []*Node) {
-	for _, e := range g.backend.GetNodeEdges(n, g.context, em) {
+func (g *Graph) LookupNeighborIgnoreVisited(ctx context.Context, n *Node, f ElementMatcher, em ElementMatcher, visited map[Identifier]bool) (nodes []*Node) {
+	ctx, span := tracer.Start(ctx, "Graph.LookupNeighborIgnoreVisited")
+	span.SetAttributes(attribute.Key("node.id").String(string(n.ID)))
+	addFilterAttribute(span, em, "edge.metadata.filter")
+	addFilterAttribute(span, f, "child.metadata.filter")
+	addTimeFilterAttribute(span, g.context)
+	defer span.End()
+
+	for _, e := range g.backend.GetNodeEdges(ctx, n, g.context, em) {
 		// Only get neighbor nodes if the node is not yet in the visited list
 		// If our node is the parent, we skip the visit if the child is in the visited list
 		if _, ok := visited[e.Child]; !ok && e.Parent == n.ID {
-			_, children := g.backend.GetEdgeNodes(e, g.context, nil, f)
+			_, children := g.backend.GetEdgeNodes(ctx, e, g.context, nil, f)
 			for _, child := range children {
 				nodes = append(nodes, child)
 			}
 		} else if _, ok := visited[e.Parent]; !ok && e.Child == n.ID {
-			parents, _ := g.backend.GetEdgeNodes(e, g.context, f, nil)
+			parents, _ := g.backend.GetEdgeNodes(ctx, e, g.context, f, nil)
 			for _, parent := range parents {
 				nodes = append(nodes, parent)
 			}
@@ -1095,9 +1152,12 @@ func (g *Graph) LookupNeighborIgnoreVisited(n *Node, f ElementMatcher, em Elemen
 }
 
 // AreLinked returns true if nodes n1, n2 are linked
-func (g *Graph) AreLinked(n1 *Node, n2 *Node, m ElementMatcher) bool {
-	for _, e := range g.backend.GetNodeEdges(n1, g.context, m) {
-		parents, children := g.backend.GetEdgeNodes(e, g.context, nil, nil)
+func (g *Graph) AreLinked(ctx context.Context, n1 *Node, n2 *Node, m ElementMatcher) bool {
+	ctx, span := tracer.Start(ctx, "Graph.AreLinked")
+	defer span.End()
+
+	for _, e := range g.backend.GetNodeEdges(ctx, n1, g.context, m) {
+		parents, children := g.backend.GetEdgeNodes(ctx, e, g.context, nil, nil)
 		if len(parents) == 0 || len(children) == 0 {
 			continue
 		}
@@ -1113,26 +1173,32 @@ func (g *Graph) AreLinked(n1 *Node, n2 *Node, m ElementMatcher) bool {
 }
 
 // Link the nodes n1, n2 with a new edge
-func (g *Graph) Link(n1 *Node, n2 *Node, m Metadata, h ...string) (*Edge, error) {
+func (g *Graph) Link(ctx context.Context, n1 *Node, n2 *Node, m Metadata, h ...string) (*Edge, error) {
+	ctx, span := tracer.Start(ctx, "Graph.Link")
+	defer span.End()
+
 	if len(m) > 0 {
-		return g.NewEdge(GenID(), n1, n2, m, h...)
+		return g.NewEdge(ctx, GenID(), n1, n2, m, h...)
 	}
-	return g.NewEdge(GenID(), n1, n2, nil, h...)
+	return g.NewEdge(ctx, GenID(), n1, n2, nil, h...)
 }
 
 // Unlink the nodes n1, n2 ; delete the associated edge
-func (g *Graph) Unlink(n1 *Node, n2 *Node) error {
+func (g *Graph) Unlink(ctx context.Context, n1 *Node, n2 *Node) error {
+	ctx, span := tracer.Start(ctx, "Graph.Unlink")
+	defer span.End()
+
 	var err error
 
-	for _, e := range g.backend.GetNodeEdges(n1, liveContext, nil) {
-		parents, children := g.backend.GetEdgeNodes(e, liveContext, nil, nil)
+	for _, e := range g.backend.GetNodeEdges(ctx, n1, liveContext, nil) {
+		parents, children := g.backend.GetEdgeNodes(ctx, e, liveContext, nil, nil)
 		if len(parents) == 0 || len(children) == 0 {
 			continue
 		}
 
 		parent, child := parents[0], children[0]
 		if child.ID == n2.ID || parent.ID == n2.ID {
-			if currErr := g.DelEdge(e); currErr != nil {
+			if currErr := g.DelEdge(ctx, e); currErr != nil {
 				err = currErr
 			}
 		}
@@ -1142,8 +1208,11 @@ func (g *Graph) Unlink(n1 *Node, n2 *Node) error {
 }
 
 // GetFirstLink get Link between the parent and the child node
-func (g *Graph) GetFirstLink(parent, child *Node, m ElementMatcher) *Edge {
-	for _, e := range g.GetNodeEdges(parent, m) {
+func (g *Graph) GetFirstLink(ctx context.Context, parent, child *Node, m ElementMatcher) *Edge {
+	ctx, span := tracer.Start(ctx, "Graph.GetFirstLink")
+	defer span.End()
+
+	for _, e := range g.GetNodeEdges(ctx, parent, m) {
 		if e.Child == child.ID {
 			return e
 		}
@@ -1152,8 +1221,11 @@ func (g *Graph) GetFirstLink(parent, child *Node, m ElementMatcher) *Edge {
 }
 
 // LookupFirstNode returns the fist node matching metadata
-func (g *Graph) LookupFirstNode(m ElementMatcher) *Node {
-	nodes := g.GetNodes(m)
+func (g *Graph) LookupFirstNode(ctx context.Context, m ElementMatcher) *Node {
+	ctx, span := tracer.Start(ctx, "Graph.LookupFirstNode")
+	defer span.End()
+
+	nodes := g.GetNodes(ctx, m)
 	if len(nodes) > 0 {
 		return nodes[0]
 	}
@@ -1162,60 +1234,81 @@ func (g *Graph) LookupFirstNode(m ElementMatcher) *Node {
 }
 
 // EdgeAdded add an edge
-func (g *Graph) EdgeAdded(e *Edge) error {
-	if g.GetEdge(e.ID) == nil {
-		return g.AddEdge(e)
+func (g *Graph) EdgeAdded(ctx context.Context, e *Edge) error {
+	ctx, span := tracer.Start(ctx, "Graph.EdgeAdded")
+	defer span.End()
+
+	if g.GetEdge(ctx, e.ID) == nil {
+		return g.AddEdge(ctx, e)
 	}
 	return nil
 }
 
 // AddEdge in the graph
-func (g *Graph) AddEdge(e *Edge) error {
-	if err := g.backend.EdgeAdded(e); err != nil {
+func (g *Graph) AddEdge(ctx context.Context, e *Edge) error {
+	ctx, span := tracer.Start(ctx, "Graph.AddEdge")
+	defer span.End()
+
+	if err := g.backend.EdgeAdded(ctx, e); err != nil {
 		return err
 	}
-	g.eventHandler.NotifyEvent(EdgeAdded, e)
+	g.eventHandler.NotifyEvent(ctx, EdgeAdded, e)
 
 	return nil
 }
 
 // GetEdge with Identifier i
-func (g *Graph) GetEdge(i Identifier) *Edge {
-	if edges := g.backend.GetEdge(i, g.context); len(edges) != 0 {
+func (g *Graph) GetEdge(ctx context.Context, i Identifier) *Edge {
+	ctx, span := tracer.Start(ctx, "Graph.GetEdge")
+	defer span.End()
+
+	if edges := g.backend.GetEdge(ctx, i, g.context); len(edges) != 0 {
 		return edges[0]
 	}
 	return nil
 }
 
 // NodeAdded in the graph
-func (g *Graph) NodeAdded(n *Node) error {
-	if g.GetNode(n.ID) == nil {
-		return g.AddNode(n)
+func (g *Graph) NodeAdded(ctx context.Context, n *Node) error {
+	ctx, span := tracer.Start(ctx, "Graph.NodeAdded")
+	defer span.End()
+
+	if g.GetNode(ctx, n.ID) == nil {
+		return g.AddNode(ctx, n)
 	}
 	return nil
 }
 
 // AddNode in the graph
-func (g *Graph) AddNode(n *Node) error {
-	if err := g.backend.NodeAdded(n); err != nil {
+func (g *Graph) AddNode(ctx context.Context, n *Node) error {
+	ctx, span := tracer.Start(ctx, "Graph.AddNode")
+	defer span.End()
+
+	if err := g.backend.NodeAdded(ctx, n); err != nil {
 		return err
 	}
-	g.eventHandler.NotifyEvent(NodeAdded, n)
+	g.eventHandler.NotifyEvent(ctx, NodeAdded, n)
 
 	return nil
 }
 
 // GetNode from Identifier
-func (g *Graph) GetNode(i Identifier) *Node {
-	if nodes := g.backend.GetNode(i, g.context); len(nodes) != 0 {
+func (g *Graph) GetNode(ctx context.Context, i Identifier) *Node {
+	ctx, span := tracer.Start(ctx, "Graph.GetNode")
+	defer span.End()
+
+	if nodes := g.backend.GetNode(ctx, i, g.context); len(nodes) != 0 {
 		return nodes[0]
 	}
 	return nil
 }
 
 // GetNodeAll from Identifier, all revisions
-func (g *Graph) GetNodeAll(i Identifier) []*Node {
-	return g.backend.GetNode(i, g.context)
+func (g *Graph) GetNodeAll(ctx context.Context, i Identifier) []*Node {
+	ctx, span := tracer.Start(ctx, "Graph.GetNodeAll")
+	defer span.End()
+
+	return g.backend.GetNode(ctx, i, g.context)
 }
 
 // CreateNode returns a new node not bound to a graph
@@ -1251,10 +1344,13 @@ func (g *Graph) CreateNode(i Identifier, m Metadata, t Time, h ...string) *Node 
 }
 
 // NewNode creates a new node in the graph with attached metadata
-func (g *Graph) NewNode(i Identifier, m Metadata, h ...string) (*Node, error) {
+func (g *Graph) NewNode(ctx context.Context, i Identifier, m Metadata, h ...string) (*Node, error) {
+	ctx, span := tracer.Start(ctx, "Graph.NewNode")
+	defer span.End()
+
 	n := g.CreateNode(i, m, TimeUTC(), h...)
 
-	if err := g.AddNode(n); err != nil {
+	if err := g.AddNode(ctx, n); err != nil {
 		return nil, err
 	}
 
@@ -1301,10 +1397,13 @@ func (g *Graph) CreateEdge(i Identifier, p *Node, c *Node, m Metadata, t Time, h
 }
 
 // NewEdge creates a new edge in the graph based on Identifier, parent, child nodes and metadata
-func (g *Graph) NewEdge(i Identifier, p *Node, c *Node, m Metadata, h ...string) (*Edge, error) {
+func (g *Graph) NewEdge(ctx context.Context, i Identifier, p *Node, c *Node, m Metadata, h ...string) (*Edge, error) {
+	ctx, span := tracer.Start(ctx, "Graph.NewEdge")
+	defer span.End()
+
 	e := g.CreateEdge(i, p, c, m, TimeUTC(), h...)
 
-	if err := g.AddEdge(e); err != nil {
+	if err := g.AddEdge(ctx, e); err != nil {
 		return nil, err
 	}
 
@@ -1312,65 +1411,86 @@ func (g *Graph) NewEdge(i Identifier, p *Node, c *Node, m Metadata, h ...string)
 }
 
 // EdgeDeleted event
-func (g *Graph) EdgeDeleted(e *Edge) error {
-	if err := g.backend.EdgeDeleted(e); err != nil {
+func (g *Graph) EdgeDeleted(ctx context.Context, e *Edge) error {
+	ctx, span := tracer.Start(ctx, "Graph.EdgeDeleted")
+	defer span.End()
+
+	if err := g.backend.EdgeDeleted(ctx, e); err != nil {
 		return err
 	}
 
-	g.eventHandler.NotifyEvent(EdgeDeleted, e)
+	g.eventHandler.NotifyEvent(ctx, EdgeDeleted, e)
 
 	return nil
 }
 
-func (g *Graph) delEdge(e *Edge, t Time) error {
+func (g *Graph) delEdge(ctx context.Context, e *Edge, t Time) error {
+	ctx, span := tracer.Start(ctx, "Graph.delEdge")
+	defer span.End()
+
 	e.DeletedAt = t
-	if err := g.backend.EdgeDeleted(e); err != nil {
+	if err := g.backend.EdgeDeleted(ctx, e); err != nil {
 		return err
 
 	}
 
-	g.eventHandler.NotifyEvent(EdgeDeleted, e)
+	g.eventHandler.NotifyEvent(ctx, EdgeDeleted, e)
 
 	return nil
 }
 
 // DelEdge delete an edge
-func (g *Graph) DelEdge(e *Edge) error {
-	return g.delEdge(e, TimeUTC())
+func (g *Graph) DelEdge(ctx context.Context, e *Edge) error {
+	ctx, span := tracer.Start(ctx, "Graph.DelEdge")
+	defer span.End()
+
+	return g.delEdge(ctx, e, TimeUTC())
 }
 
 // NodeDeleted event
-func (g *Graph) NodeDeleted(n *Node) error {
-	return g.delNode(n, n.DeletedAt)
+func (g *Graph) NodeDeleted(ctx context.Context, n *Node) error {
+	ctx, span := tracer.Start(ctx, "Graph.NodeDeleted")
+	defer span.End()
+
+	return g.delNode(ctx, n, n.DeletedAt)
 }
 
-func (g *Graph) delNode(n *Node, t Time) error {
-	for _, e := range g.backend.GetNodeEdges(n, liveContext, nil) {
-		if err := g.delEdge(e, t); err != nil {
+func (g *Graph) delNode(ctx context.Context, n *Node, t Time) error {
+	ctx, span := tracer.Start(ctx, "Graph.delNode")
+	defer span.End()
+
+	for _, e := range g.backend.GetNodeEdges(ctx, n, liveContext, nil) {
+		if err := g.delEdge(ctx, e, t); err != nil {
 			return err
 		}
 	}
 
 	n.DeletedAt = t
-	if err := g.backend.NodeDeleted(n); err != nil {
+	if err := g.backend.NodeDeleted(ctx, n); err != nil {
 		return err
 	}
 
-	g.eventHandler.NotifyEvent(NodeDeleted, n)
+	g.eventHandler.NotifyEvent(ctx, NodeDeleted, n)
 
 	return nil
 }
 
 // DelNode delete the node n in the graph
-func (g *Graph) DelNode(n *Node) error {
-	return g.delNode(n, TimeUTC())
+func (g *Graph) DelNode(ctx context.Context, n *Node) error {
+	ctx, span := tracer.Start(ctx, "Graph.DelNode")
+	defer span.End()
+
+	return g.delNode(ctx, n, TimeUTC())
 }
 
 // DelNodes deletes nodes for given matcher
-func (g *Graph) DelNodes(m ElementMatcher) error {
+func (g *Graph) DelNodes(ctx context.Context, m ElementMatcher) error {
+	ctx, span := tracer.Start(ctx, "Graph.DelNodes")
+	defer span.End()
+
 	t := TimeUTC()
-	for _, node := range g.GetNodes(m) {
-		if err := g.delNode(node, t); err != nil {
+	for _, node := range g.GetNodes(ctx, m) {
+		if err := g.delNode(ctx, node, t); err != nil {
 			return err
 		}
 	}
@@ -1379,23 +1499,49 @@ func (g *Graph) DelNodes(m ElementMatcher) error {
 }
 
 // GetNodes returns a list of nodes
-func (g *Graph) GetNodes(m ElementMatcher) []*Node {
-	return g.backend.GetNodes(g.context, m, nil)
+func (g *Graph) GetNodes(ctx context.Context, m ElementMatcher) []*Node {
+	ctx, span := tracer.Start(ctx, "Graph.GetNodes")
+	addFilterAttribute(span, m, "metadata.filter")
+	addTimeFilterAttribute(span, g.context)
+	defer span.End()
+
+	nodes := g.backend.GetNodes(ctx, g.context, m, nil)
+	span.SetAttributes(attribute.Key("num.nodes.returned").Int(len(nodes)))
+	return nodes
 }
 
 // GetEdges returns a list of edges
-func (g *Graph) GetEdges(m ElementMatcher) []*Edge {
-	return g.backend.GetEdges(g.context, m, nil)
+func (g *Graph) GetEdges(ctx context.Context, m ElementMatcher) []*Edge {
+	ctx, span := tracer.Start(ctx, "Graph.GetEdges")
+	addFilterAttribute(span, m, "metadata.filter")
+	addTimeFilterAttribute(span, g.context)
+	defer span.End()
+
+	edges := g.backend.GetEdges(ctx, g.context, m, nil)
+	span.SetAttributes(attribute.Key("num.edges.returned").Int(len(edges)))
+	return edges
 }
 
 // GetEdgeNodes returns a list of nodes of an edge
-func (g *Graph) GetEdgeNodes(e *Edge, parentMetadata, childMetadata ElementMatcher) ([]*Node, []*Node) {
-	return g.backend.GetEdgeNodes(e, g.context, parentMetadata, childMetadata)
+func (g *Graph) GetEdgeNodes(ctx context.Context, e *Edge, parentMetadata, childMetadata ElementMatcher) ([]*Node, []*Node) {
+	ctx, span := tracer.Start(ctx, "Graph.GetEdgeNodes")
+	addFilterAttribute(span, parentMetadata, "parent.metadata.filter")
+	addFilterAttribute(span, childMetadata, "child.metadata.filter")
+	addTimeFilterAttribute(span, g.context)
+	defer span.End()
+
+	return g.backend.GetEdgeNodes(ctx, e, g.context, parentMetadata, childMetadata)
 }
 
 // GetNodeEdges returns a list of edges of a node
-func (g *Graph) GetNodeEdges(n *Node, m ElementMatcher) []*Edge {
-	return g.backend.GetNodeEdges(n, g.context, m)
+func (g *Graph) GetNodeEdges(ctx context.Context, n *Node, m ElementMatcher) []*Edge {
+	ctx, span := tracer.Start(ctx, "Graph.GetNodeEdges")
+	span.SetAttributes(attribute.Key("node.id").String(string(n.ID)))
+	addFilterAttribute(span, m, "metadata.filter")
+	addTimeFilterAttribute(span, g.context)
+	defer span.End()
+
+	return g.backend.GetNodeEdges(ctx, n, g.context, m)
 }
 
 func (g *Graph) String() string {
@@ -1409,11 +1555,14 @@ func (g *Graph) GetOrigin() string {
 }
 
 // Elements returns graph elements
-func (g *Graph) Elements() *Elements {
-	nodes := g.GetNodes(nil)
+func (g *Graph) Elements(ctx context.Context) *Elements {
+	ctx, span := tracer.Start(ctx, "Graph.Elements")
+	defer span.End()
+
+	nodes := g.GetNodes(ctx, nil)
 	SortNodes(nodes, "CreatedAt", filters.SortOrder_Ascending)
 
-	edges := g.GetEdges(nil)
+	edges := g.GetEdges(ctx, nil)
 	SortEdges(edges, "CreatedAt", filters.SortOrder_Ascending)
 
 	return &Elements{
@@ -1423,8 +1572,11 @@ func (g *Graph) Elements() *Elements {
 }
 
 // MarshalJSON serialize the graph in JSON
-func (g *Graph) MarshalJSON() ([]byte, error) {
-	return json.Marshal(g.Elements())
+func (g *Graph) MarshalJSON(ctx context.Context) ([]byte, error) {
+	ctx, span := tracer.Start(ctx, "Graph.MarshalJSON")
+	defer span.End()
+
+	return json.Marshal(g.Elements(ctx))
 }
 
 // CloneWithContext creates a new graph based on the given one and the given context
@@ -1449,27 +1601,30 @@ func (g *Graph) GetHost() string {
 }
 
 // Diff computes the difference between two graphs
-func (g *Graph) Diff(newGraph *Graph) (addedNodes []*Node, removedNodes []*Node, addedEdges []*Edge, removedEdges []*Edge) {
-	for _, e := range newGraph.GetEdges(nil) {
-		if g.GetEdge(e.ID) == nil {
+func (g *Graph) Diff(ctx context.Context, newGraph *Graph) (addedNodes []*Node, removedNodes []*Node, addedEdges []*Edge, removedEdges []*Edge) {
+	ctx, span := tracer.Start(ctx, "Graph.Diff")
+	defer span.End()
+
+	for _, e := range newGraph.GetEdges(ctx, nil) {
+		if g.GetEdge(ctx, e.ID) == nil {
 			addedEdges = append(addedEdges, e)
 		}
 	}
 
-	for _, e := range g.GetEdges(nil) {
-		if newGraph.GetEdge(e.ID) == nil {
+	for _, e := range g.GetEdges(ctx, nil) {
+		if newGraph.GetEdge(ctx, e.ID) == nil {
 			removedEdges = append(removedEdges, e)
 		}
 	}
 
-	for _, n := range newGraph.GetNodes(nil) {
-		if g.GetNode(n.ID) == nil {
+	for _, n := range newGraph.GetNodes(ctx, nil) {
+		if g.GetNode(ctx, n.ID) == nil {
 			addedNodes = append(addedNodes, n)
 		}
 	}
 
-	for _, n := range g.GetNodes(nil) {
-		if newGraph.GetNode(n.ID) == nil {
+	for _, n := range g.GetNodes(ctx, nil) {
+		if newGraph.GetNode(ctx, n.ID) == nil {
 			removedNodes = append(removedNodes, n)
 		}
 	}

@@ -21,6 +21,8 @@
 package server
 
 import (
+	"context"
+
 	"github.com/skydive-project/skydive/api/types"
 	"github.com/skydive-project/skydive/graffiti/api/rest"
 	api "github.com/skydive-project/skydive/graffiti/api/server"
@@ -48,23 +50,24 @@ func (pirh *packetInjectorResourceHandler) New() rest.Resource {
 }
 
 // Create allocates a new packet injection
-func (pi *PacketInjectorAPI) Create(r rest.Resource, opts *rest.CreateOptions) error {
+func (pi *PacketInjectorAPI) Create(ctx context.Context, r rest.Resource, opts *rest.CreateOptions) error {
 	ppr := r.(*types.PacketInjection)
 
 	if err := pi.validateRequest(ppr); err != nil {
 		return err
 	}
-	e := pi.BasicAPIHandler.Create(ppr, opts)
+	e := pi.BasicAPIHandler.Create(ctx, ppr, opts)
 	return e
 }
 
 // Update a packet injection
-func (pi *PacketInjectorAPI) Update(id string, resource rest.Resource) (rest.Resource, bool, error) {
+func (pi *PacketInjectorAPI) Update(ctx context.Context, id string, resource rest.Resource) (rest.Resource, bool, error) {
 	return nil, false, rest.ErrNotUpdatable
 }
 
 func (pi *PacketInjectorAPI) getNode(gremlinQuery string) *graph.Node {
-	res, err := ge.TopologyGremlinQuery(pi.Graph, gremlinQuery)
+	// TODO donde se genera esta peticion?
+	res, err := ge.TopologyGremlinQuery(context.Background(), pi.Graph, gremlinQuery)
 	if err != nil {
 		return nil
 	}

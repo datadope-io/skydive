@@ -30,6 +30,7 @@ import (
 	gcontext "github.com/gorilla/context"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 
 	"github.com/skydive-project/skydive/graffiti/logging"
 	"github.com/skydive-project/skydive/graffiti/rbac"
@@ -213,6 +214,7 @@ func NewServer(host string, serviceType service.Type, addr string, port int, tls
 
 	router := mux.NewRouter().StrictSlash(true)
 	router.Headers("X-Host-ID", host, "X-Service-Type", serviceType.String())
+	router.Use(otelmux.Middleware("skydive"))
 
 	return &Server{
 		Server: http.Server{

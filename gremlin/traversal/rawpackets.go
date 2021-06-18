@@ -18,6 +18,7 @@
 package traversal
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 
@@ -70,7 +71,7 @@ func (e *RawPacketsTraversalExtension) ParseStep(t traversal.Token, p traversal.
 }
 
 // Exec RawPackets step
-func (r *RawPacketsGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (r *RawPacketsGremlinTraversalStep) Exec(ctx context.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	switch last.(type) {
 	case *FlowTraversalStep:
 		fs := last.(*FlowTraversalStep)

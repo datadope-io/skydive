@@ -18,6 +18,8 @@
 package topology
 
 import (
+	"context"
+
 	uuid "github.com/nu7hatch/gouuid"
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/logging"
@@ -41,7 +43,7 @@ func (t *TIDMapper) Stop() {
 	t.Graph.RemoveEventListener(t)
 }
 
-func (t *TIDMapper) setTID(parent, child *graph.Node) {
+func (t *TIDMapper) setTID(ctx context.Context, parent, child *graph.Node) {
 	tp, _ := child.GetFieldString("Type")
 	if tp == "" {
 		return
@@ -64,14 +66,14 @@ func (t *TIDMapper) setTID(parent, child *graph.Node) {
 	if tid, _ := parent.GetFieldString("TID"); tid != "" {
 		tid = tid + key + tp
 		u, _ := uuid.NewV5(uuid.NamespaceOID, []byte(tid))
-		t.Graph.AddMetadata(child, "TID", u.String())
+		t.Graph.AddMetadata(ctx, child, "TID", u.String())
 	}
 }
 
 // onNodeEvent set TID
 // TID is UUIDV5(ID/UUID) of "root" node like host, netns, ovsport, fabric
 // for other nodes TID is UUIDV5(rootTID + Name + Type)
-func (t *TIDMapper) onNodeEvent(n *graph.Node) {
+func (t *TIDMapper) onNodeEvent(ctx context.Context, n *graph.Node) {
 	if _, err := n.GetFieldString("TID"); err != nil {
 		if tp, err := n.GetFieldString("Type"); err == nil {
 			switch tp {
@@ -79,13 +81,13 @@ func (t *TIDMapper) onNodeEvent(n *graph.Node) {
 				if name, err := n.GetFieldString("Name"); err == nil {
 					u, _ := uuid.NewV5(uuid.NamespaceOID, []byte(name))
 					t.hostID = graph.Identifier(u.String())
-					t.Graph.AddMetadata(n, "TID", u.String())
+					t.Graph.AddMetadata(ctx, n, "TID", u.String())
 				}
 			case "netns":
 				if path, _ := n.GetFieldString("Path"); path != "" {
 					tid := string(t.hostID) + path + tp
 					u, _ := uuid.NewV5(uuid.NamespaceOID, []byte(tid))
-					t.Graph.AddMetadata(n, "TID", u.String())
+					t.Graph.AddMetadata(ctx, n, "TID", u.String())
 				}
 			case "ovsbridge", "ovsport":
 				if u, _ := n.GetFieldString("UUID"); u != "" {
@@ -93,17 +95,17 @@ func (t *TIDMapper) onNodeEvent(n *graph.Node) {
 					tid := string(t.hostID) + u + tp
 
 					u, _ := uuid.NewV5(uuid.NamespaceOID, []byte(tid))
-					t.Graph.AddMetadata(n, "TID", u.String())
+					t.Graph.AddMetadata(ctx, n, "TID", u.String())
 				}
 			default:
 				if probe, _ := n.GetFieldString("Probe"); probe == "fabric" {
-					t.Graph.AddMetadata(n, "TID", string(n.ID))
+					t.Graph.AddMetadata(ctx, n, "TID", string(n.ID))
 				} else {
-					parents := t.Graph.LookupParents(n, nil, OwnershipMetadata())
+					parents := t.Graph.LookupParents(ctx, n, nil, OwnershipMetadata())
 					if len(parents) > 1 {
 						logging.GetLogger().Errorf("A should always only have one ownership parent: %v", n)
 					} else if len(parents) == 1 {
-						t.setTID(parents[0], n)
+						t.setTID(ctx, parents[0], n)
 					}
 				}
 			}
@@ -112,52 +114,52 @@ func (t *TIDMapper) onNodeEvent(n *graph.Node) {
 }
 
 // OnNodeUpdated event
-func (t *TIDMapper) OnNodeUpdated(n *graph.Node, ops []graph.PartiallyUpdatedOp) {
-	t.onNodeEvent(n)
+func (t *TIDMapper) OnNodeUpdated(ctx context.Context, n *graph.Node, ops []graph.PartiallyUpdatedOp) {
+	t.onNodeEvent(ctx, n)
 }
 
 // OnNodeAdded evetn
-func (t *TIDMapper) OnNodeAdded(n *graph.Node) {
-	t.onNodeEvent(n)
+func (t *TIDMapper) OnNodeAdded(ctx context.Context, n *graph.Node) {
+	t.onNodeEvent(ctx, n)
 }
 
 // onEdgeEvent set TID for child TID nodes which is composed of the name
 // the TID of the parent node and the type.
-func (t *TIDMapper) onEdgeEvent(e *graph.Edge) {
+func (t *TIDMapper) onEdgeEvent(ctx context.Context, e *graph.Edge) {
 	if rl, _ := e.GetFieldString("RelationType"); rl != OwnershipLink {
 		return
 	}
 
-	parents, children := t.Graph.GetEdgeNodes(e, nil, nil)
+	parents, children := t.Graph.GetEdgeNodes(ctx, e, nil, nil)
 	if len(parents) == 0 || len(children) == 0 {
 		return
 	}
 
-	t.setTID(parents[0], children[0])
+	t.setTID(ctx, parents[0], children[0])
 }
 
 // OnEdgeUpdated event
-func (t *TIDMapper) OnEdgeUpdated(e *graph.Edge, ops []graph.PartiallyUpdatedOp) {
-	t.onEdgeEvent(e)
+func (t *TIDMapper) OnEdgeUpdated(ctx context.Context, e *graph.Edge, ops []graph.PartiallyUpdatedOp) {
+	t.onEdgeEvent(ctx, e)
 }
 
 // OnEdgeAdded event
-func (t *TIDMapper) OnEdgeAdded(e *graph.Edge) {
-	t.onEdgeEvent(e)
+func (t *TIDMapper) OnEdgeAdded(ctx context.Context, e *graph.Edge) {
+	t.onEdgeEvent(ctx, e)
 }
 
 // OnEdgeDeleted event
-func (t *TIDMapper) OnEdgeDeleted(e *graph.Edge) {
+func (t *TIDMapper) OnEdgeDeleted(ctx context.Context, e *graph.Edge) {
 	if rl, _ := e.GetFieldString("RelationType"); rl != OwnershipLink {
 		return
 	}
 
-	parents, children := t.Graph.GetEdgeNodes(e, nil, nil)
+	parents, children := t.Graph.GetEdgeNodes(ctx, e, nil, nil)
 	if len(parents) == 0 || len(children) == 0 {
 		return
 	}
 
-	t.Graph.DelMetadata(children[0], "TID")
+	t.Graph.DelMetadata(ctx, children[0], "TID")
 }
 
 // NewTIDMapper creates a new node mapper in the graph g

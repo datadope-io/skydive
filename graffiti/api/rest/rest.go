@@ -18,6 +18,7 @@
 package rest
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -42,13 +43,13 @@ type Resource interface {
 // Handler describes resources for each API
 type Handler interface {
 	Name() string
-	New() Resource
-	Index() map[string]Resource
-	Get(id string) (Resource, bool)
-	Decorate(resource Resource)
-	Create(resource Resource, createOpts *CreateOptions) error
-	Delete(id string) error
-	Update(id string, resource Resource) (Resource, bool, error)
+	New(ctx context.Context) Resource
+	Index(ctx context.Context) map[string]Resource
+	Get(ctx context.Context, id string) (Resource, bool)
+	Decorate(ctx context.Context, resource Resource)
+	Create(ctx context.Context, resource Resource, createOpts *CreateOptions) error
+	Delete(ctx context.Context, id string) error
+	Update(ctx context.Context, id string, resource Resource) (Resource, bool, error)
 }
 
 // CreateOptions describes the available options when creating a resource

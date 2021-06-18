@@ -26,27 +26,11 @@ import (
 	"github.com/skydive-project/skydive/graffiti/logging"
 	"github.com/skydive-project/skydive/plugin"
 	"github.com/skydive-project/skydive/probe"
-	"github.com/skydive-project/skydive/topology"
 	tp "github.com/skydive-project/skydive/topology/probes"
-	"github.com/skydive-project/skydive/topology/probes/bess"
-	"github.com/skydive-project/skydive/topology/probes/blockdev"
-	"github.com/skydive-project/skydive/topology/probes/docker"
-	"github.com/skydive-project/skydive/topology/probes/hardware"
-	"github.com/skydive-project/skydive/topology/probes/libvirt"
-	"github.com/skydive-project/skydive/topology/probes/lldp"
-	"github.com/skydive-project/skydive/topology/probes/lxd"
-	"github.com/skydive-project/skydive/topology/probes/netlink"
-	"github.com/skydive-project/skydive/topology/probes/netns"
-	"github.com/skydive-project/skydive/topology/probes/neutron"
-	"github.com/skydive-project/skydive/topology/probes/opencontrail"
-	"github.com/skydive-project/skydive/topology/probes/ovn"
-	"github.com/skydive-project/skydive/topology/probes/ovsdb"
-	"github.com/skydive-project/skydive/topology/probes/runc"
-	"github.com/skydive-project/skydive/topology/probes/socketinfo"
-	"github.com/skydive-project/skydive/topology/probes/vpp"
 )
 
 func registerStaticProbes() {
+	/* TODO comentado hasta que sepa que hacer con las probes
 	blockdev.Register()
 	netlink.Register()
 	topology.RegisterContainer()
@@ -58,11 +42,13 @@ func registerStaticProbes() {
 	libvirt.Register()
 	ovn.Register()
 	hardware.Register()
+	*/
 }
 
 // NewTopologyProbe creates a new topology probe
 func NewTopologyProbe(name string, ctx tp.Context, bundle *probe.Bundle) (probe.Handler, error) {
 	switch name {
+	/* TODO comentado hasta que sepa que hacer con las probes
 	case "blockdev":
 		return blockdev.NewProbe(ctx, bundle)
 	case "netlink":
@@ -93,6 +79,7 @@ func NewTopologyProbe(name string, ctx tp.Context, bundle *probe.Bundle) (probe.
 		return bess.NewProbe(ctx, bundle)
 	case "hardware":
 		return hardware.NewProbe(ctx, bundle)
+	*/
 	default:
 		return nil, fmt.Errorf("unsupported probe %s", name)
 	}

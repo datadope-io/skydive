@@ -17,7 +17,10 @@
 
 package graph
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 // MemoryBackendNode a memory backend node
 type MemoryBackendNode struct {
@@ -38,7 +41,7 @@ type MemoryBackend struct {
 }
 
 // MetadataUpdated return true
-func (m *MemoryBackend) MetadataUpdated(i interface{}) error {
+func (m *MemoryBackend) MetadataUpdated(ctx context.Context, i interface{}) error {
 	switch i := i.(type) {
 	case *Node:
 		if _, ok := m.nodes[i.ID]; !ok {
@@ -54,7 +57,7 @@ func (m *MemoryBackend) MetadataUpdated(i interface{}) error {
 }
 
 // EdgeAdded event add an edge in the memory backend
-func (m *MemoryBackend) EdgeAdded(e *Edge) error {
+func (m *MemoryBackend) EdgeAdded(ctx context.Context, e *Edge) error {
 	if _, ok := m.edges[e.ID]; ok {
 		return ErrEdgeConflict
 	}
@@ -81,7 +84,7 @@ func (m *MemoryBackend) EdgeAdded(e *Edge) error {
 }
 
 // GetEdge in the graph backend
-func (m *MemoryBackend) GetEdge(i Identifier, t Context) []*Edge {
+func (m *MemoryBackend) GetEdge(ctx context.Context, i Identifier, t Context) []*Edge {
 	if e, ok := m.edges[i]; ok {
 		return []*Edge{e.Edge}
 	}
@@ -89,7 +92,7 @@ func (m *MemoryBackend) GetEdge(i Identifier, t Context) []*Edge {
 }
 
 // GetEdgeNodes returns a list of nodes of an edge
-func (m *MemoryBackend) GetEdgeNodes(e *Edge, t Context, parentMetadata, childMetadata ElementMatcher) ([]*Node, []*Node) {
+func (m *MemoryBackend) GetEdgeNodes(ctx context.Context, e *Edge, t Context, parentMetadata, childMetadata ElementMatcher) ([]*Node, []*Node) {
 	var parent, child *MemoryBackendNode
 
 	p, ok := m.nodes[e.Parent]
@@ -117,7 +120,7 @@ func (m *MemoryBackend) GetEdgeNodes(e *Edge, t Context, parentMetadata, childMe
 }
 
 // NodeAdded in the graph backend
-func (m *MemoryBackend) NodeAdded(n *Node) error {
+func (m *MemoryBackend) NodeAdded(ctx context.Context, n *Node) error {
 	if _, ok := m.nodes[n.ID]; ok {
 		return ErrNodeConflict
 	}
@@ -131,7 +134,7 @@ func (m *MemoryBackend) NodeAdded(n *Node) error {
 }
 
 // GetNode from the graph backend
-func (m *MemoryBackend) GetNode(i Identifier, t Context) []*Node {
+func (m *MemoryBackend) GetNode(ctx context.Context, i Identifier, t Context) []*Node {
 	if n, ok := m.nodes[i]; ok {
 		return []*Node{n.Node}
 	}
@@ -139,7 +142,7 @@ func (m *MemoryBackend) GetNode(i Identifier, t Context) []*Node {
 }
 
 // GetNodeEdges returns a list of edges of a node
-func (m *MemoryBackend) GetNodeEdges(n *Node, t Context, meta ElementMatcher) []*Edge {
+func (m *MemoryBackend) GetNodeEdges(ctx context.Context, n *Node, t Context, meta ElementMatcher) []*Edge {
 	edges := []*Edge{}
 
 	if n, ok := m.nodes[n.ID]; ok {
@@ -154,7 +157,7 @@ func (m *MemoryBackend) GetNodeEdges(n *Node, t Context, meta ElementMatcher) []
 }
 
 // EdgeDeleted in the graph backend
-func (m *MemoryBackend) EdgeDeleted(e *Edge) error {
+func (m *MemoryBackend) EdgeDeleted(ctx context.Context, e *Edge) error {
 	if _, ok := m.edges[e.ID]; !ok {
 		return ErrEdgeNotFound
 	}
@@ -173,7 +176,7 @@ func (m *MemoryBackend) EdgeDeleted(e *Edge) error {
 }
 
 // NodeDeleted in the graph backend
-func (m *MemoryBackend) NodeDeleted(n *Node) error {
+func (m *MemoryBackend) NodeDeleted(ctx context.Context, n *Node) error {
 	if _, ok := m.nodes[n.ID]; !ok {
 		return ErrNodeNotFound
 	}
@@ -184,7 +187,7 @@ func (m *MemoryBackend) NodeDeleted(n *Node) error {
 }
 
 // GetNodes from the graph backend
-func (m MemoryBackend) GetNodes(t Context, metadata ElementMatcher, element ElementMatcher) (nodes []*Node) {
+func (m MemoryBackend) GetNodes(ctx context.Context, t Context, metadata ElementMatcher, element ElementMatcher) (nodes []*Node) {
 	for _, n := range m.nodes {
 		if n.MatchMetadata(metadata) && n.MatchMetadata(element) {
 			nodes = append(nodes, n.Node)
@@ -194,7 +197,7 @@ func (m MemoryBackend) GetNodes(t Context, metadata ElementMatcher, element Elem
 }
 
 // GetEdges from the graph backend
-func (m MemoryBackend) GetEdges(t Context, metadata ElementMatcher, element ElementMatcher) (edges []*Edge) {
+func (m MemoryBackend) GetEdges(ctx context.Context, t Context, metadata ElementMatcher, element ElementMatcher) (edges []*Edge) {
 	for _, e := range m.edges {
 		if e.MatchMetadata(metadata) && e.MatchMetadata(element) {
 			edges = append(edges, e.Edge)

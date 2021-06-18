@@ -21,6 +21,7 @@ package socketinfo
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -35,6 +36,7 @@ import (
 	"github.com/skydive-project/skydive/flow"
 	"github.com/skydive-project/skydive/process"
 	tp "github.com/skydive-project/skydive/topology/probes"
+	"go.opentelemetry.io/otel"
 )
 
 const (
@@ -74,6 +76,8 @@ type ProcProbe struct {
 	quit      chan bool
 	procGlob  string
 }
+
+var tracer = otel.Tracer("topology.probes.socketinfo")
 
 func getProcessInfo(pid int) (*ProcessInfo, error) {
 	pi, err := process.GetInfo(pid)
@@ -243,7 +247,7 @@ func (s *ProcProbe) scanProc() error {
 	return nil
 }
 
-func (s *ProcProbe) updateMetadata() {
+func (s *ProcProbe) updateMetadata(ctx context.Context) {
 	var sockets []*ConnectionInfo
 	for _, item := range s.connCache.Items() {
 		conn := item.Object.(*ConnectionInfo)
@@ -251,7 +255,7 @@ func (s *ProcProbe) updateMetadata() {
 	}
 
 	s.Ctx.Graph.Lock()
-	s.Ctx.Graph.AddMetadata(s.Ctx.RootNode, "Sockets", sockets)
+	s.Ctx.Graph.AddMetadata(ctx, s.Ctx.RootNode, "Sockets", sockets)
 	s.Ctx.Graph.Unlock()
 }
 
@@ -268,11 +272,14 @@ func (s *ProcProbe) MapTCP(srcAddr, dstAddr *net.TCPAddr) (src *ProcessInfo, dst
 
 // Start the socket info probe
 func (s *ProcProbe) Start() error {
+	ctx, span := tracer.Start(context.Background(), "Start")
+	defer span.End()
+
 	if err := s.scanProc(); err != nil {
 		return err
 	}
 
-	s.updateMetadata()
+	s.updateMetadata(ctx)
 
 	go func() {
 		seconds := s.Ctx.Config.GetInt("agent.topology.socketinfo.host_update")
@@ -284,8 +291,11 @@ func (s *ProcProbe) Start() error {
 			case <-s.quit:
 				return
 			case <-ticker.C:
+				ctxLoop, span := tracer.Start(context.Background(), "Loop")
+				defer span.End()
+
 				s.scanProc()
-				s.updateMetadata()
+				s.updateMetadata(ctxLoop)
 			}
 		}
 	}()

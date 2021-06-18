@@ -37,6 +37,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -106,6 +107,9 @@ func (a *Server) RegisterAPIHandler(handler rest.Handler, authBackend shttp.Auth
 			Method: "GET",
 			Path:   "/api/" + name,
 			HandlerFunc: func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+				ctx, span := tracer.Start(r.Context(), fmt.Sprintf("Index %s", name))
+				defer span.End()
+
 				if !rbac.Enforce(r.Username, name, "read") {
 					w.WriteHeader(http.StatusMethodNotAllowed)
 					return
@@ -114,14 +118,18 @@ func (a *Server) RegisterAPIHandler(handler rest.Handler, authBackend shttp.Auth
 				w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 				w.WriteHeader(http.StatusOK)
 
-				resources := handler.Index()
+				resources := handler.Index(ctx)
+				_, spanDecorate := tracer.Start(ctx, fmt.Sprintf("Deccorate %s", name))
 				for _, resource := range resources {
-					handler.Decorate(resource)
+					handler.Decorate(ctx, resource)
 				}
+				spanDecorate.End()
 
+				_, spanEncode := tracer.Start(ctx, fmt.Sprintf("JSON encode %s", name))
 				if err := json.NewEncoder(w).Encode(resources); err != nil {
 					logging.GetLogger().Criticalf("Failed to display %s: %s", name, err)
 				}
+				spanEncode.End()
 			},
 		},
 		{
@@ -129,6 +137,9 @@ func (a *Server) RegisterAPIHandler(handler rest.Handler, authBackend shttp.Auth
 			Method: "GET",
 			Path:   shttp.PathPrefix(fmt.Sprintf("/api/%s/", name)),
 			HandlerFunc: func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+				ctx, span := tracer.Start(r.Context(), fmt.Sprintf("Show %s", name))
+				defer span.End()
+
 				if !rbac.Enforce(r.Username, name, "read") {
 					http.Error(w, aclError(r.Username, name, "read"), http.StatusMethodNotAllowed)
 					return
@@ -140,14 +151,14 @@ func (a *Server) RegisterAPIHandler(handler rest.Handler, authBackend shttp.Auth
 					return
 				}
 
-				resource, ok := handler.Get(id)
+				resource, ok := handler.Get(ctx, id)
 				if !ok {
 					http.Error(w, fmt.Sprintf("%s '%s' not found", title, id), http.StatusNotFound)
 					return
 				}
 				w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 				w.WriteHeader(http.StatusOK)
-				handler.Decorate(resource)
+				handler.Decorate(ctx, resource)
 				if err := json.NewEncoder(w).Encode(resource); err != nil {
 					logging.GetLogger().Criticalf("Failed to display %s: %s", name, err)
 				}
@@ -158,12 +169,15 @@ func (a *Server) RegisterAPIHandler(handler rest.Handler, authBackend shttp.Auth
 			Method: "POST",
 			Path:   "/api/" + name,
 			HandlerFunc: func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+				ctx, span := tracer.Start(r.Context(), fmt.Sprintf("Insert %s", name))
+				defer span.End()
+
 				if !rbac.Enforce(r.Username, name, "write") {
 					http.Error(w, aclError(r.Username, name, "write"), http.StatusMethodNotAllowed)
 					return
 				}
 
-				resource := handler.New()
+				resource := handler.New(ctx)
 
 				var err error
 				if contentType := r.Header.Get("Content-Type"); contentType == "application/yaml" {
@@ -202,7 +216,7 @@ func (a *Server) RegisterAPIHandler(handler rest.Handler, authBackend shttp.Auth
 					}
 				}
 
-				if err := handler.Create(resource, &createOpts); err == rest.ErrDuplicatedResource {
+				if err := handler.Create(ctx, resource, &createOpts); err == rest.ErrDuplicatedResource {
 					http.Error(w, err.Error(), http.StatusConflict)
 					return
 				} else if err != nil {
@@ -228,6 +242,9 @@ func (a *Server) RegisterAPIHandler(handler rest.Handler, authBackend shttp.Auth
 			Method: "PATCH",
 			Path:   shttp.PathPrefix(fmt.Sprintf("/api/%s/", name)),
 			HandlerFunc: func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+				ctx, span := tracer.Start(r.Context(), fmt.Sprintf("Update %s", name))
+				defer span.End()
+
 				if !rbac.Enforce(r.Username, name, "write") {
 					w.WriteHeader(http.StatusMethodNotAllowed)
 					return
@@ -246,7 +263,7 @@ func (a *Server) RegisterAPIHandler(handler rest.Handler, authBackend shttp.Auth
 					return
 				}
 
-				data, modified, err := patchMethod(handler, a.validator, id, content)
+				data, modified, err := patchMethod(ctx, handler, a.validator, id, content)
 				if err == rest.ErrNotFound {
 					w.WriteHeader(http.StatusNotFound)
 					return
@@ -271,6 +288,9 @@ func (a *Server) RegisterAPIHandler(handler rest.Handler, authBackend shttp.Auth
 			Method: "DELETE",
 			Path:   shttp.PathPrefix(fmt.Sprintf("/api/%s/", name)),
 			HandlerFunc: func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+				ctx, span := tracer.Start(r.Context(), fmt.Sprintf("Delete %s", name))
+				defer span.End()
+
 				if !rbac.Enforce(r.Username, name, "write") {
 					http.Error(w, aclError(r.Username, name, "write"), http.StatusMethodNotAllowed)
 					return
@@ -282,7 +302,7 @@ func (a *Server) RegisterAPIHandler(handler rest.Handler, authBackend shttp.Auth
 					return
 				}
 
-				if err := handler.Delete(id); err != nil {
+				if err := handler.Delete(ctx, id); err != nil {
 					if err == rest.ErrNotFound {
 						http.Error(w, fmt.Sprintf("%s '%s' not found", title, id), http.StatusNotFound)
 					} else {
@@ -449,9 +469,9 @@ func (a *Server) addLoginRoute(authBackend shttp.AuthenticationBackend) {
 
 // patchMethod modifies a resource identified by "id" with the JSON patch.
 // Returns the resource modified or an error
-func patchMethod(handler rest.Handler, validator Validator, id string, jsonPatch []byte) ([]byte, bool, error) {
+func patchMethod(ctx context.Context, handler rest.Handler, validator Validator, id string, jsonPatch []byte) ([]byte, bool, error) {
 	// Get the resource to be modified
-	resource, ok := handler.Get(id)
+	resource, ok := handler.Get(ctx, id)
 	if !ok {
 		return nil, false, rest.ErrNotFound
 	}
@@ -475,7 +495,7 @@ func patchMethod(handler rest.Handler, validator Validator, id string, jsonPatch
 	}
 
 	// Create a new node with the content of the patched resource
-	resourcePatched := handler.New()
+	resourcePatched := handler.New(ctx)
 	if err = json.Unmarshal(resourcePatchedJSON, resourcePatched); err != nil {
 		return nil, false, fmt.Errorf("creating a new resource from the patched JSON body: %v", err)
 	}
@@ -492,7 +512,7 @@ func patchMethod(handler rest.Handler, validator Validator, id string, jsonPatch
 	// TODO for node implementation avoid modifiying .Metadata{.TID, .Name, .Type}
 	// Test for *rules, and others resources, that it is working
 	// Test with ES backend
-	newResource, modified, err := handler.Update(id, resourcePatched)
+	newResource, modified, err := handler.Update(ctx, id, resourcePatched)
 	if err != nil {
 		return nil, false, fmt.Errorf("updating resource with patched version: %v", err)
 	}

@@ -1,0 +1,31 @@
+goos: linux
+goarch: amd64
+pkg: github.com/skydive-project/skydive/topology/probes/proccon
+cpu: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
+BenchmarkProcessMetric
+BenchmarkProcessMetric-12         	     265	   4243951 ns/op
+BenchmarkProcessMetricTable
+BenchmarkProcessMetricTable/number_of_nodes:_0
+BenchmarkProcessMetricTable/number_of_nodes:_0-12         	    3800	  11303376 ns/op
+BenchmarkProcessMetricTable/number_of_nodes:_1000
+BenchmarkProcessMetricTable/number_of_nodes:_1000-12      	     100	  95014628 ns/op
+BenchmarkProcessMetricTable/number_of_nodes:_2000
+BenchmarkProcessMetricTable/number_of_nodes:_2000-12      	     100	 280153890 ns/op
+BenchmarkProcessMetricTable/number_of_nodes:_3000
+BenchmarkProcessMetricTable/number_of_nodes:_3000-12      	     100	 496785085 ns/op
+BenchmarkProcessMetricTable/number_of_nodes:_4000
+BenchmarkProcessMetricTable/number_of_nodes:_4000-12      	     100	 841729933 ns/op
+BenchmarkProcessMetricTable/number_of_nodes:_5000
+BenchmarkProcessMetricTable/number_of_nodes:_5000-12      	      96	1310202969 ns/op
+BenchmarkProcessMetricTable/number_of_nodes:_6000
+BenchmarkProcessMetricTable/number_of_nodes:_6000-12      	      62	1251249110 ns/op
+BenchmarkProcessMetricTable/number_of_nodes:_7000
+BenchmarkProcessMetricTable/number_of_nodes:_7000-12      	      43	1312975190 ns/op
+BenchmarkProcessMetricTable/number_of_nodes:_8000
+BenchmarkProcessMetricTable/number_of_nodes:_8000-12      	      32	1265972258 ns/op
+BenchmarkProcessMetricTable/number_of_nodes:_9000
+BenchmarkProcessMetricTable/number_of_nodes:_9000-12      	      25	1246076706 ns/op
+BenchmarkProcessMetricTable/number_of_nodes:_10000
+BenchmarkProcessMetricTable/number_of_nodes:_10000-12     	      18	1201154467 ns/op
+PASS
+ok  	github.com/skydive-project/skydive/topology/probes/proccon	569.432s

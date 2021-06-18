@@ -18,6 +18,7 @@
 package seed
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -29,6 +30,9 @@ import (
 	"github.com/skydive-project/skydive/graffiti/messages"
 	"github.com/skydive-project/skydive/graffiti/service"
 	ws "github.com/skydive-project/skydive/graffiti/websocket"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the seed service type
@@ -54,6 +58,8 @@ type Seed struct {
 	listeners  []EventHandler
 }
 
+var tracer = otel.Tracer("graffiti.seed.seed")
+
 // OnConnected websocket listener
 func (s *Seed) OnConnected(c ws.Speaker) error {
 	s.logger.Infof("connected to %s", c.GetHost())
@@ -62,6 +68,11 @@ func (s *Seed) OnConnected(c ws.Speaker) error {
 
 // OnStructMessage callback
 func (s *Seed) OnStructMessage(c ws.Speaker, msg *ws.StructMessage) {
+	ctx, span := tracer.Start(context.Background(), "Seed.OnStructMessage", trace.WithAttributes(
+		attribute.Key("client").String(c.GetRemoteHost()),
+	))
+	defer span.End()
+
 	if msg.Status != http.StatusOK {
 		s.logger.Errorf("request error: %v", msg)
 		return
@@ -85,18 +96,18 @@ func (s *Seed) OnStructMessage(c ws.Speaker, msg *ws.StructMessage) {
 	case messages.SyncMsgType, messages.SyncReplyMsgType:
 		r := obj.(*messages.SyncMsg)
 
-		s.g.DelNodes(graph.Metadata{"Origin": origin})
+		s.g.DelNodes(ctx, graph.Metadata{"Origin": origin})
 
 		for _, n := range r.Nodes {
-			if s.g.GetNode(n.ID) == nil {
-				if err := s.g.NodeAdded(n); err != nil {
+			if s.g.GetNode(ctx, n.ID) == nil {
+				if err := s.g.NodeAdded(ctx, n); err != nil {
 					s.logger.Errorf("%s, %+v", err, n)
 				}
 			}
 		}
 		for _, e := range r.Edges {
-			if s.g.GetEdge(e.ID) == nil {
-				if err := s.g.EdgeAdded(e); err != nil {
+			if s.g.GetEdge(ctx, e.ID) == nil {
+				if err := s.g.EdgeAdded(ctx, e); err != nil {
 					s.logger.Errorf("%s, %+v", err, e)
 				}
 			}
@@ -105,19 +116,19 @@ func (s *Seed) OnStructMessage(c ws.Speaker, msg *ws.StructMessage) {
 			listener.OnSynchronized()
 		}
 	case messages.NodeUpdatedMsgType:
-		err = s.g.NodeUpdated(obj.(*graph.Node))
+		err = s.g.NodeUpdated(ctx, obj.(*graph.Node))
 	case messages.NodeDeletedMsgType:
-		err = s.g.NodeDeleted(obj.(*graph.Node))
+		err = s.g.NodeDeleted(ctx, obj.(*graph.Node))
 	case messages.NodeAddedMsgType:
-		err = s.g.NodeAdded(obj.(*graph.Node))
+		err = s.g.NodeAdded(ctx, obj.(*graph.Node))
 	case messages.EdgeUpdatedMsgType:
-		err = s.g.EdgeUpdated(obj.(*graph.Edge))
+		err = s.g.EdgeUpdated(ctx, obj.(*graph.Edge))
 	case messages.EdgeDeletedMsgType:
-		if err = s.g.EdgeDeleted(obj.(*graph.Edge)); err == graph.ErrEdgeNotFound {
+		if err = s.g.EdgeDeleted(ctx, obj.(*graph.Edge)); err == graph.ErrEdgeNotFound {
 			return
 		}
 	case messages.EdgeAddedMsgType:
-		err = s.g.EdgeAdded(obj.(*graph.Edge))
+		err = s.g.EdgeAdded(ctx, obj.(*graph.Edge))
 	}
 
 	if err != nil {

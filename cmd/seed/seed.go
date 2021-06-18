@@ -18,11 +18,13 @@
 package seed
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel"
 
 	"github.com/skydive-project/skydive/agent"
 	"github.com/skydive-project/skydive/config"
@@ -50,10 +52,15 @@ type seedHandler struct {
 	probes []string
 }
 
+var tracer = otel.Tracer("cmd.seed.seed")
+
 func (s *seedHandler) OnSynchronized() {
+	gCtx, span := tracer.Start(context.Background(), "seedHandler.OnSynchronized")
+	defer span.End()
+
 	var n *graph.Node
 	if rootNode != "" {
-		n = s.g.GetNode(graph.Identifier(rootNode))
+		n = s.g.GetNode(gCtx, graph.Identifier(rootNode))
 	}
 
 	if n == nil {

@@ -26,6 +26,7 @@ import (
 	"time"
 
 	etcd "github.com/coreos/etcd/client"
+	"go.opentelemetry.io/otel"
 
 	"github.com/skydive-project/skydive/graffiti/alert"
 	api "github.com/skydive-project/skydive/graffiti/api/server"
@@ -111,6 +112,8 @@ type Status struct {
 	Publishers  map[string]websocket.ConnStatus
 	Subscribers map[string]websocket.ConnStatus
 }
+
+var tracer = otel.Tracer("graffiti.hub")
 
 // GetStatus returns the status of a hub
 func (h *Hub) GetStatus() interface{} {
@@ -234,6 +237,9 @@ func (h *Hub) watchOrigins() {
 				continue
 			}
 
+			ctx, span := tracer.Start(context.Background(), "Hub.watchOrigins")
+			defer span.End()
+
 			for _, node := range resp.Node.Nodes {
 				t, _ := strconv.ParseInt(node.Value, 10, 64)
 
@@ -245,7 +251,7 @@ func (h *Hub) watchOrigins() {
 					logging.GetLogger().Infof("pod of origin %s expired, removing resources", origin)
 
 					h.Graph.Lock()
-					graph.DelSubGraphOfOrigin(h.Graph, origin)
+					graph.DelSubGraphOfOrigin(ctx, h.Graph, origin)
 					h.Graph.Unlock()
 
 					if _, err := h.etcdClient.KeysAPI.Delete(context.Background(), node.Key, &etcd.DeleteOptions{}); err != nil {

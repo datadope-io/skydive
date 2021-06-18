@@ -18,6 +18,7 @@
 package traversal
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/mitchellh/hashstructure"
 	"github.com/spf13/cast"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/skydive-project/skydive/graffiti/filters"
 	"github.com/skydive-project/skydive/graffiti/getter"
@@ -533,7 +535,10 @@ func (t *GraphTraversal) getPaginationRange(ctx *StepContext) (filter *filters.R
 }
 
 // Context step : at, [duration]
-func (t *GraphTraversal) Context(s ...interface{}) *GraphTraversal {
+func (t *GraphTraversal) Context(ctx context.Context, s ...interface{}) *GraphTraversal {
+	ctx, span := tracer.Start(ctx, "GraphTraversal.Context")
+	defer span.End()
+
 	if t.error != nil {
 		return t
 	}
@@ -548,6 +553,11 @@ func (t *GraphTraversal) Context(s ...interface{}) *GraphTraversal {
 	if len(s) > 1 {
 		duration = s[1].(time.Duration)
 	}
+
+	span.SetAttributes(
+		attribute.Key("at").String(at.String()),
+		attribute.Key("since").String(duration.String()),
+	)
 
 	t.RLock()
 	defer t.RUnlock()
@@ -567,7 +577,10 @@ func (t *GraphTraversal) Context(s ...interface{}) *GraphTraversal {
 }
 
 // V step : [node ID]
-func (t *GraphTraversal) V(ctx StepContext, s ...interface{}) *GraphTraversalV {
+func (t *GraphTraversal) V(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversalV {
+	gCtx, span := tracer.Start(gCtx, "GraphTraversal.V")
+	defer span.End()
+
 	var nodes []*graph.Node
 	var matcher graph.ElementMatcher
 	var err error
@@ -585,7 +598,7 @@ func (t *GraphTraversal) V(ctx StepContext, s ...interface{}) *GraphTraversalV {
 		if !ok {
 			return &GraphTraversalV{GraphTraversal: t, error: errors.New("V accepts only a string when there is only one argument")}
 		}
-		node := t.Graph.GetNode(graph.Identifier(id))
+		node := t.Graph.GetNode(gCtx, graph.Identifier(id))
 		if node == nil {
 			return &GraphTraversalV{GraphTraversal: t, error: fmt.Errorf("Node '%s' does not exist", id)}
 		}
@@ -596,7 +609,7 @@ func (t *GraphTraversal) V(ctx StepContext, s ...interface{}) *GraphTraversalV {
 		}
 		fallthrough
 	case 0:
-		nodes = t.Graph.GetNodes(matcher)
+		nodes = t.Graph.GetNodes(gCtx, matcher)
 	}
 
 	if ctx.PaginationRange != nil {
@@ -811,7 +824,10 @@ func (tv *GraphTraversalV) Select(ctx StepContext, keys ...interface{}) *GraphTr
 }
 
 // E step : [edge ID]
-func (t *GraphTraversal) E(ctx StepContext, s ...interface{}) *GraphTraversalE {
+func (t *GraphTraversal) E(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversalE {
+	gCtx, span := tracer.Start(gCtx, "GraphTraversal.E")
+	defer span.End()
+
 	var edges []*graph.Edge
 	var matcher graph.ElementMatcher
 	var err error
@@ -829,7 +845,7 @@ func (t *GraphTraversal) E(ctx StepContext, s ...interface{}) *GraphTraversalE {
 		if !ok {
 			return &GraphTraversalE{GraphTraversal: t, error: errors.New("E accepts only a string when there is only one argument")}
 		}
-		edge := t.Graph.GetEdge(graph.Identifier(id))
+		edge := t.Graph.GetEdge(gCtx, graph.Identifier(id))
 		if edge == nil {
 			return &GraphTraversalE{error: fmt.Errorf("Edge '%s' does not exist", id)}
 		}
@@ -840,7 +856,7 @@ func (t *GraphTraversal) E(ctx StepContext, s ...interface{}) *GraphTraversalE {
 		}
 		fallthrough
 	case 0:
-		edges = t.Graph.GetEdges(matcher)
+		edges = t.Graph.GetEdges(gCtx, matcher)
 	}
 
 	if ctx.PaginationRange != nil {
@@ -1055,7 +1071,7 @@ func (sp *GraphTraversalShortestPath) GetNodes() []*graph.Node {
 }
 
 // ShortestPathTo step
-func (tv *GraphTraversalV) ShortestPathTo(ctx StepContext, m graph.Metadata, e graph.Metadata) *GraphTraversalShortestPath {
+func (tv *GraphTraversalV) ShortestPathTo(gCtx context.Context, ctx StepContext, m graph.Metadata, e graph.Metadata) *GraphTraversalShortestPath {
 	if tv.error != nil {
 		return &GraphTraversalShortestPath{error: tv.error}
 	}
@@ -1068,7 +1084,7 @@ func (tv *GraphTraversalV) ShortestPathTo(ctx StepContext, m graph.Metadata, e g
 	visited := make(map[graph.Identifier]bool)
 	for _, n := range tv.nodes {
 		if _, ok := visited[n.ID]; !ok {
-			path := tv.GraphTraversal.Graph.LookupShortestPath(n, m, e)
+			path := tv.GraphTraversal.Graph.LookupShortestPath(gCtx, n, m, e)
 			if len(path) > 0 {
 				sp.paths = append(sp.paths, path)
 			}
@@ -1151,7 +1167,7 @@ func (tv *GraphTraversalV) HasNot(ctx StepContext, s string) *GraphTraversalV {
 }
 
 // Both step
-func (tv *GraphTraversalV) Both(ctx StepContext, s ...interface{}) *GraphTraversalV {
+func (tv *GraphTraversalV) Both(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversalV {
 	if tv.error != nil {
 		return tv
 	}
@@ -1169,12 +1185,12 @@ func (tv *GraphTraversalV) Both(ctx StepContext, s ...interface{}) *GraphTravers
 
 nodeloop:
 	for _, n := range tv.nodes {
-		for _, e := range tv.GraphTraversal.Graph.GetNodeEdges(n, nil) {
+		for _, e := range tv.GraphTraversal.Graph.GetNodeEdges(gCtx, n, nil) {
 			var nodes []*graph.Node
 			if e.Child == n.ID {
-				nodes, _ = tv.GraphTraversal.Graph.GetEdgeNodes(e, metadata, nil)
+				nodes, _ = tv.GraphTraversal.Graph.GetEdgeNodes(gCtx, e, metadata, nil)
 			} else {
-				_, nodes = tv.GraphTraversal.Graph.GetEdgeNodes(e, nil, metadata)
+				_, nodes = tv.GraphTraversal.Graph.GetEdgeNodes(gCtx, e, nil, metadata)
 			}
 
 			for _, node := range nodes {
@@ -1233,7 +1249,7 @@ func (tv *GraphTraversalV) Limit(ctx StepContext, s ...interface{}) *GraphTraver
 }
 
 // Out step : out of a node step
-func (tv *GraphTraversalV) Out(ctx StepContext, s ...interface{}) *GraphTraversalV {
+func (tv *GraphTraversalV) Out(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversalV {
 	if tv.error != nil {
 		return tv
 	}
@@ -1251,7 +1267,7 @@ func (tv *GraphTraversalV) Out(ctx StepContext, s ...interface{}) *GraphTraversa
 
 nodeloop:
 	for _, n := range tv.nodes {
-		for _, child := range tv.GraphTraversal.Graph.LookupChildren(n, metadata, nil) {
+		for _, child := range tv.GraphTraversal.Graph.LookupChildren(gCtx, n, metadata, nil) {
 			if it.Done() {
 				break nodeloop
 			} else if it.Next() {
@@ -1264,7 +1280,7 @@ nodeloop:
 }
 
 // OutE step : out of an edge
-func (tv *GraphTraversalV) OutE(ctx StepContext, s ...interface{}) *GraphTraversalE {
+func (tv *GraphTraversalV) OutE(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversalE {
 	if tv.error != nil {
 		return &GraphTraversalE{error: tv.error}
 	}
@@ -1282,7 +1298,7 @@ func (tv *GraphTraversalV) OutE(ctx StepContext, s ...interface{}) *GraphTravers
 
 nodeloop:
 	for _, n := range tv.nodes {
-		for _, e := range tv.GraphTraversal.Graph.GetNodeEdges(n, metadata) {
+		for _, e := range tv.GraphTraversal.Graph.GetNodeEdges(gCtx, n, metadata) {
 			if e.Parent == n.ID {
 				if it.Done() {
 					break nodeloop
@@ -1297,7 +1313,7 @@ nodeloop:
 }
 
 // BothE : both are edges
-func (tv *GraphTraversalV) BothE(ctx StepContext, s ...interface{}) *GraphTraversalE {
+func (tv *GraphTraversalV) BothE(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversalE {
 	if tv.error != nil {
 		return &GraphTraversalE{error: tv.error}
 	}
@@ -1315,7 +1331,7 @@ func (tv *GraphTraversalV) BothE(ctx StepContext, s ...interface{}) *GraphTraver
 
 nodeloop:
 	for _, n := range tv.nodes {
-		for _, e := range tv.GraphTraversal.Graph.GetNodeEdges(n, metadata) {
+		for _, e := range tv.GraphTraversal.Graph.GetNodeEdges(gCtx, n, metadata) {
 			if it.Done() {
 				break nodeloop
 			} else if it.Next() {
@@ -1328,7 +1344,7 @@ nodeloop:
 }
 
 // In node step
-func (tv *GraphTraversalV) In(ctx StepContext, s ...interface{}) *GraphTraversalV {
+func (tv *GraphTraversalV) In(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversalV {
 	if tv.error != nil {
 		return tv
 	}
@@ -1346,7 +1362,7 @@ func (tv *GraphTraversalV) In(ctx StepContext, s ...interface{}) *GraphTraversal
 
 nodeloop:
 	for _, n := range tv.nodes {
-		for _, parent := range tv.GraphTraversal.Graph.LookupParents(n, metadata, nil) {
+		for _, parent := range tv.GraphTraversal.Graph.LookupParents(gCtx, n, metadata, nil) {
 			if it.Done() {
 				break nodeloop
 			} else if it.Next() {
@@ -1359,7 +1375,7 @@ nodeloop:
 }
 
 // InE step of an node
-func (tv *GraphTraversalV) InE(ctx StepContext, s ...interface{}) *GraphTraversalE {
+func (tv *GraphTraversalV) InE(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversalE {
 	if tv.error != nil {
 		return &GraphTraversalE{error: tv.error}
 	}
@@ -1377,7 +1393,7 @@ func (tv *GraphTraversalV) InE(ctx StepContext, s ...interface{}) *GraphTraversa
 
 nodeloop:
 	for _, n := range tv.nodes {
-		for _, e := range tv.GraphTraversal.Graph.GetNodeEdges(n, metadata) {
+		for _, e := range tv.GraphTraversal.Graph.GetNodeEdges(gCtx, n, metadata) {
 			if e.Child == n.ID {
 				if it.Done() {
 					break nodeloop
@@ -1392,7 +1408,10 @@ nodeloop:
 }
 
 // SubGraph step, node/edge out
-func (tv *GraphTraversalV) SubGraph(ctx StepContext, s ...interface{}) *GraphTraversal {
+func (tv *GraphTraversalV) SubGraph(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversal {
+	gCtx, span := tracer.Start(gCtx, "GraphTraversalV.SubGraph")
+	defer span.End()
+
 	if tv.error != nil {
 		return &GraphTraversal{error: tv.error}
 	}
@@ -1407,7 +1426,7 @@ func (tv *GraphTraversalV) SubGraph(ctx StepContext, s ...interface{}) *GraphTra
 
 	// first insert all the nodes
 	for _, n := range tv.nodes {
-		if err := memory.NodeAdded(n); err != nil {
+		if err := memory.NodeAdded(gCtx, n); err != nil {
 			return &GraphTraversal{error: fmt.Errorf("Error while adding node to SubGraph: %s", err)}
 		}
 	}
@@ -1415,9 +1434,9 @@ func (tv *GraphTraversalV) SubGraph(ctx StepContext, s ...interface{}) *GraphTra
 	// then insert edges, ignore edge insert error since one of the linked node couldn't be part
 	// of the SubGraph
 	for _, n := range tv.nodes {
-		edges := tv.GraphTraversal.Graph.GetNodeEdges(n, nil)
+		edges := tv.GraphTraversal.Graph.GetNodeEdges(gCtx, n, nil)
 		for _, e := range edges {
-			switch err := memory.EdgeAdded(e); err {
+			switch err := memory.EdgeAdded(gCtx, e); err {
 			case nil, graph.ErrParentNotFound, graph.ErrChildNotFound, graph.ErrEdgeConflict:
 			default:
 				return &GraphTraversal{error: fmt.Errorf("Error while adding edge to SubGraph: %s", err)}
@@ -1431,7 +1450,7 @@ func (tv *GraphTraversalV) SubGraph(ctx StepContext, s ...interface{}) *GraphTra
 }
 
 // SubGraph step, node/edge out
-func (sp *GraphTraversalShortestPath) SubGraph(ctx StepContext, s ...interface{}) *GraphTraversal {
+func (sp *GraphTraversalShortestPath) SubGraph(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversal {
 	if sp.error != nil {
 		return &GraphTraversal{error: sp.error}
 	}
@@ -1447,16 +1466,16 @@ func (sp *GraphTraversalShortestPath) SubGraph(ctx StepContext, s ...interface{}
 	// first insert all the nodes
 	for _, p := range sp.paths {
 		for _, n := range p {
-			if err := memory.NodeAdded(n); err != nil && err != graph.ErrNodeConflict {
+			if err := memory.NodeAdded(gCtx, n); err != nil && err != graph.ErrNodeConflict {
 				return &GraphTraversal{error: fmt.Errorf("Error while adding node to SubGraph: %s", err)}
 			}
 		}
 	}
 	for _, p := range sp.paths {
 		for _, n := range p {
-			edges := sp.GraphTraversal.Graph.GetNodeEdges(n, nil)
+			edges := sp.GraphTraversal.Graph.GetNodeEdges(gCtx, n, nil)
 			for _, e := range edges {
-				switch err := memory.EdgeAdded(e); err {
+				switch err := memory.EdgeAdded(gCtx, e); err {
 				case nil, graph.ErrParentNotFound, graph.ErrChildNotFound, graph.ErrEdgeConflict:
 				default:
 					return &GraphTraversal{error: fmt.Errorf("Error while adding edge to SubGraph: %s", err)}
@@ -1661,7 +1680,7 @@ func (te *GraphTraversalE) HasNot(ctx StepContext, s string) *GraphTraversalE {
 }
 
 // InV step, node in
-func (te *GraphTraversalE) InV(ctx StepContext, s ...interface{}) *GraphTraversalV {
+func (te *GraphTraversalE) InV(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversalV {
 	if te.error != nil {
 		return &GraphTraversalV{error: te.error}
 	}
@@ -1678,7 +1697,7 @@ func (te *GraphTraversalE) InV(ctx StepContext, s ...interface{}) *GraphTraversa
 	defer te.GraphTraversal.RUnlock()
 
 	for _, e := range te.edges {
-		parents, _ := te.GraphTraversal.Graph.GetEdgeNodes(e, metadata, nil)
+		parents, _ := te.GraphTraversal.Graph.GetEdgeNodes(gCtx, e, metadata, nil)
 		for _, parent := range parents {
 			if it.Done() {
 				break
@@ -1692,7 +1711,7 @@ func (te *GraphTraversalE) InV(ctx StepContext, s ...interface{}) *GraphTraversa
 }
 
 // OutV step, node out
-func (te *GraphTraversalE) OutV(ctx StepContext, s ...interface{}) *GraphTraversalV {
+func (te *GraphTraversalE) OutV(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversalV {
 	if te.error != nil {
 		return &GraphTraversalV{error: te.error}
 	}
@@ -1709,7 +1728,7 @@ func (te *GraphTraversalE) OutV(ctx StepContext, s ...interface{}) *GraphTravers
 	defer te.GraphTraversal.RUnlock()
 
 	for _, e := range te.edges {
-		_, children := te.GraphTraversal.Graph.GetEdgeNodes(e, nil, metadata)
+		_, children := te.GraphTraversal.Graph.GetEdgeNodes(gCtx, e, nil, metadata)
 		for _, child := range children {
 			if it.Done() {
 				break
@@ -1723,7 +1742,7 @@ func (te *GraphTraversalE) OutV(ctx StepContext, s ...interface{}) *GraphTravers
 }
 
 // BothV step, nodes in/out
-func (te *GraphTraversalE) BothV(ctx StepContext, s ...interface{}) *GraphTraversalV {
+func (te *GraphTraversalE) BothV(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversalV {
 	if te.error != nil {
 		return &GraphTraversalV{GraphTraversal: te.GraphTraversal, error: te.error}
 	}
@@ -1740,7 +1759,7 @@ func (te *GraphTraversalE) BothV(ctx StepContext, s ...interface{}) *GraphTraver
 	defer te.GraphTraversal.RUnlock()
 
 	for _, e := range te.edges {
-		parents, _ := te.GraphTraversal.Graph.GetEdgeNodes(e, metadata, nil)
+		parents, _ := te.GraphTraversal.Graph.GetEdgeNodes(gCtx, e, metadata, nil)
 		for _, parent := range parents {
 			if it.Done() {
 				break
@@ -1749,7 +1768,7 @@ func (te *GraphTraversalE) BothV(ctx StepContext, s ...interface{}) *GraphTraver
 			}
 		}
 
-		_, children := te.GraphTraversal.Graph.GetEdgeNodes(e, nil, metadata)
+		_, children := te.GraphTraversal.Graph.GetEdgeNodes(gCtx, e, nil, metadata)
 		for _, child := range children {
 			if it.Done() {
 				break
@@ -1763,7 +1782,7 @@ func (te *GraphTraversalE) BothV(ctx StepContext, s ...interface{}) *GraphTraver
 }
 
 // SubGraph step, node/edge out
-func (te *GraphTraversalE) SubGraph(ctx StepContext, s ...interface{}) *GraphTraversal {
+func (te *GraphTraversalE) SubGraph(gCtx context.Context, ctx StepContext, s ...interface{}) *GraphTraversal {
 	if te.error != nil {
 		return &GraphTraversal{error: te.error}
 	}
@@ -1777,20 +1796,20 @@ func (te *GraphTraversalE) SubGraph(ctx StepContext, s ...interface{}) *GraphTra
 	}
 
 	for _, e := range te.edges {
-		parents, children := te.GraphTraversal.Graph.GetEdgeNodes(e, nil, nil)
+		parents, children := te.GraphTraversal.Graph.GetEdgeNodes(gCtx, e, nil, nil)
 		for _, child := range children {
-			if err := memory.NodeAdded(child); err != nil && err != graph.ErrNodeConflict {
+			if err := memory.NodeAdded(gCtx, child); err != nil && err != graph.ErrNodeConflict {
 				return &GraphTraversal{error: fmt.Errorf("Error while adding node to SubGraph: %s", err)}
 			}
 		}
 
 		for _, parent := range parents {
-			if err := memory.NodeAdded(parent); err != nil && err != graph.ErrNodeConflict {
+			if err := memory.NodeAdded(gCtx, parent); err != nil && err != graph.ErrNodeConflict {
 				return &GraphTraversal{error: fmt.Errorf("Error while adding node to SubGraph: %s", err)}
 			}
 		}
 
-		if err := memory.EdgeAdded(e); err != nil && err != graph.ErrEdgeConflict {
+		if err := memory.EdgeAdded(gCtx, e); err != nil && err != graph.ErrEdgeConflict {
 			return &GraphTraversal{error: fmt.Errorf("Error while adding edge to SubGraph: %s", err)}
 		}
 	}

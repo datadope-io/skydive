@@ -18,6 +18,7 @@
 package traversal
 
 import (
+	"context"
 	"errors"
 	"strings"
 
@@ -113,12 +114,12 @@ nodeloop:
 }
 
 // TopologyGremlinQuery run a gremlin query on the graph g without any extension
-func TopologyGremlinQuery(g *graph.Graph, query string) (traversal.GraphTraversalStep, error) {
+func TopologyGremlinQuery(ctx context.Context, g *graph.Graph, query string) (traversal.GraphTraversalStep, error) {
 	tr := traversal.NewGremlinTraversalParser()
 	ts, err := tr.Parse(strings.NewReader(query))
 	if err != nil {
 		return nil, err
 	}
 
-	return ts.Exec(g, false)
+	return ts.Exec(ctx, g, false)
 }

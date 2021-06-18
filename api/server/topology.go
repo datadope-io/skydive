@@ -18,6 +18,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -36,14 +37,14 @@ func shortID(s graph.Identifier) graph.Identifier {
 	return s
 }
 
-func graphToDot(w io.Writer, g *graph.Graph) {
+func graphToDot(ctx context.Context, w io.Writer, g *graph.Graph) {
 	g.RLock()
 	defer g.RUnlock()
 
 	w.Write([]byte("digraph g {\n"))
 
 	nodeMap := make(map[graph.Identifier]*graph.Node)
-	for _, n := range g.GetNodes(nil) {
+	for _, n := range g.GetNodes(ctx, nil) {
 		nodeMap[n.ID] = n
 		name, _ := n.GetFieldString("Name")
 		title := fmt.Sprintf("%s-%s", name, shortID(n.ID))
@@ -57,7 +58,7 @@ func graphToDot(w io.Writer, g *graph.Graph) {
 		w.Write([]byte(fmt.Sprintf("\"%s\" [label=\"%s\"]\n", title, label)))
 	}
 
-	for _, e := range g.GetEdges(nil) {
+	for _, e := range g.GetEdges(ctx, nil) {
 		parent := nodeMap[e.Parent]
 		child := nodeMap[e.Child]
 		if parent == nil || child == nil {
@@ -84,16 +85,16 @@ func graphToDot(w io.Writer, g *graph.Graph) {
 }
 
 // dotMarshaller outputs a GraversalStep as dot
-func dotMarshaller(step traversal.GraphTraversalStep, w io.Writer) error {
+func dotMarshaller(ctx context.Context, step traversal.GraphTraversalStep, w io.Writer) error {
 	if graphTraversal, ok := step.(*traversal.GraphTraversal); ok {
-		graphToDot(w, graphTraversal.Graph)
+		graphToDot(ctx, w, graphTraversal.Graph)
 		return nil
 	}
 	return errors.New("Only graph can be outputted as dot")
 }
 
 // pcapMarshaller outputs a RawPacketsTraversalStep as pcap trace
-func pcapMarshaller(res traversal.GraphTraversalStep, w io.Writer) error {
+func pcapMarshaller(ctx context.Context, res traversal.GraphTraversalStep, w io.Writer) error {
 	rawPacketsTraversal, ok := res.(*ge.RawPacketsTraversalStep)
 	if !ok {
 		return errors.New("Only RawPackets step result can be outputted as pcap")

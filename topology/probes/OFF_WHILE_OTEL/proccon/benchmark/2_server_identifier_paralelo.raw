@@ -1,0 +1,19 @@
+goos: linux
+goarch: amd64
+pkg: github.com/skydive-project/skydive/topology/probes/proccon
+cpu: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
+BenchmarkProcessMetricParallel
+BenchmarkProcessMetricParallel/number_of_nodes:_0
+BenchmarkProcessMetricParallel/number_of_nodes:_0-12         	    4185	   9790224 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_2000
+BenchmarkProcessMetricParallel/number_of_nodes:_2000-12      	    4401	   9935638 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_4000
+BenchmarkProcessMetricParallel/number_of_nodes:_4000-12      	    4750	  10714061 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_6000
+BenchmarkProcessMetricParallel/number_of_nodes:_6000-12      	    4662	  10489858 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_8000
+BenchmarkProcessMetricParallel/number_of_nodes:_8000-12      	    4285	   9870307 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_10000
+BenchmarkProcessMetricParallel/number_of_nodes:_10000-12     	    4894	  11951557 ns/op
+PASS
+ok  	github.com/skydive-project/skydive/topology/probes/proccon	285.734s

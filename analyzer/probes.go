@@ -26,26 +26,10 @@ import (
 	"github.com/skydive-project/skydive/plugin"
 	"github.com/skydive-project/skydive/probe"
 	"github.com/skydive-project/skydive/sflow"
-	"github.com/skydive-project/skydive/topology"
-	"github.com/skydive-project/skydive/topology/probes/blockdev"
-	"github.com/skydive-project/skydive/topology/probes/fabric"
-	"github.com/skydive-project/skydive/topology/probes/istio"
-	"github.com/skydive-project/skydive/topology/probes/k8s"
-	"github.com/skydive-project/skydive/topology/probes/libvirt"
-	"github.com/skydive-project/skydive/topology/probes/lldp"
-	"github.com/skydive-project/skydive/topology/probes/lxd"
-	"github.com/skydive-project/skydive/topology/probes/netlink"
-	"github.com/skydive-project/skydive/topology/probes/neutron"
-	"github.com/skydive-project/skydive/topology/probes/nsm"
-	"github.com/skydive-project/skydive/topology/probes/opencontrail"
-	"github.com/skydive-project/skydive/topology/probes/ovn"
-	"github.com/skydive-project/skydive/topology/probes/ovsdb"
-	"github.com/skydive-project/skydive/topology/probes/peering"
-	"github.com/skydive-project/skydive/topology/probes/proccon"
-	"github.com/skydive-project/skydive/topology/probes/procpeering"
 )
 
 func registerStaticProbes() {
+	/* TODO desactivo todas las sondas hasta ver como gestionarlas
 	netlink.Register()
 	blockdev.Register()
 	topology.RegisterContainer()
@@ -57,6 +41,7 @@ func registerStaticProbes() {
 	libvirt.Register()
 	ovn.Register()
 	proccon.Register()
+	*/
 }
 
 func registerPluginProbes() error {
@@ -102,12 +87,14 @@ func NewTopologyProbeBundleFromConfig(g *graph.Graph) (*probe.Bundle, error) {
 
 	bundle := probe.NewBundle()
 
+	/* TODO desactivo todas las sondas hasta ver como gestionarlas
 	fabricProbe, err := fabric.NewProbe(g)
 	if err != nil {
 		return nil, err
 	}
 	bundle.AddHandler("fabric", fabricProbe)
 	bundle.AddHandler("peering", peering.NewProbe(g))
+	*/
 
 	for _, t := range list {
 		if bundle.GetHandler(t) != nil {
@@ -115,6 +102,7 @@ func NewTopologyProbeBundleFromConfig(g *graph.Graph) (*probe.Bundle, error) {
 		}
 
 		switch t {
+		/* TODO desactivo todas las sondas hasta ver como gestionarlas
 		case "ovn":
 			addr := config.GetString("analyzer.topology.ovn.address")
 			handler, err = ovn.NewProbe(g, addr)
@@ -128,6 +116,7 @@ func NewTopologyProbeBundleFromConfig(g *graph.Graph) (*probe.Bundle, error) {
 			handler, err = proccon.NewProbe(g)
 		case "procpeering":
 			handler, err = procpeering.NewProbe(g)
+		*/
 		default:
 			logging.GetLogger().Errorf("unknown probe type: %s", t)
 			continue

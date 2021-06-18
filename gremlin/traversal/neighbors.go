@@ -18,6 +18,8 @@
 package traversal
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/skydive-project/skydive/graffiti/filters"
@@ -92,7 +94,7 @@ func (e *NeighborsTraversalExtension) ParseStep(t traversal.Token, p traversal.G
 }
 
 // getNeighbors given a list of nodes, add them to the neighbors list, get the neighbors of that nodes and call this function with those new nodes
-func getNeighbors(g *graph.Graph, nodes []*graph.Node, neighbors *[]*graph.Node, currDepth, maxDepth int64, edgeFilter graph.ElementMatcher, visited map[graph.Identifier]bool) {
+func getNeighbors(ctx context.Context, g *graph.Graph, nodes []*graph.Node, neighbors *[]*graph.Node, currDepth, maxDepth int64, edgeFilter graph.ElementMatcher, visited map[graph.Identifier]bool) {
 	var newNodes []*graph.Node
 	for _, node := range nodes {
 		if _, ok := visited[node.ID]; !ok {
@@ -106,20 +108,20 @@ func getNeighbors(g *graph.Graph, nodes []*graph.Node, neighbors *[]*graph.Node,
 		// For each node get its edges and nodes
 		for _, node := range newNodes {
 			// Get neighbors nodes, ignoring the ones already visited
-			parents := g.LookupNeighborIgnoreVisited(node, nil, edgeFilter, visited)
-			getNeighbors(g, parents, neighbors, currDepth+1, maxDepth, edgeFilter, visited)
+			parents := g.LookupNeighborIgnoreVisited(ctx, node, nil, edgeFilter, visited)
+			getNeighbors(ctx, g, parents, neighbors, currDepth+1, maxDepth, edgeFilter, visited)
 		}
 	}
 }
 
 // Exec Neighbors step
-func (d *NeighborsGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (d *NeighborsGremlinTraversalStep) Exec(ctx context.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	var neighbors []*graph.Node
 
 	switch tv := last.(type) {
 	case *traversal.GraphTraversalV:
 		tv.GraphTraversal.RLock()
-		getNeighbors(tv.GraphTraversal.Graph, tv.GetNodes(), &neighbors, 0, d.maxDepth, d.edgeFilter, make(map[graph.Identifier]bool))
+		getNeighbors(ctx, tv.GraphTraversal.Graph, tv.GetNodes(), &neighbors, 0, d.maxDepth, d.edgeFilter, make(map[graph.Identifier]bool))
 		tv.GraphTraversal.RUnlock()
 
 		return traversal.NewGraphTraversalV(tv.GraphTraversal, neighbors), nil

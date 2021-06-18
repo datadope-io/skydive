@@ -18,6 +18,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -30,6 +31,7 @@ import (
 	"github.com/skydive-project/skydive/graffiti/ondemand/server"
 	ws "github.com/skydive-project/skydive/graffiti/websocket"
 	"github.com/skydive-project/skydive/probe"
+	"go.opentelemetry.io/otel"
 )
 
 type activeProbe struct {
@@ -40,7 +42,13 @@ type activeProbe struct {
 	probe   probes.Probe
 }
 
+var tracer = otel.Tracer("flow.ondemand.server")
+
 func (p *activeProbe) OnStarted(metadata *probes.CaptureMetadata) {
+	// TODO comienza aqui la traza?
+	ctx, span := tracer.Start(context.Background(), "activeProbe.OnStarted")
+	defer span.End()
+
 	p.graph.Lock()
 	metadata.ID = p.capture.UUID
 	metadata.Description = p.capture.Description
@@ -48,24 +56,28 @@ func (p *activeProbe) OnStarted(metadata *probes.CaptureMetadata) {
 	metadata.BPFFilter = p.capture.BPFFilter
 	metadata.Type = p.capture.Type
 	metadata.State = "active"
-	if p.graph.UpdateMetadata(p.n, "Captures", func(obj interface{}) bool {
+	if p.graph.UpdateMetadata(ctx, p.n, "Captures", func(obj interface{}) bool {
 		captures := obj.(*probes.Captures)
 		*captures = append(*captures, metadata)
 		return true
 	}) == getter.ErrFieldNotFound {
-		p.graph.AddMetadata(p.n, "Captures", &probes.Captures{metadata})
+		p.graph.AddMetadata(ctx, p.n, "Captures", &probes.Captures{metadata})
 	}
 	p.graph.Unlock()
 }
 
 func (p *activeProbe) OnStopped() {
+	// TODO comienza aqui la traza?
+	ctx, span := tracer.Start(context.Background(), "activeProbe.OnStopped")
+	defer span.End()
+
 	p.graph.Lock()
-	p.graph.UpdateMetadata(p.n, "Captures", func(obj interface{}) bool {
+	p.graph.UpdateMetadata(ctx, p.n, "Captures", func(obj interface{}) bool {
 		captures := obj.(*probes.Captures)
 		for i, capture := range *captures {
 			if capture.ID == p.capture.UUID {
 				if len(*captures) <= 1 {
-					p.graph.DelMetadata(p.n, "Captures")
+					p.graph.DelMetadata(ctx, p.n, "Captures")
 					return false
 				}
 				*captures = append((*captures)[:i], (*captures)[i+1:]...)
@@ -78,8 +90,12 @@ func (p *activeProbe) OnStopped() {
 }
 
 func (p *activeProbe) OnError(err error) {
+	// TODO comienza aqui la traza?
+	ctx, span := tracer.Start(context.Background(), "activeProbe.OnError")
+	defer span.End()
+
 	p.graph.Lock()
-	p.graph.UpdateMetadata(p.n, "Captures", func(obj interface{}) bool {
+	p.graph.UpdateMetadata(ctx, p.n, "Captures", func(obj interface{}) bool {
 		captures := obj.(*probes.Captures)
 		for _, capture := range *captures {
 			if capture.ID == p.capture.UUID {

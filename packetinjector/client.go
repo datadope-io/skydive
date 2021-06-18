@@ -18,6 +18,7 @@
 package packetinjector
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -74,11 +75,11 @@ func (h *onDemandPacketInjectionHandler) getNode(gremlinQuery string) *graph.Nod
 	return nil
 }
 
-func (h *onDemandPacketInjectionHandler) createRequest(nodeID graph.Identifier, pi *types.PacketInjection) (string, *PacketInjectionRequest, error) {
+func (h *onDemandPacketInjectionHandler) createRequest(ctx context.Context, nodeID graph.Identifier, pi *types.PacketInjection) (string, *PacketInjectionRequest, error) {
 	h.graph.RLock()
 	defer h.graph.RUnlock()
 
-	srcNode := h.graph.GetNode(graph.Identifier(nodeID))
+	srcNode := h.graph.GetNode(ctx, graph.Identifier(nodeID))
 	if srcNode == nil {
 		return "", nil, errors.New("Not able to find a source node")
 	}
@@ -208,8 +209,8 @@ func (h *onDemandPacketInjectionHandler) DecodeMessage(msg json.RawMessage) (res
 	return &pi, nil
 }
 
-func (h *onDemandPacketInjectionHandler) EncodeMessage(nodeID graph.Identifier, resource rest.Resource) (json.RawMessage, error) {
-	_, request, err := h.createRequest(nodeID, resource.(*types.PacketInjection))
+func (h *onDemandPacketInjectionHandler) EncodeMessage(ctx context.Context, nodeID graph.Identifier, resource rest.Resource) (json.RawMessage, error) {
+	_, request, err := h.createRequest(ctx, nodeID, resource.(*types.PacketInjection))
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +289,8 @@ func (h *onDemandPacketInjectionHandler) GetNodeResources(resource rest.Resource
 }
 
 func (h *onDemandPacketInjectionHandler) applyGremlinExpr(query string) []interface{} {
-	res, err := ge.TopologyGremlinQuery(h.graph, query)
+	// TODO donde se origina esta petición?
+	res, err := ge.TopologyGremlinQuery(context.Background(), h.graph, query)
 	if err != nil {
 		logging.GetLogger().Errorf("Gremlin %s error: %s", query, err)
 		return nil

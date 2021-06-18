@@ -1,6 +1,7 @@
 package traversal
 
 import (
+	"context"
 	"reflect"
 
 	"github.com/pkg/errors"
@@ -71,10 +72,10 @@ func (e *EventsTraversalExtension) ParseStep(t traversal.Token, p traversal.Grem
 }
 
 // Exec executes the events step
-func (s *EventsGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (s *EventsGremlinTraversalStep) Exec(ctx context.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	switch tv := last.(type) {
 	case *traversal.GraphTraversalV:
-		return InterfaceEvents(s.StepContext, tv, s.EventKey, s.EventAggKey), nil
+		return InterfaceEvents(ctx, s.StepContext, tv, s.EventKey, s.EventAggKey), nil
 	}
 	return nil, traversal.ErrExecutionError
 }
@@ -93,7 +94,7 @@ func (s *EventsGremlinTraversalStep) Context() *traversal.GremlinTraversalContex
 // input nodes and put them into the newest node for each id into Metadata.aggKey.
 // Events are groupped based on its key. See mergedEvents for an example.
 // All output nodes will have Metadata.aggKey defined (empty or not).
-func InterfaceEvents(ctx traversal.StepContext, tv *traversal.GraphTraversalV, key, aggKey string) traversal.GraphTraversalStep {
+func InterfaceEvents(gCtx context.Context, ctx traversal.StepContext, tv *traversal.GraphTraversalV, key, aggKey string) traversal.GraphTraversalStep {
 	it := ctx.PaginationRange.Iterator()
 	//gslice := tv.GraphTraversal.Graph.GetContext().TimeSlice
 
@@ -111,7 +112,7 @@ func InterfaceEvents(ctx traversal.StepContext, tv *traversal.GraphTraversalV, k
 		}
 
 		// Get all revisions for this node
-		revisionNodes := tv.GraphTraversal.Graph.GetNodeAll(node.ID)
+		revisionNodes := tv.GraphTraversal.Graph.GetNodeAll(gCtx, node.ID)
 
 		// Store only the most recent nodes
 		for _, rNode := range revisionNodes {

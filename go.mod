@@ -90,6 +90,11 @@ require (
 	github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
 	github.com/voxelbrain/goptions v0.0.0-20180630082107-58cddc247ea2 // indirect
 	github.com/weaveworks/tcptracer-bpf v0.0.0-20170817155301-e080bd747dc6
+	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.20.0 // indirect
+	go.opentelemetry.io/otel v0.20.0
+	go.opentelemetry.io/otel/exporters/stdout v0.20.0 // indirect
+	go.opentelemetry.io/otel/exporters/trace/jaeger v0.20.0
+	go.opentelemetry.io/otel/sdk v0.20.0
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
