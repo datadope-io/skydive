@@ -28,6 +28,9 @@ import (
 
 	auth "github.com/abbot/go-http-auth"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+
 	"github.com/skydive-project/skydive/graffiti/api/types"
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/graph/traversal"
@@ -50,7 +53,13 @@ type TopologyAPI struct {
 	extraMarshallers TopologyMarshallers
 }
 
+// TODO mover a otro fichero dentro del package server?
+var tracer = otel.Tracer("graffiti.api.server")
+
 func (t *TopologyAPI) topologyIndex(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+	_, span := tracer.Start(r.Context(), "topologyIndex")
+	defer span.End()
+
 	if !rbac.Enforce(r.Username, "topology", "read") {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -77,6 +86,9 @@ func (t *TopologyAPI) topologyIndex(w http.ResponseWriter, r *auth.Authenticated
 }
 
 func (t *TopologyAPI) topologySearch(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+	ctx, span := tracer.Start(r.Context(), "topologySearch")
+	defer span.End()
+
 	if !rbac.Enforce(r.Username, "topology", "read") {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -96,13 +108,15 @@ func (t *TopologyAPI) topologySearch(w http.ResponseWriter, r *auth.Authenticate
 		return
 	}
 
+	span.SetAttributes(attribute.Key("Query").String(resource.GremlinQuery))
+
 	ts, err := t.gremlinParser.Parse(strings.NewReader(resource.GremlinQuery))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	res, err := ts.Exec(t.graph, true)
+	res, err := ts.Exec(ctx, t.graph, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
