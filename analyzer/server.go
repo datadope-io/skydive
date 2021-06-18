@@ -26,6 +26,12 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/trace/jaeger"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/semconv"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/skydive-project/dede/dede"
@@ -90,6 +96,7 @@ type Server struct {
 	graphStorage    graph.PersistentBackend
 	flowStorage     storage.Storage
 	etcdClient      *etcdclient.Client
+	traceProvider   *sdktrace.TracerProvider
 }
 
 // GetStatus returns the status of an analyzer
@@ -195,11 +202,19 @@ func (s *Server) Stop() {
 	}); ok {
 		tr.CloseIdleConnections()
 	}
+
+	// TODO parar OpenTelemetry
 }
 
 // NewServerFromConfig creates a new empty server
 func NewServerFromConfig() (*Server, error) {
 	host := config.GetString("host_id")
+
+	// OpenTelemetry initialization
+	tp, err := initTracer()
+	if err != nil {
+		return nil, fmt.Errorf("OpenTelemetry initialization: %v", err)
+	}
 
 	etcdClientOpts := etcdclient.Opts{
 		Servers: config.GetEtcdServerAddrs(),
@@ -267,9 +282,10 @@ func NewServerFromConfig() (*Server, error) {
 	}
 
 	s := &Server{
-		probeBundle:  probeBundle,
-		etcdClient:   etcdClient,
-		graphStorage: graphStorage,
+		probeBundle:   probeBundle,
+		etcdClient:    etcdClient,
+		graphStorage:  graphStorage,
+		traceProvider: tp,
 	}
 
 	opts := hub.Opts{
@@ -385,4 +401,30 @@ func ClusterAuthenticationOpts() *shttp.AuthenticationOpts {
 		Password: config.GetString("analyzer.auth.cluster.password"),
 		Cookie:   config.GetStringMapString("http.cookie"),
 	}
+}
+
+// initTracer initializates OpenTelemetry SDK to gather traces
+func initTracer() (*sdktrace.TracerProvider, error) {
+	// Jaeger exporter
+	endpoint := "http://localhost:14268/api/traces" // TODO parametrizar
+	exporter, err := jaeger.NewRawExporter(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(endpoint)))
+	if err != nil {
+		return nil, fmt.Errorf("Jaeger exporter: %v", err)
+	}
+
+	// For the demonstration, use sdktrace.AlwaysSample sampler to sample all traces.
+	// In a production application, use sdktrace.ProbabilitySampler with a desired probability.
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(resource.NewWithAttributes(
+			semconv.ServiceNameKey.String("skydive"),
+			semconv.HostImageVersionKey.String("ImageVersion 1.2.3"), // TODO poner la versión que estamos usando
+		)),
+	)
+
+	// Store tracerProvider globally to be able to create Tracers from any package
+	otel.SetTracerProvider(tracerProvider)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	return tracerProvider, nil
 }
