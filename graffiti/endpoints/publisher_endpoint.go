@@ -18,6 +18,7 @@
 package endpoints
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/safchain/insanelock"
@@ -55,6 +56,9 @@ type PublisherEndpoint struct {
 func (t *PublisherEndpoint) OnDisconnected(c ws.Speaker) {
 	origin := graph.ClientOrigin(c)
 
+	ctx, span := tracer.Start(context.Background(), "PublisherEndpoint.OnDisconnected")
+	defer span.End()
+
 	t.logger.Debugf("Client or origin %s disconnected", origin)
 
 	t.RLock()
@@ -71,7 +75,7 @@ func (t *PublisherEndpoint) OnDisconnected(c ws.Speaker) {
 		t.logger.Debugf("Authoritative client unregistered, delete resources of %s", origin)
 
 		t.Graph.Lock()
-		graph.DelSubGraphOfOrigin(t.Graph, origin)
+		graph.DelSubGraphOfOrigin(ctx, t.Graph, origin)
 		t.Graph.Unlock()
 	}
 
@@ -89,6 +93,9 @@ func (t *PublisherEndpoint) OnStructMessage(c ws.Speaker, msg *ws.StructMessage)
 	}
 
 	origin := graph.ClientOrigin(c)
+
+	ctx, span := tracer.Start(context.Background(), "PublisherEndpoint.OnStructMessage")
+	defer span.End()
 
 	t.Lock()
 	// received a message thus the pod has chosen this hub as master
@@ -124,43 +131,43 @@ func (t *PublisherEndpoint) OnStructMessage(c ws.Speaker, msg *ws.StructMessage)
 	case messages.SyncMsgType, messages.SyncReplyMsgType:
 		t.logger.Debugf("Handling sync message from %s", c.GetRemoteHost())
 
-		graph.DelSubGraphOfOrigin(t.Graph, graph.ClientOrigin(c))
+		graph.DelSubGraphOfOrigin(ctx, t.Graph, graph.ClientOrigin(c))
 
 		r := obj.(*messages.SyncMsg)
 		for _, n := range r.Nodes {
-			if t.Graph.GetNode(n.ID) == nil {
-				if err := t.Graph.NodeAdded(n); err != nil {
+			if t.Graph.GetNode(ctx, n.ID) == nil {
+				if err := t.Graph.NodeAdded(ctx, n); err != nil {
 					t.logger.Errorf("Error while processing sync message from %s: %s", c.GetRemoteHost(), err)
 				}
 			}
 		}
 		for _, e := range r.Edges {
-			if t.Graph.GetEdge(e.ID) == nil {
-				if err := t.Graph.EdgeAdded(e); err != nil {
+			if t.Graph.GetEdge(ctx, e.ID) == nil {
+				if err := t.Graph.EdgeAdded(ctx, e); err != nil {
 					t.logger.Errorf("Error while processing sync message from %s: %s", c.GetRemoteHost(), err)
 				}
 			}
 		}
 	case messages.NodeUpdatedMsgType:
-		err = t.Graph.NodeUpdated(obj.(*graph.Node))
+		err = t.Graph.NodeUpdated(ctx, obj.(*graph.Node))
 	case messages.NodeDeletedMsgType:
-		err = t.Graph.NodeDeleted(obj.(*graph.Node))
+		err = t.Graph.NodeDeleted(ctx, obj.(*graph.Node))
 	case messages.NodeAddedMsgType:
-		err = t.Graph.NodeAdded(obj.(*graph.Node))
+		err = t.Graph.NodeAdded(ctx, obj.(*graph.Node))
 	case messages.EdgeUpdatedMsgType:
-		err = t.Graph.EdgeUpdated(obj.(*graph.Edge))
+		err = t.Graph.EdgeUpdated(ctx, obj.(*graph.Edge))
 	case messages.EdgeDeletedMsgType:
-		if err = t.Graph.EdgeDeleted(obj.(*graph.Edge)); err == graph.ErrEdgeNotFound {
+		if err = t.Graph.EdgeDeleted(ctx, obj.(*graph.Edge)); err == graph.ErrEdgeNotFound {
 			return
 		}
 	case messages.EdgeAddedMsgType:
-		err = t.Graph.EdgeAdded(obj.(*graph.Edge))
+		err = t.Graph.EdgeAdded(ctx, obj.(*graph.Edge))
 	case messages.NodePartiallyUpdatedMsgType:
 		updateMsg := obj.(*messages.PartiallyUpdatedMsg)
-		err = t.Graph.NodePartiallyUpdated(updateMsg.ID, updateMsg.Revision, updateMsg.UpdatedAt, updateMsg.Ops...)
+		err = t.Graph.NodePartiallyUpdated(ctx, updateMsg.ID, updateMsg.Revision, updateMsg.UpdatedAt, updateMsg.Ops...)
 	case messages.EdgePartiallyUpdatedMsgType:
 		updateMsg := obj.(*messages.PartiallyUpdatedMsg)
-		err = t.Graph.EdgePartiallyUpdated(updateMsg.ID, updateMsg.Revision, updateMsg.UpdatedAt, updateMsg.Ops...)
+		err = t.Graph.EdgePartiallyUpdated(ctx, updateMsg.ID, updateMsg.Revision, updateMsg.UpdatedAt, updateMsg.Ops...)
 	}
 
 	if err != nil {

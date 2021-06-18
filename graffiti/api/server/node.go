@@ -21,6 +21,7 @@
 package server
 
 import (
+	"context"
 	"time"
 
 	"github.com/skydive-project/skydive/graffiti/api/rest"
@@ -42,7 +43,7 @@ type NodeAPIHandler struct {
 }
 
 // New creates a new node
-func (h *NodeAPIHandler) New() rest.Resource {
+func (h *NodeAPIHandler) New(ctx context.Context) rest.Resource {
 	return &types.Node{}
 }
 
@@ -52,9 +53,12 @@ func (h *NodeAPIHandler) Name() string {
 }
 
 // Index returns the list of existing nodes
-func (h *NodeAPIHandler) Index() map[string]rest.Resource {
+func (h *NodeAPIHandler) Index(ctx context.Context) map[string]rest.Resource {
+	ctx, span := tracer.Start(ctx, "NodeAPIHandler.Index")
+	defer span.End()
+
 	h.g.RLock()
-	nodes := h.g.GetNodes(nil)
+	nodes := h.g.GetNodes(ctx, nil)
 	nodeMap := make(map[string]rest.Resource, len(nodes))
 	for _, node := range nodes {
 		n := types.Node(*node)
@@ -65,11 +69,11 @@ func (h *NodeAPIHandler) Index() map[string]rest.Resource {
 }
 
 // Get returns a node with the specified id
-func (h *NodeAPIHandler) Get(id string) (rest.Resource, bool) {
+func (h *NodeAPIHandler) Get(ctx context.Context, id string) (rest.Resource, bool) {
 	h.g.RLock()
 	defer h.g.RUnlock()
 
-	n := h.g.GetNode(graph.Identifier(id))
+	n := h.g.GetNode(ctx, graph.Identifier(id))
 	if n == nil {
 		return nil, false
 	}
@@ -78,11 +82,11 @@ func (h *NodeAPIHandler) Get(id string) (rest.Resource, bool) {
 }
 
 // Decorate the specified node
-func (h *NodeAPIHandler) Decorate(resource rest.Resource) {
+func (h *NodeAPIHandler) Decorate(ctx context.Context, resource rest.Resource) {
 }
 
 // Create adds the specified node to the graph
-func (h *NodeAPIHandler) Create(resource rest.Resource, createOpts *rest.CreateOptions) error {
+func (h *NodeAPIHandler) Create(ctx context.Context, resource rest.Resource, createOpts *rest.CreateOptions) error {
 	node := resource.(*types.Node)
 	graphNode := graph.Node(*node)
 	if graphNode.CreatedAt.IsZero() {
@@ -99,31 +103,31 @@ func (h *NodeAPIHandler) Create(resource rest.Resource, createOpts *rest.CreateO
 	}
 
 	h.g.Lock()
-	err := h.g.AddNode(&graphNode)
+	err := h.g.AddNode(ctx, &graphNode)
 	h.g.Unlock()
 	return err
 }
 
 // Delete the node with the specified id from the graph
-func (h *NodeAPIHandler) Delete(id string) error {
+func (h *NodeAPIHandler) Delete(ctx context.Context, id string) error {
 	h.g.Lock()
 	defer h.g.Unlock()
 
-	node := h.g.GetNode(graph.Identifier(id))
+	node := h.g.GetNode(ctx, graph.Identifier(id))
 	if node == nil {
 		return rest.ErrNotFound
 	}
 
-	return h.g.DelNode(node)
+	return h.g.DelNode(ctx, node)
 }
 
 // Update a node metadata
-func (h *NodeAPIHandler) Update(id string, resource rest.Resource) (rest.Resource, bool, error) {
+func (h *NodeAPIHandler) Update(ctx context.Context, id string, resource rest.Resource) (rest.Resource, bool, error) {
 	h.g.Lock()
 	defer h.g.Unlock()
 
 	// Current node, to be updated
-	n := h.g.GetNode(graph.Identifier(id))
+	n := h.g.GetNode(ctx, graph.Identifier(id))
 	if n == nil {
 		return nil, false, rest.ErrNotFound
 	}
@@ -142,7 +146,7 @@ func (h *NodeAPIHandler) Update(id string, resource rest.Resource) (rest.Resourc
 
 	// Update actual node Metadata with new patched node
 	previousRevision := n.Revision
-	if err := h.g.SetMetadata(n, patchedNode.Metadata); err != nil {
+	if err := h.g.SetMetadata(ctx, n, patchedNode.Metadata); err != nil {
 		return nil, false, err
 	}
 

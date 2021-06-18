@@ -1,0 +1,678 @@
+{
+  "data": {
+    "__schema": {
+      "directives": [
+        {
+          "args": [
+            {
+              "defaultValue": null,
+              "name": "if",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              }
+            }
+          ],
+          "locations": [
+            "FIELD",
+            "FRAGMENT_SPREAD",
+            "INLINE_FRAGMENT"
+          ],
+          "name": "include"
+        },
+        {
+          "args": [
+            {
+              "defaultValue": null,
+              "name": "if",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              }
+            }
+          ],
+          "locations": [
+            "FIELD",
+            "FRAGMENT_SPREAD",
+            "INLINE_FRAGMENT"
+          ],
+          "name": "skip"
+        },
+        {
+          "args": [
+            {
+              "defaultValue": "\"No longer supported\"",
+              "name": "reason",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            }
+          ],
+          "locations": [
+            "FIELD_DEFINITION",
+            "ENUM_VALUE"
+          ],
+          "name": "deprecated"
+        }
+      ],
+      "mutationType": {
+        "name": "Mutation"
+      },
+      "queryType": {
+        "name": "Query"
+      },
+      "subscriptionType": null,
+      "types": [
+        {
+          "enumValues": [],
+          "fields": [],
+          "inputFields": [],
+          "interfaces": [],
+          "kind": "SCALAR",
+          "name": "Float",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [],
+          "inputFields": [],
+          "interfaces": [],
+          "kind": "SCALAR",
+          "name": "String",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [],
+          "inputFields": [
+            {
+              "defaultValue": null,
+              "name": "Name",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "Aggregation",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "VLAN",
+              "type": {
+                "kind": "INPUT_OBJECT",
+                "name": "InterfaceVLANInput",
+                "ofType": null
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "IP",
+              "type": {
+                "kind": "INPUT_OBJECT",
+                "name": "InterfaceIPInput",
+                "ofType": null
+              }
+            }
+          ],
+          "interfaces": [],
+          "kind": "INPUT_OBJECT",
+          "name": "InterfaceInput",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [],
+          "inputFields": [
+            {
+              "defaultValue": null,
+              "name": "Mode",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "VLAN_MODE",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "VID",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "LIST",
+                  "name": null,
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "Int",
+                      "ofType": null
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "NativeVID",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            }
+          ],
+          "interfaces": [],
+          "kind": "INPUT_OBJECT",
+          "name": "InterfaceVLANInput",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [
+            {
+              "name": "ACCESS"
+            },
+            {
+              "name": "TRUNK"
+            }
+          ],
+          "fields": [],
+          "inputFields": [],
+          "interfaces": [],
+          "kind": "ENUM",
+          "name": "VLAN_MODE",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [
+            {
+              "args": [],
+              "name": "ID",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "args": [],
+              "name": "Updated",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "args": [],
+              "name": "InterfaceUpdated",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              }
+            }
+          ],
+          "inputFields": [],
+          "interfaces": [],
+          "kind": "OBJECT",
+          "name": "AddSwitchPayload",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [
+            {
+              "args": [],
+              "name": "ID",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            }
+          ],
+          "inputFields": [],
+          "interfaces": [],
+          "kind": "OBJECT",
+          "name": "AddVLANPayload",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [],
+          "inputFields": [
+            {
+              "defaultValue": null,
+              "name": "Name",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "Vendor",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "Model",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "Interfaces",
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "InterfaceInput",
+                  "ofType": null
+                }
+              }
+            }
+          ],
+          "interfaces": [],
+          "kind": "INPUT_OBJECT",
+          "name": "RouterInput",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [],
+          "inputFields": [],
+          "interfaces": [],
+          "kind": "SCALAR",
+          "name": "ID",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [
+            {
+              "args": [],
+              "name": "version",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            }
+          ],
+          "inputFields": [],
+          "interfaces": [],
+          "kind": "OBJECT",
+          "name": "Query",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [],
+          "inputFields": [
+            {
+              "defaultValue": null,
+              "name": "Name",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "MAC",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "Vendor",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "Model",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "Interfaces",
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "InterfaceInput",
+                  "ofType": null
+                }
+              }
+            }
+          ],
+          "interfaces": [],
+          "kind": "INPUT_OBJECT",
+          "name": "SwitchInput",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [
+            {
+              "args": [],
+              "name": "ID",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "args": [],
+              "name": "Updated",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "args": [],
+              "name": "InterfaceUpdated",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              }
+            }
+          ],
+          "inputFields": [],
+          "interfaces": [],
+          "kind": "OBJECT",
+          "name": "AddRouterPayload",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [],
+          "inputFields": [
+            {
+              "defaultValue": null,
+              "name": "VID",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "Name",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            }
+          ],
+          "interfaces": [],
+          "kind": "INPUT_OBJECT",
+          "name": "VLANInput",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [],
+          "inputFields": [
+            {
+              "defaultValue": null,
+              "name": "IP",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "Mask",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "defaultValue": null,
+              "name": "VRF",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            }
+          ],
+          "interfaces": [],
+          "kind": "INPUT_OBJECT",
+          "name": "InterfaceIPInput",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [],
+          "inputFields": [],
+          "interfaces": [],
+          "kind": "SCALAR",
+          "name": "Int",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [],
+          "inputFields": [],
+          "interfaces": [],
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "possibleTypes": []
+        },
+        {
+          "enumValues": [],
+          "fields": [
+            {
+              "args": [
+                {
+                  "defaultValue": null,
+                  "name": "input",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "VLANInput",
+                      "ofType": null
+                    }
+                  }
+                }
+              ],
+              "name": "addVLAN",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "AddVLANPayload",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "args": [
+                {
+                  "defaultValue": null,
+                  "name": "input",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "SwitchInput",
+                      "ofType": null
+                    }
+                  }
+                }
+              ],
+              "name": "addSwitch",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "AddSwitchPayload",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "args": [
+                {
+                  "defaultValue": null,
+                  "name": "input",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "RouterInput",
+                      "ofType": null
+                    }
+                  }
+                }
+              ],
+              "name": "addRouter",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "AddRouterPayload",
+                  "ofType": null
+                }
+              }
+            }
+          ],
+          "inputFields": [],
+          "interfaces": [],
+          "kind": "OBJECT",
+          "name": "Mutation",
+          "possibleTypes": []
+        }
+      ]
+    }
+  }
+}

@@ -18,6 +18,8 @@
 package graph
 
 import (
+	"context"
+
 	"github.com/cnf/structhash"
 	"github.com/safchain/insanelock"
 )
@@ -53,14 +55,14 @@ type Indexer struct {
 
 // Get computes the hash of the passed parameters and returns the matching
 // nodes with their respective value
-func (i *Indexer) Get(values ...interface{}) ([]*Node, []interface{}) {
-	return i.FromHash(Hash(values...))
+func (i *Indexer) Get(ctx context.Context, values ...interface{}) ([]*Node, []interface{}) {
+	return i.FromHash(ctx, Hash(values...))
 }
 
 // GetNode computes the hash of the passed parameters and returns the first
 // matching node with its respective value
-func (i *Indexer) GetNode(values ...interface{}) (*Node, interface{}) {
-	nodes, values := i.Get(values...)
+func (i *Indexer) GetNode(ctx context.Context, values ...interface{}) (*Node, interface{}) {
+	nodes, values := i.Get(ctx, values...)
 	if len(nodes) > 0 && len(values) > 0 {
 		return nodes[0], values[0]
 	}
@@ -83,7 +85,7 @@ func (i *Indexer) unindex(id Identifier, h string) {
 }
 
 // Index indexes a node with a set of hash -> value map
-func (i *Indexer) Index(id Identifier, n *Node, kv map[string]interface{}) {
+func (i *Indexer) Index(ctx context.Context, id Identifier, n *Node, kv map[string]interface{}) {
 	i.Lock()
 	defer i.Unlock()
 
@@ -94,7 +96,7 @@ func (i *Indexer) Index(id Identifier, n *Node, kv map[string]interface{}) {
 			i.index(id, k, v)
 		}
 
-		i.eventHandler.NotifyEvent(NodeAdded, n)
+		i.eventHandler.NotifyEvent(ctx, NodeAdded, n)
 	} else {
 		// Node already was in the cache
 		if !i.appendOnly {
@@ -109,12 +111,12 @@ func (i *Indexer) Index(id Identifier, n *Node, kv map[string]interface{}) {
 			i.index(id, k, v)
 		}
 
-		i.eventHandler.NotifyEvent(NodeUpdated, n)
+		i.eventHandler.NotifyEvent(ctx, NodeUpdated, n)
 	}
 }
 
 // Unindex removes the node and its associated hashes from the index
-func (i *Indexer) Unindex(id Identifier, n *Node) {
+func (i *Indexer) Unindex(ctx context.Context, id Identifier, n *Node) {
 	i.Lock()
 	defer i.Unlock()
 
@@ -124,36 +126,45 @@ func (i *Indexer) Unindex(id Identifier, n *Node) {
 			delete(i.hashToValues[h], id)
 		}
 
-		i.eventHandler.NotifyEvent(NodeDeleted, n)
+		i.eventHandler.NotifyEvent(ctx, NodeDeleted, n)
 	}
 }
 
 // OnNodeAdded event
-func (i *Indexer) OnNodeAdded(n *Node) {
+func (i *Indexer) OnNodeAdded(ctx context.Context, n *Node) {
+	ctx, span := tracer.Start(ctx, "Indexer.OnNodeAdded")
+	defer span.End()
+
 	if kv := i.hashNode(n); len(kv) != 0 {
-		i.Index(n.ID, n, kv)
+		i.Index(ctx, n.ID, n, kv)
 	}
 }
 
 // OnNodeUpdated event
-func (i *Indexer) OnNodeUpdated(n *Node, ops []PartiallyUpdatedOp) {
+func (i *Indexer) OnNodeUpdated(ctx context.Context, n *Node, ops []PartiallyUpdatedOp) {
+	ctx, span := tracer.Start(ctx, "Indexer.OnNodeUpdated")
+	defer span.End()
+
 	if kv := i.hashNode(n); len(kv) != 0 {
-		i.Index(n.ID, n, kv)
+		i.Index(ctx, n.ID, n, kv)
 	} else {
-		i.Unindex(n.ID, n)
+		i.Unindex(ctx, n.ID, n)
 	}
 }
 
 // OnNodeDeleted event
-func (i *Indexer) OnNodeDeleted(n *Node) {
-	i.Unindex(n.ID, n)
+func (i *Indexer) OnNodeDeleted(ctx context.Context, n *Node) {
+	ctx, span := tracer.Start(ctx, "Indexer.OnNodeDeleted")
+	defer span.End()
+
+	i.Unindex(ctx, n.ID, n)
 }
 
 // FromHash returns the nodes mapped by a hash along with their associated values
-func (i *Indexer) FromHash(hash string) (nodes []*Node, values []interface{}) {
+func (i *Indexer) FromHash(ctx context.Context, hash string) (nodes []*Node, values []interface{}) {
 	if ids, found := i.hashToValues[hash]; found {
 		for id, obj := range ids {
-			nodes = append(nodes, i.graph.GetNode(id))
+			nodes = append(nodes, i.graph.GetNode(ctx, id))
 			values = append(values, obj)
 		}
 	}
@@ -234,12 +245,12 @@ func NewMetadataIndexer(g *Graph, listenerHandler ListenerHandler, m ElementMatc
 }
 
 // Sync synchronizes the index with the graph
-func (i *MetadataIndexer) Sync() {
+func (i *MetadataIndexer) Sync(ctx context.Context) {
 	i.hashToValues = make(map[string]map[Identifier]interface{})
 	i.nodeToHashes = make(map[Identifier]map[string]bool)
-	for _, n := range i.graph.GetNodes(i.matcher) {
+	for _, n := range i.graph.GetNodes(ctx, i.matcher) {
 		if kv := i.hashNode(n); len(kv) != 0 {
-			i.Index(n.ID, n, kv)
+			i.Index(ctx, n.ID, n, kv)
 		}
 	}
 }

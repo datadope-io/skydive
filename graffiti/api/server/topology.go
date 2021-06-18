@@ -19,6 +19,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,6 +28,8 @@ import (
 	"strings"
 
 	auth "github.com/abbot/go-http-auth"
+
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/skydive-project/skydive/graffiti/api/types"
 	"github.com/skydive-project/skydive/graffiti/graph"
@@ -38,7 +41,7 @@ import (
 
 // TopologyMarshaller is used to output a gremlin step
 // into a specific format
-type TopologyMarshaller func(traversal.GraphTraversalStep, io.Writer) error
+type TopologyMarshaller func(context.Context, traversal.GraphTraversalStep, io.Writer) error
 
 // TopologyMarshallers maps Accept headers to topology marshallers
 type TopologyMarshallers map[string]TopologyMarshaller
@@ -51,6 +54,9 @@ type TopologyAPI struct {
 }
 
 func (t *TopologyAPI) topologyIndex(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+	_, span := tracer.Start(r.Context(), "TopologyAPI.topologyIndex")
+	defer span.End()
+
 	if !rbac.Enforce(r.Username, "topology", "read") {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -77,6 +83,9 @@ func (t *TopologyAPI) topologyIndex(w http.ResponseWriter, r *auth.Authenticated
 }
 
 func (t *TopologyAPI) topologySearch(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+	ctx, span := tracer.Start(r.Context(), "TopologyAPI.topologySearch")
+	defer span.End()
+
 	if !rbac.Enforce(r.Username, "topology", "read") {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -96,13 +105,15 @@ func (t *TopologyAPI) topologySearch(w http.ResponseWriter, r *auth.Authenticate
 		return
 	}
 
+	span.SetAttributes(attribute.Key("query").String(resource.GremlinQuery))
+
 	ts, err := t.gremlinParser.Parse(strings.NewReader(resource.GremlinQuery))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	res, err := ts.Exec(t.graph, true)
+	res, err := ts.Exec(ctx, t.graph, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -114,7 +125,7 @@ func (t *TopologyAPI) topologySearch(w http.ResponseWriter, r *auth.Authenticate
 
 	acceptHeader := r.Header.Get("Accept")
 	if marshaller, found := t.extraMarshallers[acceptHeader]; found {
-		err = marshaller(res, &b)
+		err = marshaller(ctx, res, &b)
 	} else {
 		err = json.NewEncoder(&b).Encode(res)
 	}

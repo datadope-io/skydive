@@ -20,10 +20,13 @@
 package graph
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/olivere/elastic/v7"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	etcd "github.com/skydive-project/skydive/graffiti/etcd/client"
 	"github.com/skydive-project/skydive/graffiti/filters"
@@ -162,7 +165,10 @@ func edgeToRaw(e *Edge) (*rawData, error) {
 	return raw, nil
 }
 
-func (b *ElasticSearchBackend) archive(raw *rawData, at Time) error {
+func (b *ElasticSearchBackend) archive(ctx context.Context, raw *rawData, at Time) error {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.archive")
+	defer span.End()
+
 	raw.ArchivedAt = at.UnixMilli()
 
 	data, err := json.Marshal(raw)
@@ -176,7 +182,10 @@ func (b *ElasticSearchBackend) archive(raw *rawData, at Time) error {
 	return nil
 }
 
-func (b *ElasticSearchBackend) indexNode(n *Node) error {
+func (b *ElasticSearchBackend) indexNode(ctx context.Context, n *Node) error {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.indexNode")
+	defer span.End()
+
 	raw, err := nodeToRaw(n)
 	if err != nil {
 		return fmt.Errorf("Error while adding node %s: %s", n.ID, err)
@@ -196,18 +205,24 @@ func (b *ElasticSearchBackend) indexNode(n *Node) error {
 }
 
 // NodeAdded add a node
-func (b *ElasticSearchBackend) NodeAdded(n *Node) error {
-	return b.indexNode(n)
+func (b *ElasticSearchBackend) NodeAdded(ctx context.Context, n *Node) error {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.NodeAdded")
+	defer span.End()
+
+	return b.indexNode(ctx, n)
 }
 
 // NodeDeleted delete a node
-func (b *ElasticSearchBackend) NodeDeleted(n *Node) error {
+func (b *ElasticSearchBackend) NodeDeleted(ctx context.Context, n *Node) error {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.NodeDeleted")
+	defer span.End()
+
 	raw, err := nodeToRaw(n)
 	if err != nil {
 		return fmt.Errorf("Error while deleting node %s: %s", n.ID, err)
 	}
 
-	err = b.archive(raw, n.DeletedAt)
+	err = b.archive(ctx, raw, n.DeletedAt)
 
 	if errBulk := b.client.BulkDelete(b.liveIndex, string(n.ID)); err != nil {
 		err = fmt.Errorf("Error while deleting node %s: %s", n.ID, errBulk)
@@ -219,8 +234,11 @@ func (b *ElasticSearchBackend) NodeDeleted(n *Node) error {
 }
 
 // GetNode get a node within a time slice
-func (b *ElasticSearchBackend) GetNode(i Identifier, t Context) []*Node {
-	nodes := b.searchNodes(&TimedSearchQuery{
+func (b *ElasticSearchBackend) GetNode(ctx context.Context, i Identifier, t Context) []*Node {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.GetNode")
+	defer span.End()
+
+	nodes := b.searchNodes(ctx, &TimedSearchQuery{
 		SearchQuery: filters.SearchQuery{
 			Filter: filters.NewTermStringFilter("ID", string(i)),
 			Sort:   true,
@@ -236,7 +254,10 @@ func (b *ElasticSearchBackend) GetNode(i Identifier, t Context) []*Node {
 	return nodes
 }
 
-func (b *ElasticSearchBackend) indexEdge(e *Edge) error {
+func (b *ElasticSearchBackend) indexEdge(ctx context.Context, e *Edge) error {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.indexEdge")
+	defer span.End()
+
 	raw, err := edgeToRaw(e)
 	if err != nil {
 		return fmt.Errorf("Error while adding edge %s: %s", e.ID, err)
@@ -256,18 +277,24 @@ func (b *ElasticSearchBackend) indexEdge(e *Edge) error {
 }
 
 // EdgeAdded add an edge in the database
-func (b *ElasticSearchBackend) EdgeAdded(e *Edge) error {
-	return b.indexEdge(e)
+func (b *ElasticSearchBackend) EdgeAdded(ctx context.Context, e *Edge) error {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.EdgeAdded")
+	defer span.End()
+
+	return b.indexEdge(ctx, e)
 }
 
 // EdgeDeleted delete an edge in the database
-func (b *ElasticSearchBackend) EdgeDeleted(e *Edge) error {
+func (b *ElasticSearchBackend) EdgeDeleted(ctx context.Context, e *Edge) error {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.EdgeDeleted")
+	defer span.End()
+
 	raw, err := edgeToRaw(e)
 	if err != nil {
 		return fmt.Errorf("Error while deleting edge %s: %s", e.ID, err)
 	}
 
-	err = b.archive(raw, e.DeletedAt)
+	err = b.archive(ctx, raw, e.DeletedAt)
 
 	if errBulk := b.client.BulkDelete(b.liveIndex, string(e.ID)); err != nil {
 		err = fmt.Errorf("Error while deleting edge %s: %s", e.ID, errBulk)
@@ -279,8 +306,11 @@ func (b *ElasticSearchBackend) EdgeDeleted(e *Edge) error {
 }
 
 // GetEdge get an edge within a time slice
-func (b *ElasticSearchBackend) GetEdge(i Identifier, t Context) []*Edge {
-	edges := b.searchEdges(&TimedSearchQuery{
+func (b *ElasticSearchBackend) GetEdge(ctx context.Context, i Identifier, t Context) []*Edge {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.GetEdge")
+	defer span.End()
+
+	edges := b.searchEdges(ctx, &TimedSearchQuery{
 		SearchQuery: filters.SearchQuery{
 			Filter: filters.NewTermStringFilter("ID", string(i)),
 			Sort:   true,
@@ -297,7 +327,10 @@ func (b *ElasticSearchBackend) GetEdge(i Identifier, t Context) []*Edge {
 }
 
 // MetadataUpdated updates a node metadata in the database
-func (b *ElasticSearchBackend) MetadataUpdated(i interface{}) error {
+func (b *ElasticSearchBackend) MetadataUpdated(ctx context.Context, i interface{}) error {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.MetadataUpdated")
+	defer span.End()
+
 	var err error
 
 	switch i := i.(type) {
@@ -307,29 +340,32 @@ func (b *ElasticSearchBackend) MetadataUpdated(i interface{}) error {
 			return fmt.Errorf("Unable to update an unkwown node: %s", i.ID)
 		}
 
-		if err := b.archive(obj, i.UpdatedAt); err != nil {
+		if err := b.archive(ctx, obj, i.UpdatedAt); err != nil {
 			return err
 		}
 
-		err = b.indexNode(i)
+		err = b.indexNode(ctx, i)
 	case *Edge:
 		obj := b.prevRevision[i.ID]
 		if obj == nil {
 			return fmt.Errorf("Unable to update an unkwown edge: %s", i.ID)
 		}
 
-		if err := b.archive(obj, i.UpdatedAt); err != nil {
+		if err := b.archive(ctx, obj, i.UpdatedAt); err != nil {
 			return err
 		}
 
-		err = b.indexEdge(i)
+		err = b.indexEdge(ctx, i)
 	}
 
 	return err
 }
 
 // Query the database for a "node" or "edge"
-func (b *ElasticSearchBackend) Query(typ string, tsq *TimedSearchQuery) (sr *elastic.SearchResult, _ error) {
+func (b *ElasticSearchBackend) Query(ctx context.Context, typ string, tsq *TimedSearchQuery) (sr *elastic.SearchResult, _ error) {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.Query")
+	defer span.End()
+
 	fltrs := []elastic.Query{
 		es.FormatFilter(filters.NewTermStringFilter("_Type", typ), ""),
 	}
@@ -356,8 +392,11 @@ func (b *ElasticSearchBackend) Query(typ string, tsq *TimedSearchQuery) (sr *ela
 }
 
 // searchNodes search nodes matching the query
-func (b *ElasticSearchBackend) searchNodes(tsq *TimedSearchQuery) (nodes []*Node) {
-	out, err := b.Query(nodeType, tsq)
+func (b *ElasticSearchBackend) searchNodes(ctx context.Context, tsq *TimedSearchQuery) (nodes []*Node) {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.searchNodes")
+	defer span.End()
+
+	out, err := b.Query(ctx, nodeType, tsq)
 	if err != nil {
 		b.logger.Errorf("Failed to query nodes: %s", err)
 		return
@@ -378,8 +417,11 @@ func (b *ElasticSearchBackend) searchNodes(tsq *TimedSearchQuery) (nodes []*Node
 }
 
 // searchEdges search edges matching the query
-func (b *ElasticSearchBackend) searchEdges(tsq *TimedSearchQuery) (edges []*Edge) {
-	out, err := b.Query(edgeType, tsq)
+func (b *ElasticSearchBackend) searchEdges(ctx context.Context, tsq *TimedSearchQuery) (edges []*Edge) {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.searchEdges")
+	defer span.End()
+
+	out, err := b.Query(ctx, edgeType, tsq)
 	if err != nil {
 		b.logger.Errorf("Failed to query edges: %s", err)
 		return
@@ -400,7 +442,10 @@ func (b *ElasticSearchBackend) searchEdges(tsq *TimedSearchQuery) (edges []*Edge
 }
 
 // GetEdges returns a list of edges within time slice, matching metadata
-func (b *ElasticSearchBackend) GetEdges(t Context, m ElementMatcher, e ElementMatcher) []*Edge {
+func (b *ElasticSearchBackend) GetEdges(ctx context.Context, t Context, m ElementMatcher, e ElementMatcher) []*Edge {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.GetEdges")
+	defer span.End()
+
 	var metadataFilter *filters.Filter
 	if m != nil {
 		f, err := m.Filter()
@@ -424,7 +469,7 @@ func (b *ElasticSearchBackend) GetEdges(t Context, m ElementMatcher, e ElementMa
 		searchQuery = filters.SearchQuery{Sort: true, SortBy: "UpdatedAt"}
 	}
 
-	edges := b.searchEdges(&TimedSearchQuery{
+	edges := b.searchEdges(ctx, &TimedSearchQuery{
 		SearchQuery:    searchQuery,
 		TimeFilter:     getTimeFilter(t.TimeSlice),
 		MetadataFilter: metadataFilter,
@@ -449,7 +494,10 @@ func (b *ElasticSearchBackend) GetEdges(t Context, m ElementMatcher, e ElementMa
 }
 
 // GetNodes returns a list of nodes within time slice, matching metadata
-func (b *ElasticSearchBackend) GetNodes(t Context, m ElementMatcher, e ElementMatcher) []*Node {
+func (b *ElasticSearchBackend) GetNodes(ctx context.Context, t Context, m ElementMatcher, e ElementMatcher) []*Node {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.GetNodes")
+	defer span.End()
+
 	var filter *filters.Filter
 	if m != nil {
 		f, err := m.Filter()
@@ -473,7 +521,7 @@ func (b *ElasticSearchBackend) GetNodes(t Context, m ElementMatcher, e ElementMa
 		searchQuery = filters.SearchQuery{Sort: true, SortBy: "UpdatedAt"}
 	}
 
-	nodes := b.searchNodes(&TimedSearchQuery{
+	nodes := b.searchNodes(ctx, &TimedSearchQuery{
 		SearchQuery:    searchQuery,
 		TimeFilter:     getTimeFilter(t.TimeSlice),
 		MetadataFilter: filter,
@@ -498,14 +546,19 @@ func (b *ElasticSearchBackend) GetNodes(t Context, m ElementMatcher, e ElementMa
 }
 
 // GetEdgeNodes returns the parents and child nodes of an edge within time slice, matching metadatas
-func (b *ElasticSearchBackend) GetEdgeNodes(e *Edge, t Context, parentMetadata, childMetadata ElementMatcher) (parents []*Node, children []*Node) {
-	for _, parent := range b.GetNode(e.Parent, t) {
+func (b *ElasticSearchBackend) GetEdgeNodes(ctx context.Context, e *Edge, t Context, parentMetadata, childMetadata ElementMatcher) (parents []*Node, children []*Node) {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.GetEdgeNodes", trace.WithAttributes(
+		attribute.Key("edge.id").String(string(e.ID)),
+	))
+	defer span.End()
+
+	for _, parent := range b.GetNode(ctx, e.Parent, t) {
 		if parent.MatchMetadata(parentMetadata) {
 			parents = append(parents, parent)
 		}
 	}
 
-	for _, child := range b.GetNode(e.Child, t) {
+	for _, child := range b.GetNode(ctx, e.Child, t) {
 		if child.MatchMetadata(childMetadata) {
 			children = append(children, child)
 		}
@@ -515,7 +568,12 @@ func (b *ElasticSearchBackend) GetEdgeNodes(e *Edge, t Context, parentMetadata, 
 }
 
 // GetNodeEdges returns a list of a node edges within time slice
-func (b *ElasticSearchBackend) GetNodeEdges(n *Node, t Context, m ElementMatcher) (edges []*Edge) {
+func (b *ElasticSearchBackend) GetNodeEdges(ctx context.Context, n *Node, t Context, m ElementMatcher) (edges []*Edge) {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.GetNodeEdges", trace.WithAttributes(
+		attribute.Key("node.id").String(string(n.ID)),
+	))
+	defer span.End()
+
 	var filter *filters.Filter
 	if m != nil {
 		f, err := m.Filter()
@@ -531,7 +589,7 @@ func (b *ElasticSearchBackend) GetNodeEdges(n *Node, t Context, m ElementMatcher
 	}
 	searchQuery.Filter = NewFilterForEdge(n.ID, n.ID)
 
-	edges = b.searchEdges(&TimedSearchQuery{
+	edges = b.searchEdges(ctx, &TimedSearchQuery{
 		SearchQuery:    searchQuery,
 		TimeFilter:     getTimeFilter(t.TimeSlice),
 		MetadataFilter: filter,
@@ -560,7 +618,10 @@ func (b *ElasticSearchBackend) Start() error {
 func (b *ElasticSearchBackend) Stop() {}
 
 // FlushElements deletes a set of nodes and edges
-func (b *ElasticSearchBackend) FlushElements(m ElementMatcher) error {
+func (b *ElasticSearchBackend) FlushElements(ctx context.Context, m ElementMatcher) error {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.FlushElements")
+	defer span.End()
+
 	b.logger.Info("Flush graph elements")
 
 	filter, err := m.Filter()
@@ -584,10 +645,18 @@ func (b *ElasticSearchBackend) FlushElements(m ElementMatcher) error {
 }
 
 // Sync adds all the nodes and edges with the specified filter into an other graph
-func (b *ElasticSearchBackend) Sync(g *Graph, elementFilter *ElementFilter) error {
+func (b *ElasticSearchBackend) Sync(ctx context.Context, g *Graph, elementFilter *ElementFilter) error {
+	ctx, span := tracer.Start(ctx, "ElasticSearchBackend.Sync")
+	defer span.End()
+
+	// Do not trace all GetNodes and GetEdges from this sync.
+	// Could be there thousands
+	sc := span.SpanContext().WithTraceFlags(span.SpanContext().TraceFlags().WithSampled(false))
+	ctx = trace.ContextWithSpanContext(ctx, sc)
+
 	// re-insert valid nodes and edges
-	for _, node := range b.GetNodes(Context{}, nil, elementFilter) {
-		g.NodeAdded(node)
+	for _, node := range b.GetNodes(ctx, Context{}, nil, elementFilter) {
+		g.NodeAdded(ctx, node)
 
 		raw, err := nodeToRaw(node)
 		if err != nil {
@@ -597,8 +666,8 @@ func (b *ElasticSearchBackend) Sync(g *Graph, elementFilter *ElementFilter) erro
 		b.prevRevision[node.ID] = raw
 	}
 
-	for _, edge := range b.GetEdges(Context{}, nil, elementFilter) {
-		g.EdgeAdded(edge)
+	for _, edge := range b.GetEdges(ctx, Context{}, nil, elementFilter) {
+		g.EdgeAdded(ctx, edge)
 
 		raw, err := edgeToRaw(edge)
 		if err != nil {

@@ -42,6 +42,10 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/tchap/zapext v1.0.0
 	github.com/xeipuuv/gojsonschema v1.2.0
+	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.21.0
+	go.opentelemetry.io/otel v1.0.0-RC1
+	go.opentelemetry.io/otel/metric v0.20.0 // indirect
+	go.opentelemetry.io/otel/trace v1.0.0-RC1
 	go.uber.org/zap v1.16.0
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974
 	golang.org/x/tools v0.0.0-20210106214847-113979e3529a

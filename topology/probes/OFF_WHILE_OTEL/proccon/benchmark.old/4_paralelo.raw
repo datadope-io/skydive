@@ -1,0 +1,64 @@
+=== RUN   TestCreateServerNodeSoftwareOthers
+--- PASS: TestCreateServerNodeSoftwareOthers (0.00s)
+=== RUN   TestPresentServerCreateSoftwareToOthers
+--- PASS: TestPresentServerCreateSoftwareToOthers (0.00s)
+=== RUN   TestFillOthersSoftwareNode
+--- PASS: TestFillOthersSoftwareNode (0.00s)
+=== RUN   TestSendingInvalidFormatDataJSON
+2021-05-27T17:16:06.048+0200	WARN	proccon/proccon.go:291 (*Probe).ServeHTTP	arco invalid metric: msgp: attempted to decode type "int" with method for "map" (client: )
+--- PASS: TestSendingInvalidFormatDataJSON (0.00s)
+=== RUN   TestMetricDateIsUsed
+--- PASS: TestMetricDateIsUsed (0.00s)
+=== RUN   TestMultipleMetricsToOtherOnlyOneRevision
+--- PASS: TestMultipleMetricsToOtherOnlyOneRevision (0.00s)
+=== RUN   TestTwoMetricsTwoOthersNode
+--- PASS: TestTwoMetricsTwoOthersNode (0.00s)
+=== RUN   TestMetricDateIsUsedWhenUpdating
+--- PASS: TestMetricDateIsUsedWhenUpdating (0.00s)
+=== RUN   TestFillOthersSoftwareNodeWithConnPrefix
+--- PASS: TestFillOthersSoftwareNodeWithConnPrefix (0.00s)
+=== RUN   TestNewMetricUpdateNetworkMetadata
+--- PASS: TestNewMetricUpdateNetworkMetadata (0.00s)
+=== RUN   TestAppendConnectionInfoToOthersSoftwareNode
+--- PASS: TestAppendConnectionInfoToOthersSoftwareNode (0.00s)
+=== RUN   TestFillKnownSoftwareNode
+--- PASS: TestFillKnownSoftwareNode (0.00s)
+=== RUN   TestClearOldConnections
+--- PASS: TestClearOldConnections (0.00s)
+=== RUN   TestClearOldConnectionsKeepNewerConnections
+--- PASS: TestClearOldConnectionsKeepNewerConnections (0.00s)
+=== RUN   TestCleanTCPListenIfTCPConnIsInvalid
+2021-05-27T17:16:06.050+0200	WARN	proccon/proccon.go:567 (*Probe).removeOldNetworkInformation.func1	arco Unable to convert  (string) to *NetworkInfo
+--- PASS: TestCleanTCPListenIfTCPConnIsInvalid (0.00s)
+=== RUN   TestDoNotPanicIfInvalidTCPConnOrTCPListenDataType
+2021-05-27T17:16:06.050+0200	WARN	proccon/proccon.go:567 (*Probe).removeOldNetworkInformation.func1	arco Unable to convert  (string) to *NetworkInfo
+2021-05-27T17:16:06.050+0200	WARN	proccon/proccon.go:567 (*Probe).removeOldNetworkInformation.func1	arco Unable to convert  (string) to *NetworkInfo
+--- PASS: TestDoNotPanicIfInvalidTCPConnOrTCPListenDataType (0.00s)
+=== RUN   TestDoNotReturnErrorIfTCPConnOrTCPListenKeysDoesNotExists
+2021-05-27T17:16:06.050+0200	WARN	proccon/proccon.go:567 (*Probe).removeOldNetworkInformation.func1	arco Unable to convert  (string) to *NetworkInfo
+--- PASS: TestDoNotReturnErrorIfTCPConnOrTCPListenKeysDoesNotExists (0.00s)
+=== RUN   TestClearSoftwareNodes
+--- PASS: TestClearSoftwareNodes (0.00s)
+=== RUN   TestMigrateConnInfoFromOthersToKnownSoftwareNode
+--- PASS: TestMigrateConnInfoFromOthersToKnownSoftwareNode (0.00s)
+=== RUN   TestNotSignalUpdateForKnownNetworkUpdates
+--- PASS: TestNotSignalUpdateForKnownNetworkUpdates (0.00s)
+goos: linux
+goarch: amd64
+pkg: github.com/skydive-project/skydive/topology/probes/proccon
+cpu: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
+BenchmarkProcessMetricParallel
+BenchmarkProcessMetricParallel/number_of_nodes:_0
+BenchmarkProcessMetricParallel/number_of_nodes:_0-12         	    3219	  10048808 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_2000
+BenchmarkProcessMetricParallel/number_of_nodes:_2000-12      	     100	 182953707 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_4000
+BenchmarkProcessMetricParallel/number_of_nodes:_4000-12      	     100	 485495842 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_6000
+BenchmarkProcessMetricParallel/number_of_nodes:_6000-12      	     100	1008096846 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_8000
+BenchmarkProcessMetricParallel/number_of_nodes:_8000-12      	      67	1272569684 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_10000
+BenchmarkProcessMetricParallel/number_of_nodes:_10000-12     	      38	1191783704 ns/op
+PASS
+ok  	github.com/skydive-project/skydive/topology/probes/proccon	330.970s

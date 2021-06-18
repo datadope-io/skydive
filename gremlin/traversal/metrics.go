@@ -18,6 +18,7 @@
 package traversal
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -92,7 +93,7 @@ func (e *MetricsTraversalExtension) ParseStep(t traversal.Token, p traversal.Gre
 }
 
 // Exec executes the metrics step
-func (s *MetricsGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (s *MetricsGremlinTraversalStep) Exec(ctx context.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	switch tv := last.(type) {
 	case *traversal.GraphTraversalV:
 		return InterfaceMetrics(s.StepContext, tv, s.key), nil

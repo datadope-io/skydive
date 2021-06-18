@@ -18,13 +18,15 @@
 package graph
 
 import (
+	"context"
+
 	"github.com/safchain/insanelock"
 )
 
 // NodeAction is a callback to perform on a node. The action is kept
 // active as long as it returns true.
 type NodeAction interface {
-	ProcessNode(g *Graph, n *Node) bool
+	ProcessNode(ctx context.Context, g *Graph, n *Node) bool
 }
 
 // deferred represents a node action with additional info if needed
@@ -56,11 +58,11 @@ func NewProcessor(g *Graph, listenerHandler ListenerHandler, m ElementMatcher, i
 }
 
 // DoAction will perform the action for nodes matching values.
-func (processor *Processor) DoAction(action NodeAction, values ...interface{}) {
-	nodes, _ := processor.Get(values...)
+func (processor *Processor) DoAction(ctx context.Context, action NodeAction, values ...interface{}) {
+	nodes, _ := processor.Get(ctx, values...)
 	kont := true
 	for _, node := range nodes {
-		kont = action.ProcessNode(processor.graph, node)
+		kont = action.ProcessNode(ctx, processor.graph, node)
 		if !kont {
 			break
 		}
@@ -87,7 +89,10 @@ func (processor *Processor) Cancel(values ...interface{}) {
 }
 
 // OnNodeAdded event
-func (processor *Processor) OnNodeAdded(n *Node) {
+func (processor *Processor) OnNodeAdded(ctx context.Context, n *Node) {
+	ctx, span := tracer.Start(ctx, "Processor.OnNodeAdded")
+	defer span.End()
+
 	if vValues, err := getFieldsAsArray(n, processor.indexes); err == nil {
 		for _, values := range vValues {
 			hash := Hash(values...)
@@ -97,7 +102,7 @@ func (processor *Processor) OnNodeAdded(n *Node) {
 			if ok {
 				var keep []deferred
 				for _, action := range actions {
-					if action.action.ProcessNode(processor.graph, n) {
+					if action.action.ProcessNode(ctx, processor.graph, n) {
 						keep = append(keep, action)
 					}
 				}

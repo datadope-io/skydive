@@ -18,6 +18,8 @@
 package traversal
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/skydive-project/skydive/graffiti/filters"
@@ -91,7 +93,7 @@ func (e *DescendantsTraversalExtension) ParseStep(t traversal.Token, p traversal
 	return &DescendantsGremlinTraversalStep{context: p, maxDepth: maxDepth, edgeFilter: graph.NewElementFilter(edgeFilter)}, nil
 }
 
-func getDescendants(g *graph.Graph, parents []*graph.Node, descendants *[]*graph.Node, currDepth, maxDepth int64, edgeFilter graph.ElementMatcher, visited map[graph.Identifier]bool) {
+func getDescendants(ctx context.Context, g *graph.Graph, parents []*graph.Node, descendants *[]*graph.Node, currDepth, maxDepth int64, edgeFilter graph.ElementMatcher, visited map[graph.Identifier]bool) {
 	var ld []*graph.Node
 	for _, parent := range parents {
 		if _, ok := visited[parent.ID]; !ok {
@@ -103,20 +105,20 @@ func getDescendants(g *graph.Graph, parents []*graph.Node, descendants *[]*graph
 
 	if maxDepth == 0 || currDepth < maxDepth {
 		for _, parent := range parents {
-			children := g.LookupChildren(parent, nil, edgeFilter)
-			getDescendants(g, children, descendants, currDepth+1, maxDepth, edgeFilter, visited)
+			children := g.LookupChildren(ctx, parent, nil, edgeFilter)
+			getDescendants(ctx, g, children, descendants, currDepth+1, maxDepth, edgeFilter, visited)
 		}
 	}
 }
 
 // Exec Descendants step
-func (d *DescendantsGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (d *DescendantsGremlinTraversalStep) Exec(ctx context.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	var descendants []*graph.Node
 
 	switch tv := last.(type) {
 	case *traversal.GraphTraversalV:
 		tv.GraphTraversal.RLock()
-		getDescendants(tv.GraphTraversal.Graph, tv.GetNodes(), &descendants, 0, d.maxDepth, d.edgeFilter, make(map[graph.Identifier]bool))
+		getDescendants(ctx, tv.GraphTraversal.Graph, tv.GetNodes(), &descendants, 0, d.maxDepth, d.edgeFilter, make(map[graph.Identifier]bool))
 		tv.GraphTraversal.RUnlock()
 
 		return traversal.NewGraphTraversalV(tv.GraphTraversal, descendants), nil

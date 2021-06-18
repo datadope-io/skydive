@@ -20,6 +20,7 @@
 package agent
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -111,6 +112,10 @@ func (a *Agent) Stop() {
 
 // NewAgent instantiates a new Agent aiming to launch probes (topology and flow)
 func NewAgent() (*Agent, error) {
+	ctx, span := tracer.Start(context.Background(), "NewAgent")
+	defer span.End()
+	// TODO pasar el ctx a más partes por aquí para poder detallar el tiempo de arranque en que se va? tal vez no sea interesante
+
 	if uid := os.Geteuid(); uid != 0 {
 		logging.GetLogger().Warning("Agent needs root permissions for some feature like capture, network namespace introspection, some feature might not work as expected")
 	}
@@ -182,7 +187,7 @@ func NewAgent() (*Agent, error) {
 	agent.tidMapper = topology.NewTIDMapper(g)
 	agent.tidMapper.Start()
 
-	rootNode, err := createRootNode(g)
+	rootNode, err := createRootNode(ctx, g)
 	if err != nil {
 		return nil, err
 	}

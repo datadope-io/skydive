@@ -21,6 +21,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -64,22 +65,22 @@ func (w *WorkflowResourceHandler) Name() string {
 }
 
 // Create tests whether the resource is a duplicate or is unique
-func (w *WorkflowAPIHandler) Create(r rest.Resource, opts *rest.CreateOptions) error {
+func (w *WorkflowAPIHandler) Create(ctx context.Context, r rest.Resource, opts *rest.CreateOptions) error {
 	workflow := r.(*types.Workflow)
 
-	for _, resource := range w.Index() {
+	for _, resource := range w.Index(ctx) {
 		w := resource.(*types.Workflow)
 		if w.Name == workflow.Name {
 			return fmt.Errorf("Duplicate workflow, name=%s", w.Name)
 		}
 	}
 
-	return w.BasicAPIHandler.Create(workflow, opts)
+	return w.BasicAPIHandler.Create(ctx, workflow, opts)
 }
 
 // Get retrieves a workflow based on its id
-func (w *WorkflowAPIHandler) Get(id string) (rest.Resource, bool) {
-	workflows := w.Index()
+func (w *WorkflowAPIHandler) Get(ctx context.Context, id string) (rest.Resource, bool) {
+	workflows := w.Index(ctx)
 	workflow, found := workflows[id]
 	if !found {
 		return nil, false
@@ -88,17 +89,17 @@ func (w *WorkflowAPIHandler) Get(id string) (rest.Resource, bool) {
 }
 
 // Index returns a map of workflows indexed by id
-func (w *WorkflowAPIHandler) Index() map[string]rest.Resource {
-	resources := w.BasicAPIHandler.Index()
+func (w *WorkflowAPIHandler) Index(ctx context.Context) map[string]rest.Resource {
+	resources := w.BasicAPIHandler.Index(ctx)
 	for _, workflow := range StaticWorkflows {
 		resources[workflow.GetID()] = workflow
 	}
 	return resources
 }
 
-func (w *WorkflowAPIHandler) getWorkflow(id string) (*types.Workflow, error) {
+func (w *WorkflowAPIHandler) getWorkflow(ctx context.Context, id string) (*types.Workflow, error) {
 	handler := w.apiServer.GetHandler("workflow")
-	workflow, ok := handler.Get(id)
+	workflow, ok := handler.Get(ctx, id)
 	if !ok {
 		return nil, fmt.Errorf("No workflow found with ID: %s", id)
 	}
@@ -106,6 +107,9 @@ func (w *WorkflowAPIHandler) getWorkflow(id string) (*types.Workflow, error) {
 }
 
 func (w *WorkflowAPIHandler) executeWorkflow(resp http.ResponseWriter, r *auth.AuthenticatedRequest) {
+	ctx, span := tracer.Start(r.Context(), "WorkflowAPIHandler.executeWorkflow.")
+	defer span.End()
+
 	if !rbac.Enforce(r.Username, "workflow.call", "write") {
 		resp.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -120,7 +124,7 @@ func (w *WorkflowAPIHandler) executeWorkflow(resp http.ResponseWriter, r *auth.A
 
 	vars := mux.Vars(&r.Request)
 
-	workflow, err := w.getWorkflow(vars["ID"])
+	workflow, err := w.getWorkflow(ctx, vars["ID"])
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusBadRequest)
 		return

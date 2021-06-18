@@ -19,6 +19,7 @@ package alert
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -69,7 +70,8 @@ func (ga *GremlinAlert) evaluate(server *api.Server, vm *js.Runtime, lockGraph b
 	// If the alert is a simple Gremlin query, avoid
 	// converting to JavaScript
 	if ga.traversalSequence != nil {
-		result, err := ga.traversalSequence.Exec(ga.graph, lockGraph)
+		// TODO root span? o debe generarse más arriba?
+		result, err := ga.traversalSequence.Exec(context.Background(), ga.graph, lockGraph)
 		if err != nil {
 			return nil, err
 		}
@@ -271,32 +273,32 @@ func (a *Server) evaluateAlerts(alerts map[string]*GremlinAlert, lockGraph bool)
 }
 
 // OnNodeUpdated event
-func (a *Server) OnNodeUpdated(n *graph.Node, ops []graph.PartiallyUpdatedOp) {
+func (a *Server) OnNodeUpdated(ctx context.Context, n *graph.Node, ops []graph.PartiallyUpdatedOp) {
 	a.evaluateAlerts(a.graphAlerts, false)
 }
 
 // OnNodeAdded event
-func (a *Server) OnNodeAdded(n *graph.Node) {
+func (a *Server) OnNodeAdded(ctx context.Context, n *graph.Node) {
 	a.evaluateAlerts(a.graphAlerts, false)
 }
 
 // OnNodeDeleted event
-func (a *Server) OnNodeDeleted(n *graph.Node) {
+func (a *Server) OnNodeDeleted(ctx context.Context, n *graph.Node) {
 	a.evaluateAlerts(a.graphAlerts, false)
 }
 
 // OnEdgeAdded event
-func (a *Server) OnEdgeAdded(e *graph.Edge) {
+func (a *Server) OnEdgeAdded(ctx context.Context, e *graph.Edge) {
 	a.evaluateAlerts(a.graphAlerts, false)
 }
 
 // OnEdgeUpdated event
-func (a *Server) OnEdgeUpdated(e *graph.Edge, ops []graph.PartiallyUpdatedOp) {
+func (a *Server) OnEdgeUpdated(ctx context.Context, e *graph.Edge, ops []graph.PartiallyUpdatedOp) {
 	a.evaluateAlerts(a.graphAlerts, false)
 }
 
 // OnEdgeDeleted event
-func (a *Server) OnEdgeDeleted(e *graph.Edge) {
+func (a *Server) OnEdgeDeleted(ctx context.Context, e *graph.Edge) {
 	a.evaluateAlerts(a.graphAlerts, false)
 }
 

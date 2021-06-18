@@ -23,7 +23,6 @@ import (
 	"github.com/skydive-project/skydive/config"
 	"github.com/skydive-project/skydive/flow/storage"
 	"github.com/skydive-project/skydive/flow/storage/elasticsearch"
-	"github.com/skydive-project/skydive/flow/storage/orientdb"
 	etcd "github.com/skydive-project/skydive/graffiti/etcd/client"
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/logging"
@@ -105,12 +104,13 @@ func newGraphBackendFromConfig(etcdClient *etcd.Client) (graph.PersistentBackend
 	case "memory":
 		// cached memory will be used
 		return nil, nil
-	case "orientdb":
-		addr := config.GetString(configPath + ".addr")
-		database := config.GetString(configPath + ".database")
-		username := config.GetString(configPath + ".username")
-		password := config.GetString(configPath + ".password")
-		return graph.NewOrientDBBackend(addr, database, username, password, logging.GetLogger())
+	// TODO desactivado mientras pongo opentelemetry, para no añadir más "ctx" sin tener algo funcional
+	//case "orientdb":
+	//	addr := config.GetString(configPath + ".addr")
+	//	database := config.GetString(configPath + ".database")
+	//	username := config.GetString(configPath + ".username")
+	//	password := config.GetString(configPath + ".password")
+	//	return graph.NewOrientDBBackend(addr, database, username, password, logging.GetLogger())
 	default:
 		return nil, fmt.Errorf("Topology backend driver '%s' not supported", driver)
 	}
@@ -130,8 +130,9 @@ func newFlowBackendFromConfig(etcdClient *etcd.Client) (s storage.Storage, err e
 		return elasticsearch.New(cfg, etcdClient)
 	case "memory":
 		return nil, nil
-	case "orientdb":
-		return orientdb.New(backend)
+	// TODO desactivado mientras pongo opentelemetry, para no añadir más "ctx" sin tener algo funcional
+	//case "orientdb":
+	//	return orientdb.New(backend)
 	default:
 		return nil, fmt.Errorf("Flow backend driver '%s' not supported", driver)
 	}

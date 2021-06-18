@@ -1,0 +1,32 @@
+goos: linux
+goarch: amd64
+pkg: github.com/skydive-project/skydive/topology/probes/proccon
+cpu: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
+BenchmarkProcessMetric
+BenchmarkProcessMetric/number_of_nodes:_0
+BenchmarkProcessMetric/number_of_nodes:_0-12              432637              5296 ns/op
+BenchmarkProcessMetric/number_of_nodes:_2000
+BenchmarkProcessMetric/number_of_nodes:_2000-12              537           2511901 ns/op
+BenchmarkProcessMetric/number_of_nodes:_4000
+BenchmarkProcessMetric/number_of_nodes:_4000-12              231           4982215 ns/op
+BenchmarkProcessMetric/number_of_nodes:_6000
+BenchmarkProcessMetric/number_of_nodes:_6000-12              120           9904493 ns/op
+BenchmarkProcessMetric/number_of_nodes:_8000
+BenchmarkProcessMetric/number_of_nodes:_8000-12               62          19058499 ns/op
+BenchmarkProcessMetric/number_of_nodes:_10000
+BenchmarkProcessMetric/number_of_nodes:_10000-12              40          30472324 ns/op
+BenchmarkProcessMetricParallel
+BenchmarkProcessMetricParallel/number_of_nodes:_0
+BenchmarkProcessMetricParallel/number_of_nodes:_0-12        3474          10794663 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_2000
+BenchmarkProcessMetricParallel/number_of_nodes:_2000-12                      100         190535444 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_4000
+BenchmarkProcessMetricParallel/number_of_nodes:_4000-12                      100         480618529 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_6000
+BenchmarkProcessMetricParallel/number_of_nodes:_6000-12                      100        1005443890 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_8000
+BenchmarkProcessMetricParallel/number_of_nodes:_8000-12                       60        1132241261 ns/op
+BenchmarkProcessMetricParallel/number_of_nodes:_10000
+BenchmarkProcessMetricParallel/number_of_nodes:_10000-12                      42        1282636735 ns/op
+PASS
+ok      github.com/skydive-project/skydive/topology/probes/proccon      337.667s

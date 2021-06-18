@@ -18,10 +18,13 @@
 package forwarder
 
 import (
+	"context"
+
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/logging"
 	"github.com/skydive-project/skydive/graffiti/messages"
 	ws "github.com/skydive-project/skydive/graffiti/websocket"
+	"go.opentelemetry.io/otel"
 )
 
 // Forwarder forwards the topology to only one master server.
@@ -33,12 +36,14 @@ type Forwarder struct {
 	logger         logging.Logger
 }
 
-func (t *Forwarder) triggerResync() {
+var tracer = otel.Tracer("graffiti.forwarder.forwarder")
+
+func (t *Forwarder) triggerResync(ctx context.Context) {
 	t.logger.Infof("Start a re-sync")
 
 	// re-add all the nodes and edges
 	msg := &messages.SyncMsg{
-		Elements: t.graph.Elements(),
+		Elements: t.graph.Elements(ctx),
 	}
 	t.masterElection.SendMessageToMaster(messages.NewStructMessage(messages.SyncMsgType, msg))
 }
@@ -46,6 +51,9 @@ func (t *Forwarder) triggerResync() {
 // OnNewMaster is called by the master election mechanism when a new master is elected. In
 // such case a "Re-sync" is triggered in order to be in sync with the new master.
 func (t *Forwarder) OnNewMaster(c ws.Speaker) {
+	ctx, span := tracer.Start(context.Background(), "Forwarder.OnNewMaster")
+	defer span.End()
+
 	if c == nil {
 		t.logger.Warning("Lost connection to master")
 
@@ -57,7 +65,7 @@ func (t *Forwarder) OnNewMaster(c ws.Speaker) {
 
 		t.graph.RLock()
 
-		t.triggerResync()
+		t.triggerResync(ctx)
 
 		// synced can now listen the graph
 		t.graph.AddEventListener(t)
@@ -67,7 +75,7 @@ func (t *Forwarder) OnNewMaster(c ws.Speaker) {
 }
 
 // OnNodeUpdated graph node updated event. Implements the EventListener interface.
-func (t *Forwarder) OnNodeUpdated(n *graph.Node, ops []graph.PartiallyUpdatedOp) {
+func (t *Forwarder) OnNodeUpdated(ctx context.Context, n *graph.Node, ops []graph.PartiallyUpdatedOp) {
 	t.masterElection.SendMessageToMaster(
 		messages.NewStructMessage(
 			messages.NodePartiallyUpdatedMsgType,
@@ -82,21 +90,21 @@ func (t *Forwarder) OnNodeUpdated(n *graph.Node, ops []graph.PartiallyUpdatedOp)
 }
 
 // OnNodeAdded graph node added event. Implements the EventListener interface.
-func (t *Forwarder) OnNodeAdded(n *graph.Node) {
+func (t *Forwarder) OnNodeAdded(ctx context.Context, n *graph.Node) {
 	t.masterElection.SendMessageToMaster(
 		messages.NewStructMessage(messages.NodeAddedMsgType, n),
 	)
 }
 
 // OnNodeDeleted graph node deleted event. Implements the EventListener interface.
-func (t *Forwarder) OnNodeDeleted(n *graph.Node) {
+func (t *Forwarder) OnNodeDeleted(ctx context.Context, n *graph.Node) {
 	t.masterElection.SendMessageToMaster(
 		messages.NewStructMessage(messages.NodeDeletedMsgType, n),
 	)
 }
 
 // OnEdgeUpdated graph edge updated event. Implements the EventListener interface.
-func (t *Forwarder) OnEdgeUpdated(e *graph.Edge, ops []graph.PartiallyUpdatedOp) {
+func (t *Forwarder) OnEdgeUpdated(ctx context.Context, e *graph.Edge, ops []graph.PartiallyUpdatedOp) {
 	t.masterElection.SendMessageToMaster(
 		messages.NewStructMessage(
 			messages.EdgePartiallyUpdatedMsgType,
@@ -111,14 +119,14 @@ func (t *Forwarder) OnEdgeUpdated(e *graph.Edge, ops []graph.PartiallyUpdatedOp)
 }
 
 // OnEdgeAdded graph edge added event. Implements the EventListener interface.
-func (t *Forwarder) OnEdgeAdded(e *graph.Edge) {
+func (t *Forwarder) OnEdgeAdded(ctx context.Context, e *graph.Edge) {
 	t.masterElection.SendMessageToMaster(
 		messages.NewStructMessage(messages.EdgeAddedMsgType, e),
 	)
 }
 
 // OnEdgeDeleted graph edge deleted event. Implements the EventListener interface.
-func (t *Forwarder) OnEdgeDeleted(e *graph.Edge) {
+func (t *Forwarder) OnEdgeDeleted(ctx context.Context, e *graph.Edge) {
 	t.masterElection.SendMessageToMaster(
 		messages.NewStructMessage(messages.EdgeDeletedMsgType, e),
 	)

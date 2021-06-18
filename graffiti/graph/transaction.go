@@ -18,6 +18,7 @@
 package graph
 
 import (
+	"context"
 	"reflect"
 )
 
@@ -40,7 +41,7 @@ func (t *MetadataTransaction) DelMetadata(k string) {
 }
 
 // Commit the current transaction to the graph
-func (t *MetadataTransaction) Commit() error {
+func (t *MetadataTransaction) Commit(ctx context.Context) error {
 	var e *graphElement
 	var kind graphEventType
 
@@ -86,11 +87,11 @@ func (t *MetadataTransaction) Commit() error {
 	e.UpdatedAt = TimeUTC()
 	e.Revision++
 
-	if err := t.graph.backend.MetadataUpdated(t.graphElement); err != nil {
+	if err := t.graph.backend.MetadataUpdated(ctx, t.graphElement); err != nil {
 		return err
 	}
 
-	t.graph.eventHandler.NotifyEvent(kind, t.graphElement, ops...)
+	t.graph.eventHandler.NotifyEvent(ctx, kind, t.graphElement, ops...)
 
 	return nil
 }

@@ -1,0 +1,320 @@
+[
+        {
+                "ID": "88f279ad-ff4c-4aff-795c-12a4f16fe470",
+                "Metadata": {
+                        "Features": {
+                                "esp-hw-offload": false,
+                                "esp-tx-csum-hw-offload": false,
+                                "fcoe-mtu": false,
+                                "highdma": false,
+                                "hw-tc-offload": false,
+                                "l2-fwd-offload": false,
+                                "loopback": false,
+                                "macsec-hw-offload": false,
+                                "netns-local": false,
+                                "rx-all": false,
+                                "rx-checksum": false,
+                                "rx-fcs": false,
+                                "rx-gro": true,
+                                "rx-gro-hw": false,
+                                "rx-gro-list": false,
+                                "rx-hashing": false,
+                                "rx-lro": false,
+                                "rx-ntuple-filter": false,
+                                "rx-udp_tunnel-port-offload": false,
+                                "rx-vlan-filter": false,
+                                "rx-vlan-hw-parse": false,
+                                "rx-vlan-stag-filter": false,
+                                "rx-vlan-stag-hw-parse": false,
+                                "tls-hw-record": false,
+                                "tls-hw-rx-offload": false,
+                                "tls-hw-tx-offload": false,
+                                "tx-checksum-fcoe-crc": false,
+                                "tx-checksum-ip-generic": false,
+                                "tx-checksum-ipv4": false,
+                                "tx-checksum-ipv6": false,
+                                "tx-checksum-sctp": false,
+                                "tx-esp-segmentation": false,
+                                "tx-fcoe-segmentation": false,
+                                "tx-generic-segmentation": false,
+                                "tx-gre-csum-segmentation": false,
+                                "tx-gre-segmentation": false,
+                                "tx-gso-list": false,
+                                "tx-gso-partial": false,
+                                "tx-gso-robust": false,
+                                "tx-ipxip4-segmentation": false,
+                                "tx-ipxip6-segmentation": false,
+                                "tx-lockless": false,
+                                "tx-nocache-copy": false,
+                                "tx-scatter-gather": false,
+                                "tx-scatter-gather-fraglist": false,
+                                "tx-sctp-segmentation": false,
+                                "tx-tcp-ecn-segmentation": false,
+                                "tx-tcp-mangleid-segmentation": false,
+                                "tx-tcp-segmentation": false,
+                                "tx-tcp6-segmentation": false,
+                                "tx-tunnel-remcsum-segmentation": false,
+                                "tx-udp-segmentation": false,
+                                "tx-udp_tnl-csum-segmentation": false,
+                                "tx-udp_tnl-segmentation": false,
+                                "tx-vlan-hw-insert": false,
+                                "tx-vlan-stag-hw-insert": false,
+                                "vlan-challenged": false
+                        },
+                        "LastUpdateMetric": {
+                                "RxBytes": 50604,
+                                "RxPackets": 191,
+                                "TxBytes": 106933,
+                                "TxPackets": 212,
+                                "Start": 1621411741664,
+                                "Last": 1621411771665
+                        },
+                        "Metric": {
+                                "RxBytes": 23637313,
+                                "RxPackets": 27884,
+                                "TxBytes": 11672534,
+                                "TxPackets": 24302,
+                                "Last": 1621411771665
+                        },
+                        "IPV4": [
+                                "192.168.213.3/24"
+                        ],
+                        "Neighbors": [
+                                {
+                                        "MAC": "01:00:5e:00:00:16",
+                                        "IP": "224.0.0.22",
+                                        "State": [
+                                                "NUD_NOARP"
+                                        ],
+                                        "IfIndex": 15
+                                },
+                                {
+                                        "MAC": "01:00:5e:00:00:fb",
+                                        "IP": "224.0.0.251",
+                                        "State": [
+                                                "NUD_NOARP"
+                                        ],
+                                        "IfIndex": 15
+                                },
+                                {
+                                        "MAC": "e6:12:ca:a0:a5:48",
+                                        "IP": "192.168.213.23",
+                                        "State": [
+                                                "NUD_REACHABLE"
+                                        ],
+                                        "IfIndex": 15
+                                },
+                                {
+                                        "MAC": "01:00:5e:7f:ff:fa",
+                                        "IP": "239.255.255.250",
+                                        "State": [
+                                                "NUD_NOARP"
+                                        ],
+                                        "IfIndex": 15
+                                },
+                                {
+                                        "MAC": "33:33:ff:fd:b9:83",
+                                        "IP": "ff02::1:fffd:b983",
+                                        "State": [
+                                                "NUD_NOARP"
+                                        ],
+                                        "IfIndex": 15
+                                },
+                                {
+                                        "MAC": "33:33:00:00:00:02",
+                                        "IP": "ff02::2",
+                                        "State": [
+                                                "NUD_NOARP"
+                                        ],
+                                        "IfIndex": 15
+                                },
+                                {
+                                        "MAC": "33:33:00:00:00:16",
+                                        "IP": "ff02::16",
+                                        "State": [
+                                                "NUD_NOARP"
+                                        ],
+                                        "IfIndex": 15
+                                },
+                                {
+                                        "MAC": "33:33:00:00:00:fb",
+                                        "IP": "ff02::fb",
+                                        "State": [
+                                                "NUD_NOARP"
+                                        ],
+                                        "IfIndex": 15
+                                }
+                        ],
+                        "EncapType": "ether",
+                        "IfIndex": 15,
+                        "MTU": 1500,
+                        "IPV6": [
+                                "fe80::bd66:b2e1:49fd:b983/64"
+                        ],
+                        "MAC": "ca:c0:88:fe:b6:3d",
+                        "TID": "6fb104c0-3950-504d-7241-7cf7602976d8",
+                        "Type": "device",
+                        "RoutingTables": [
+                                {
+                                        "ID": 254,
+                                        "Src": null,
+                                        "Routes": [
+                                                {
+                                                        "Protocol": 16,
+                                                        "Prefix": "0.0.0.0/0",
+                                                        "NextHops": [
+                                                                {
+                                                                        "Priority": 100,
+                                                                        "IP": "192.168.213.23",
+                                                                        "IfIndex": 15
+                                                                }
+                                                        ]
+                                                },
+                                                {
+                                                        "Protocol": 2,
+                                                        "Prefix": "192.168.213.0/24",
+                                                        "NextHops": [
+                                                                {
+                                                                        "Priority": 100,
+                                                                        "IfIndex": 15
+                                                                }
+                                                        ]
+                                                },
+                                                {
+                                                        "Protocol": 2,
+                                                        "Prefix": "fe80::/64",
+                                                        "NextHops": [
+                                                                {
+                                                                        "Priority": 100,
+                                                                        "IfIndex": 15
+                                                                }
+                                                        ]
+                                                }
+                                        ]
+                                },
+                                {
+                                        "ID": 255,
+                                        "Src": "192.168.213.3",
+                                        "Routes": [
+                                                {
+                                                        "Protocol": 2,
+                                                        "Prefix": "192.168.213.0/32",
+                                                        "NextHops": [
+                                                                {
+                                                                        "Priority": 0,
+                                                                        "IfIndex": 15
+                                                                }
+                                                        ]
+                                                },
+                                                {
+                                                        "Protocol": 2,
+                                                        "Prefix": "192.168.213.3/32",
+                                                        "NextHops": [
+                                                                {
+                                                                        "Priority": 0,
+                                                                        "IfIndex": 15
+                                                                }
+                                                        ]
+                                                },
+                                                {
+                                                        "Protocol": 2,
+                                                        "Prefix": "192.168.213.255/32",
+                                                        "NextHops": [
+                                                                {
+                                                                        "Priority": 0,
+                                                                        "IfIndex": 15
+                                                                }
+                                                        ]
+                                                },
+                                                {
+                                                        "Protocol": 2,
+                                                        "Prefix": "fe80::bd66:b2e1:49fd:b983/128",
+                                                        "NextHops": [
+                                                                {
+                                                                        "Priority": 0,
+                                                                        "IfIndex": 15
+                                                                }
+                                                        ]
+                                                },
+                                                {
+                                                        "Protocol": 2,
+                                                        "Prefix": "ff00::/8",
+                                                        "NextHops": [
+                                                                {
+                                                                        "Priority": 256,
+                                                                        "IfIndex": 15
+                                                                }
+                                                        ]
+                                                }
+                                        ]
+                                }
+                        ],
+                        "State": "UNKNOWN",
+                        "LinkFlags": [
+                                "UP",
+                                "BROADCAST"
+                        ],
+                        "BusInfo": "usb-0000:00:14.0-2",
+                        "FDB": [
+                                {
+                                        "Flags": [
+                                                "NTF_SELF"
+                                        ],
+                                        "MAC": "01:00:5e:00:00:01",
+                                        "State": [
+                                                "NUD_PERMANENT"
+                                        ],
+                                        "IfIndex": 15
+                                },
+                                {
+                                        "Flags": [
+                                                "NTF_SELF"
+                                        ],
+                                        "MAC": "33:33:00:00:00:01",
+                                        "State": [
+                                                "NUD_PERMANENT"
+                                        ],
+                                        "IfIndex": 15
+                                },
+                                {
+                                        "Flags": [
+                                                "NTF_SELF"
+                                        ],
+                                        "MAC": "33:33:ff:fd:b9:83",
+                                        "State": [
+                                                "NUD_PERMANENT"
+                                        ],
+                                        "IfIndex": 15
+                                },
+                                {
+                                        "Flags": [
+                                                "NTF_SELF"
+                                        ],
+                                        "MAC": "33:33:00:00:00:fb",
+                                        "State": [
+                                                "NUD_PERMANENT"
+                                        ],
+                                        "IfIndex": 15
+                                },
+                                {
+                                        "Flags": [
+                                                "NTF_SELF"
+                                        ],
+                                        "MAC": "01:00:5e:00:00:fb",
+                                        "State": [
+                                                "NUD_PERMANENT"
+                                        ],
+                                        "IfIndex": 15
+                                }
+                        ],
+                        "Driver": "rndis_host",
+                        "Name": "enp0s20f0u2"
+                },
+                "Host": "archer",
+                "Origin": "agent.archer",
+                "CreatedAt": 1621411321663,
+                "UpdatedAt": 1621411771666,
+                "DeletedAt": null,
+                "Revision": 18
+        }
+]

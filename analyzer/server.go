@@ -20,12 +20,19 @@
 package analyzer
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/skydive-project/dede/dede"
@@ -50,11 +57,9 @@ import (
 	ge "github.com/skydive-project/skydive/gremlin/traversal"
 	"github.com/skydive-project/skydive/packetinjector"
 	"github.com/skydive-project/skydive/probe"
-	"github.com/skydive-project/skydive/sflow"
 	"github.com/skydive-project/skydive/statics"
 	"github.com/skydive-project/skydive/topology"
 	usertopology "github.com/skydive-project/skydive/topology/enhancers"
-	"github.com/skydive-project/skydive/topology/probes/blockdev"
 	"github.com/skydive-project/skydive/ui"
 	"github.com/skydive-project/skydive/validator"
 	"github.com/skydive-project/skydive/version"
@@ -90,6 +95,7 @@ type Server struct {
 	graphStorage    graph.PersistentBackend
 	flowStorage     storage.Storage
 	etcdClient      *etcdclient.Client
+	traceProvider   *sdktrace.TracerProvider
 }
 
 // GetStatus returns the status of an analyzer
@@ -121,7 +127,8 @@ func (s *Server) createStartupCapture() error {
 	logging.GetLogger().Infof("Invoke capturing of type '%s' from startup with gremlin: %s and BPF: %s", captureType, gremlin, bpf)
 	capture := types.NewCapture(gremlin, bpf)
 	capture.Type = captureType
-	if err := apiHandler.Create(capture, nil); err != nil && !errors.Is(err, rest.ErrDuplicatedResource) {
+	// TODO aqui hace falta pasar algun contexto con span?
+	if err := apiHandler.Create(context.Background(), capture, nil); err != nil && !errors.Is(err, rest.ErrDuplicatedResource) {
 		return err
 	}
 	return nil
@@ -195,11 +202,19 @@ func (s *Server) Stop() {
 	}); ok {
 		tr.CloseIdleConnections()
 	}
+
+	// TODO parar OpenTelemetry
 }
 
 // NewServerFromConfig creates a new empty server
 func NewServerFromConfig() (*Server, error) {
 	host := config.GetString("host_id")
+
+	// OpenTelemetry initialization
+	tp, err := initTracer()
+	if err != nil {
+		return nil, fmt.Errorf("OpenTelemetry initialization: %v", err)
+	}
 
 	etcdClientOpts := etcdclient.Opts{
 		Servers: config.GetEtcdServerAddrs(),
@@ -267,9 +282,10 @@ func NewServerFromConfig() (*Server, error) {
 	}
 
 	s := &Server{
-		probeBundle:  probeBundle,
-		etcdClient:   etcdClient,
-		graphStorage: graphStorage,
+		probeBundle:   probeBundle,
+		etcdClient:    etcdClient,
+		graphStorage:  graphStorage,
+		traceProvider: tp,
 	}
 
 	opts := hub.Opts{
@@ -312,11 +328,13 @@ func NewServerFromConfig() (*Server, error) {
 
 	// add some global vars
 	uiServer.AddGlobalVar("ui", config.Get("ui"))
+	/* TODO comentado hasta ver que hacer con las probes
 	uiServer.AddGlobalVar("flow-metric-keys", (&flow.FlowMetric{}).GetFieldKeys())
 	uiServer.AddGlobalVar("interface-metric-keys", (&topology.InterfaceMetric{}).GetFieldKeys())
 	uiServer.AddGlobalVar("blockdev-metric-keys", (&blockdev.BlockMetric{}).GetFieldKeys())
 	uiServer.AddGlobalVar("sflow-metric-keys", (&sflow.SFMetric{}).GetFieldKeys())
 	uiServer.AddGlobalVar("probes", config.Get("analyzer.topology.probes"))
+	*/
 
 	s.flowStorage, err = newFlowBackendFromConfig(etcdClient)
 	if err != nil {
@@ -385,4 +403,30 @@ func ClusterAuthenticationOpts() *shttp.AuthenticationOpts {
 		Password: config.GetString("analyzer.auth.cluster.password"),
 		Cookie:   config.GetStringMapString("http.cookie"),
 	}
+}
+
+// initTracer initializates OpenTelemetry SDK to gather traces
+func initTracer() (*sdktrace.TracerProvider, error) {
+	// Jaeger exporter
+	endpoint := "http://localhost:14268/api/traces" // TODO parametrizar
+	exporter, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(endpoint)))
+	if err != nil {
+		return nil, fmt.Errorf("Jaeger exporter: %v", err)
+	}
+
+	// For the demonstration, use sdktrace.AlwaysSample sampler to sample all traces.
+	// In a production application, use sdktrace.ProbabilitySampler with a desired probability.
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.TraceIDRatioBased(1))), // TODO parametrizar factor. Poder cambiarlo en caliente? Poder hacer como jaeger y leer una config externa que nos permita modificar ese factor según que package (entiendo que sería usar el nombre del tracer para decidir su factor)
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(resource.NewSchemaless(
+			semconv.ServiceNameKey.String("skydive"),                 // TODO parametrizable
+			semconv.HostImageVersionKey.String("ImageVersion 1.2.3"), // TODO poner la versión que estamos usando
+		)),
+	)
+
+	// Store tracerProvider globally to be able to create Tracers from any package
+	otel.SetTracerProvider(tracerProvider)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	return tracerProvider, nil
 }

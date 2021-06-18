@@ -18,6 +18,7 @@
 package graph
 
 import (
+	"context"
 	"errors"
 	"sync/atomic"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/skydive-project/skydive/graffiti/filters"
 	"github.com/skydive-project/skydive/graffiti/logging"
 	"github.com/skydive-project/skydive/graffiti/service"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // Define the running cache mode, memory and/or persistent
@@ -55,15 +57,15 @@ func (c *CachedBackend) SetMode(mode int) {
 }
 
 // NodeAdded same the node in the cache
-func (c *CachedBackend) NodeAdded(n *Node) error {
+func (c *CachedBackend) NodeAdded(ctx context.Context, n *Node) error {
 	mode := c.cacheMode.Load()
 
-	if err := c.memory.NodeAdded(n); err != nil {
+	if err := c.memory.NodeAdded(ctx, n); err != nil {
 		return err
 	}
 
 	if mode != CacheOnlyMode && c.persistent != nil {
-		if err := c.persistent.NodeAdded(n); err != nil {
+		if err := c.persistent.NodeAdded(ctx, n); err != nil {
 			return err
 		}
 	}
@@ -72,15 +74,15 @@ func (c *CachedBackend) NodeAdded(n *Node) error {
 }
 
 // NodeDeleted Delete the node in the cache
-func (c *CachedBackend) NodeDeleted(n *Node) error {
+func (c *CachedBackend) NodeDeleted(ctx context.Context, n *Node) error {
 	mode := c.cacheMode.Load()
 
-	if err := c.memory.NodeDeleted(n); err != nil {
+	if err := c.memory.NodeDeleted(ctx, n); err != nil {
 		return err
 	}
 
 	if mode != CacheOnlyMode && c.persistent != nil {
-		if err := c.persistent.NodeDeleted(n); err != nil {
+		if err := c.persistent.NodeDeleted(ctx, n); err != nil {
 			return err
 		}
 	}
@@ -89,37 +91,45 @@ func (c *CachedBackend) NodeDeleted(n *Node) error {
 }
 
 // GetNode retrieve a node from the cache within a time slice
-func (c *CachedBackend) GetNode(i Identifier, t Context) []*Node {
+func (c *CachedBackend) GetNode(ctx context.Context, i Identifier, t Context) []*Node {
 	mode := c.cacheMode.Load()
 
 	if t.TimeSlice == nil || mode == CacheOnlyMode || c.persistent == nil {
-		return c.memory.GetNode(i, t)
+		return c.memory.GetNode(ctx, i, t)
 	}
 
-	return c.persistent.GetNode(i, t)
+	return c.persistent.GetNode(ctx, i, t)
 }
 
 // GetNodeEdges retrieve a list of edges from a node within a time slice, matching metadata
-func (c *CachedBackend) GetNodeEdges(n *Node, t Context, m ElementMatcher) (edges []*Edge) {
+func (c *CachedBackend) GetNodeEdges(ctx context.Context, n *Node, t Context, m ElementMatcher) (edges []*Edge) {
+	ctx, span := tracer.Start(ctx, "CachedBackend.GetNodeEdges")
+	span.SetAttributes(attribute.Key("node.id").String(string(n.ID)))
+	addFilterAttribute(span, m, "metadata.filter")
+	defer span.End()
+
 	mode := c.cacheMode.Load()
 
 	if t.TimeSlice == nil || mode == CacheOnlyMode || c.persistent == nil {
-		return c.memory.GetNodeEdges(n, t, m)
+		return c.memory.GetNodeEdges(ctx, n, t, m)
 	}
 
-	return c.persistent.GetNodeEdges(n, t, m)
+	return c.persistent.GetNodeEdges(ctx, n, t, m)
 }
 
 // EdgeAdded add an edge in the cache
-func (c *CachedBackend) EdgeAdded(e *Edge) error {
+func (c *CachedBackend) EdgeAdded(ctx context.Context, e *Edge) error {
+	ctx, span := tracer.Start(ctx, "CachedBackend.EdgeAdded")
+	defer span.End()
+
 	mode := c.cacheMode.Load()
 
-	if err := c.memory.EdgeAdded(e); err != nil {
+	if err := c.memory.EdgeAdded(ctx, e); err != nil {
 		return err
 	}
 
 	if mode != CacheOnlyMode && c.persistent != nil {
-		if err := c.persistent.EdgeAdded(e); err != nil {
+		if err := c.persistent.EdgeAdded(ctx, e); err != nil {
 			return err
 		}
 	}
@@ -128,15 +138,18 @@ func (c *CachedBackend) EdgeAdded(e *Edge) error {
 }
 
 // EdgeDeleted delete an edge in the cache
-func (c *CachedBackend) EdgeDeleted(e *Edge) error {
+func (c *CachedBackend) EdgeDeleted(ctx context.Context, e *Edge) error {
+	ctx, span := tracer.Start(ctx, "CachedBackend.EdgeDeleted")
+	defer span.End()
+
 	mode := c.cacheMode.Load()
 
-	if err := c.memory.EdgeDeleted(e); err != nil {
+	if err := c.memory.EdgeDeleted(ctx, e); err != nil {
 		return err
 	}
 
 	if mode != CacheOnlyMode && c.persistent != nil {
-		if err := c.persistent.EdgeDeleted(e); err != nil {
+		if err := c.persistent.EdgeDeleted(ctx, e); err != nil {
 			return err
 		}
 	}
@@ -145,37 +158,49 @@ func (c *CachedBackend) EdgeDeleted(e *Edge) error {
 }
 
 // GetEdge retrieve an edge within a time slice
-func (c *CachedBackend) GetEdge(i Identifier, t Context) []*Edge {
+func (c *CachedBackend) GetEdge(ctx context.Context, i Identifier, t Context) []*Edge {
+	ctx, span := tracer.Start(ctx, "CachedBackend.GetEdge")
+	defer span.End()
+
 	mode := c.cacheMode.Load()
 
 	if t.TimeSlice == nil || mode == CacheOnlyMode || c.persistent == nil {
-		return c.memory.GetEdge(i, t)
+		return c.memory.GetEdge(ctx, i, t)
 	}
 
-	return c.persistent.GetEdge(i, t)
+	return c.persistent.GetEdge(ctx, i, t)
 }
 
 // GetEdgeNodes retrieve a list of nodes from an edge within a time slice, matching metadata
-func (c *CachedBackend) GetEdgeNodes(e *Edge, t Context, parentMetadata, childMetadata ElementMatcher) ([]*Node, []*Node) {
+func (c *CachedBackend) GetEdgeNodes(ctx context.Context, e *Edge, t Context, parentMetadata, childMetadata ElementMatcher) ([]*Node, []*Node) {
+	ctx, span := tracer.Start(ctx, "CachedBackend.GetEdgeNodes")
+	span.SetAttributes(attribute.Key("edge.id").String(string(e.ID)))
+	addFilterAttribute(span, parentMetadata, "parent.metadata.filter")
+	addFilterAttribute(span, childMetadata, "child.metadata.filter")
+	defer span.End()
+
 	mode := c.cacheMode.Load()
 
 	if t.TimeSlice == nil || mode == CacheOnlyMode || c.persistent == nil {
-		return c.memory.GetEdgeNodes(e, t, parentMetadata, childMetadata)
+		return c.memory.GetEdgeNodes(ctx, e, t, parentMetadata, childMetadata)
 	}
 
-	return c.persistent.GetEdgeNodes(e, t, parentMetadata, childMetadata)
+	return c.persistent.GetEdgeNodes(ctx, e, t, parentMetadata, childMetadata)
 }
 
 // MetadataUpdated updates metadata
-func (c *CachedBackend) MetadataUpdated(i interface{}) error {
+func (c *CachedBackend) MetadataUpdated(ctx context.Context, i interface{}) error {
+	ctx, span := tracer.Start(ctx, "CachedBackend.MetadataUpdated")
+	defer span.End()
+
 	mode := c.cacheMode.Load()
 
-	if err := c.memory.MetadataUpdated(i); err != nil {
+	if err := c.memory.MetadataUpdated(ctx, i); err != nil {
 		return err
 	}
 
 	if mode != CacheOnlyMode && c.persistent != nil {
-		if err := c.persistent.MetadataUpdated(i); err != nil {
+		if err := c.persistent.MetadataUpdated(ctx, i); err != nil {
 			return err
 		}
 	}
@@ -183,24 +208,34 @@ func (c *CachedBackend) MetadataUpdated(i interface{}) error {
 }
 
 // GetNodes returns a list of nodes with a time slice, matching metadata
-func (c *CachedBackend) GetNodes(t Context, m ElementMatcher, e ElementMatcher) []*Node {
+func (c *CachedBackend) GetNodes(ctx context.Context, t Context, m ElementMatcher, e ElementMatcher) []*Node {
+	ctx, span := tracer.Start(ctx, "CachedBackend.GetNodes")
+	addFilterAttribute(span, m, "metadata.filter")
+	addFilterAttribute(span, e, "metadata.filter.element")
+	defer span.End()
+
 	mode := c.cacheMode.Load()
 
 	if t.TimeSlice == nil || mode == CacheOnlyMode || c.persistent == nil {
-		return c.memory.GetNodes(t, m, e)
+		return c.memory.GetNodes(ctx, t, m, e)
 	}
 
-	return c.persistent.GetNodes(t, m, e)
+	return c.persistent.GetNodes(ctx, t, m, e)
 }
 
 // GetEdges returns a list of edges with a time slice, matching metadata
-func (c *CachedBackend) GetEdges(t Context, m ElementMatcher, e ElementMatcher) []*Edge {
+func (c *CachedBackend) GetEdges(ctx context.Context, t Context, m ElementMatcher, e ElementMatcher) []*Edge {
+	ctx, span := tracer.Start(ctx, "CachedBackend.GetEdges")
+	addFilterAttribute(span, m, "metadata.filter")
+	addFilterAttribute(span, e, "metadata.filter.element")
+	defer span.End()
+
 	mode := c.cacheMode.Load()
 
 	if t.TimeSlice == nil || mode == CacheOnlyMode || c.persistent == nil {
-		return c.memory.GetEdges(t, m, e)
+		return c.memory.GetEdges(ctx, t, m, e)
 	}
-	return c.persistent.GetEdges(t, m, e)
+	return c.persistent.GetEdges(ctx, t, m, e)
 }
 
 // IsHistorySupported returns whether the persistent backend supports history
@@ -210,17 +245,20 @@ func (c *CachedBackend) IsHistorySupported() bool {
 
 // OnStarted implements PersistentBackendListener interface
 func (c *CachedBackend) OnStarted() {
+	ctx, span := tracer.Start(context.Background(), "CachedBackend.OnStarted")
+	defer span.End()
+
 	if c.persistent != nil && c.masterElection.IsMaster() {
 		regexFilter, _ := filters.NewRegexFilter("Origin", string(c.serviceType)+"\\..*")
 		originFilter := &filters.Filter{RegexFilter: regexFilter}
 
-		if err := c.persistent.FlushElements(NewElementFilter(originFilter)); err != nil {
+		if err := c.persistent.FlushElements(ctx, NewElementFilter(originFilter)); err != nil {
 			logging.GetLogger().Errorf("failed to flush elements: %s", err)
 		}
 
 		g := NewGraph(c.host, c.memory, Origin(c.host, c.serviceType))
 		elementFilter := NewElementFilter(filters.NewNotFilter(originFilter))
-		if err := c.persistent.Sync(g, elementFilter); err != nil {
+		if err := c.persistent.Sync(ctx, g, elementFilter); err != nil {
 			logging.GetLogger().Errorf("failed to synchronize persistent backend with in memory graph: %s", err)
 		}
 	}

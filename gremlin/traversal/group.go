@@ -18,6 +18,7 @@
 package traversal
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strconv"
@@ -74,7 +75,7 @@ func (e *GroupTraversalExtension) ParseStep(t traversal.Token, p traversal.Greml
 }
 
 // Exec Group step
-func (g *GroupGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (g *GroupGremlinTraversalStep) Exec(ctx context.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	switch last.(type) {
 	case *FlowTraversalStep:
 		fs := last.(*FlowTraversalStep)
@@ -94,7 +95,7 @@ func (g *GroupGremlinTraversalStep) Context() *traversal.GremlinTraversalContext
 }
 
 // Exec MoreThan step
-func (g *MoreThanGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (g *MoreThanGremlinTraversalStep) Exec(ctx context.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	switch last.(type) {
 	case *GroupTraversalStep:
 		group := last.(*GroupTraversalStep)

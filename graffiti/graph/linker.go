@@ -18,6 +18,7 @@
 package graph
 
 import (
+	"context"
 	"reflect"
 
 	"github.com/safchain/insanelock"
@@ -28,8 +29,8 @@ import (
 // Linker describes an object that returns incoming edges to a node
 // and outgoing edges from that node
 type Linker interface {
-	GetABLinks(node *Node) []*Edge
-	GetBALinks(node *Node) []*Edge
+	GetABLinks(ctx context.Context, node *Node) []*Edge
+	GetBALinks(ctx context.Context, node *Node) []*Edge
 }
 
 // LinkerEventListener defines the event interface for linker
@@ -40,8 +41,8 @@ type LinkerEventListener interface {
 type listener struct {
 	DefaultGraphListener
 	graph             *Graph
-	newLinksFunc      func(node *Node) []*Edge
-	existingLinksFunc func(node *Node) []*Edge
+	newLinksFunc      func(ctx context.Context, node *Node) []*Edge
+	existingLinksFunc func(ctx context.Context, node *Node) []*Edge
 	metadata          Metadata
 	links             map[Identifier]bool
 	resourceLinker    *ResourceLinker
@@ -55,12 +56,12 @@ func mapOfLinks(edges []*Edge) map[Identifier]*Edge {
 	return m
 }
 
-func (l *listener) nodeEvent(node *Node, deleted bool) {
+func (l *listener) nodeEvent(ctx context.Context, node *Node, deleted bool) {
 	var newLinks map[Identifier]*Edge
 	if !deleted {
-		newLinks = mapOfLinks(l.newLinksFunc(node))
+		newLinks = mapOfLinks(l.newLinksFunc(ctx, node))
 	}
-	existingLinks := mapOfLinks(l.existingLinksFunc(node))
+	existingLinks := mapOfLinks(l.existingLinksFunc(ctx, node))
 
 	for id, newLink := range newLinks {
 		for k, v := range l.metadata {
@@ -68,14 +69,14 @@ func (l *listener) nodeEvent(node *Node, deleted bool) {
 		}
 
 		if oldLink, found := existingLinks[id]; !found {
-			if err := l.graph.AddEdge(newLink); err != nil {
+			if err := l.graph.AddEdge(ctx, newLink); err != nil {
 				l.resourceLinker.notifyError(err)
 			} else {
 				l.links[newLink.ID] = true
 			}
 		} else {
 			if !reflect.DeepEqual(newLink.Metadata, oldLink.Metadata) {
-				if err := l.graph.SetMetadata(oldLink, newLink.Metadata); err != nil {
+				if err := l.graph.SetMetadata(ctx, oldLink, newLink.Metadata); err != nil {
 					l.resourceLinker.notifyError(err)
 				}
 			}
@@ -85,7 +86,7 @@ func (l *listener) nodeEvent(node *Node, deleted bool) {
 
 	for _, oldLink := range existingLinks {
 		if _, found := l.links[oldLink.ID]; found {
-			if err := l.graph.DelEdge(oldLink); err != nil {
+			if err := l.graph.DelEdge(ctx, oldLink); err != nil {
 				l.resourceLinker.notifyError(err)
 			}
 			delete(l.links, oldLink.ID)
@@ -93,16 +94,25 @@ func (l *listener) nodeEvent(node *Node, deleted bool) {
 	}
 }
 
-func (l *listener) OnNodeAdded(node *Node) {
-	l.nodeEvent(node, false)
+func (l *listener) OnNodeAdded(ctx context.Context, node *Node) {
+	ctx, span := tracer.Start(ctx, "OnNodeAdded")
+	defer span.End()
+
+	l.nodeEvent(ctx, node, false)
 }
 
-func (l *listener) OnNodeUpdated(node *Node, ops []PartiallyUpdatedOp) {
-	l.nodeEvent(node, false)
+func (l *listener) OnNodeUpdated(ctx context.Context, node *Node, ops []PartiallyUpdatedOp) {
+	ctx, span := tracer.Start(ctx, "OnNodeUpdated")
+	defer span.End()
+
+	l.nodeEvent(ctx, node, false)
 }
 
-func (l *listener) OnNodeDeleted(node *Node) {
-	l.nodeEvent(node, true)
+func (l *listener) OnNodeDeleted(ctx context.Context, node *Node) {
+	ctx, span := tracer.Start(ctx, "OnNodeDeleted")
+	defer span.End()
+
+	l.nodeEvent(ctx, node, true)
 }
 
 // DefaultLinker returns a linker that does nothing
@@ -135,13 +145,13 @@ type ResourceLinker struct {
 	eventListeners []LinkerEventListener
 }
 
-func (rl *ResourceLinker) getLinks(node *Node, direction string) []*Edge {
+func (rl *ResourceLinker) getLinks(ctx context.Context, node *Node, direction string) []*Edge {
 	metadata := Metadata{}
 	for k, v := range rl.metadata {
 		metadata[k] = v
 	}
 	metadata[direction] = string(node.ID)
-	return rl.g.GetNodeEdges(node, metadata)
+	return rl.g.GetNodeEdges(ctx, node, metadata)
 }
 
 // Start linking resources by listening for graph events
@@ -152,8 +162,8 @@ func (rl *ResourceLinker) Start() error {
 		rl.abListener = &listener{
 			graph:        rl.g,
 			newLinksFunc: rl.linker.GetABLinks,
-			existingLinksFunc: func(node *Node) (edges []*Edge) {
-				return rl.getLinks(node, "Parent")
+			existingLinksFunc: func(ctx context.Context, node *Node) (edges []*Edge) {
+				return rl.getLinks(ctx, node, "Parent")
 			},
 			metadata:       rl.metadata,
 			links:          links,
@@ -168,8 +178,8 @@ func (rl *ResourceLinker) Start() error {
 		rl.baListener = &listener{
 			graph:        rl.g,
 			newLinksFunc: rl.linker.GetBALinks,
-			existingLinksFunc: func(node *Node) (edges []*Edge) {
-				return rl.getLinks(node, "Child")
+			existingLinksFunc: func(ctx context.Context, node *Node) (edges []*Edge) {
+				return rl.getLinks(ctx, node, "Child")
 			},
 			metadata:       rl.metadata,
 			links:          links,
@@ -298,10 +308,10 @@ func (mil *MetadataIndexerLinker) createEdge(node1, node2 *Node) *Edge {
 }
 
 // GetABLinks returns all the outgoing links for a node
-func (mil *MetadataIndexerLinker) GetABLinks(node *Node) (edges []*Edge) {
+func (mil *MetadataIndexerLinker) GetABLinks(ctx context.Context, node *Node) (edges []*Edge) {
 	if vFields, err := getFieldsAsArray(node, mil.indexer1.indexes); err == nil {
 		for _, fields := range vFields {
-			nodes, _ := mil.indexer2.Get(fields...)
+			nodes, _ := mil.indexer2.Get(ctx, fields...)
 			for _, n := range nodes {
 				edges = append(edges, mil.createEdge(node, n))
 			}
@@ -311,10 +321,10 @@ func (mil *MetadataIndexerLinker) GetABLinks(node *Node) (edges []*Edge) {
 }
 
 // GetBALinks returns all the incoming links for a node
-func (mil *MetadataIndexerLinker) GetBALinks(node *Node) (edges []*Edge) {
+func (mil *MetadataIndexerLinker) GetBALinks(ctx context.Context, node *Node) (edges []*Edge) {
 	if vFields, err := getFieldsAsArray(node, mil.indexer2.indexes); err == nil {
 		for _, fields := range vFields {
-			nodes, _ := mil.indexer1.Get(fields...)
+			nodes, _ := mil.indexer1.Get(ctx, fields...)
 			for _, n := range nodes {
 				edges = append(edges, mil.createEdge(n, node))
 			}

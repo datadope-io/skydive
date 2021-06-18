@@ -21,6 +21,8 @@
 package server
 
 import (
+	"context"
+
 	"github.com/skydive-project/skydive/api/types"
 	"github.com/skydive-project/skydive/graffiti/api/rest"
 	api "github.com/skydive-project/skydive/graffiti/api/server"
@@ -50,7 +52,7 @@ func (erh *EdgeRuleResourceHandler) New() rest.Resource {
 }
 
 // Update an edge rule
-func (a *EdgeRuleAPI) Update(id string, resource rest.Resource) (rest.Resource, bool, error) {
+func (a *EdgeRuleAPI) Update(ctx context.Context, id string, resource rest.Resource) (rest.Resource, bool, error) {
 	return nil, false, rest.ErrNotUpdatable
 }
 

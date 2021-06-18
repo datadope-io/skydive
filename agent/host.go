@@ -18,6 +18,7 @@
 package agent
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -32,7 +33,7 @@ import (
 )
 
 // createRootNode creates a graph.Node based on the host properties and aims to have an unique ID
-func createRootNode(g *graph.Graph) (*graph.Node, error) {
+func createRootNode(ctx context.Context, g *graph.Graph) (*graph.Node, error) {
 	hostID := config.GetString("host_id")
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -51,12 +52,12 @@ func createRootNode(g *graph.Graph) (*graph.Node, error) {
 		}
 	}
 
-	hostNode, err := g.NewNode(graph.GenID(), m)
+	hostNode, err := g.NewNode(ctx, graph.GenID(), m)
 	if err != nil {
 		return nil, err
 	}
 
-	parseMetadataConfigFiles(g, hostNode)
+	parseMetadataConfigFiles(ctx, g, hostNode)
 
 	return hostNode, nil
 }
@@ -68,7 +69,7 @@ type metadataConfigFile struct {
 	Selector string
 }
 
-func parseMetadataConfigFiles(g *graph.Graph, hostNode *graph.Node) error {
+func parseMetadataConfigFiles(ctx context.Context, g *graph.Graph, hostNode *graph.Node) error {
 	files := config.Get("agent.metadata_config.files")
 	if files == nil {
 		return nil
@@ -83,7 +84,7 @@ func parseMetadataConfigFiles(g *graph.Graph, hostNode *graph.Node) error {
 		s := v.GetString(mcf.Selector)
 
 		g.Lock()
-		g.AddMetadata(hostNode, fmt.Sprintf("Config.%s", mcf.Name), s)
+		g.AddMetadata(ctx, hostNode, fmt.Sprintf("Config.%s", mcf.Name), s)
 		g.Unlock()
 	}
 

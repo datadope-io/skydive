@@ -21,6 +21,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/skydive-project/skydive/api/types"
@@ -58,7 +59,7 @@ func (c *CaptureResourceHandler) New() rest.Resource {
 }
 
 // Decorate populates the capture resource
-func (c *CaptureAPIHandler) Decorate(resource rest.Resource) {
+func (c *CaptureAPIHandler) Decorate(ctx context.Context, resource rest.Resource) {
 	capture := resource.(*types.Capture)
 
 	count := 0
@@ -66,7 +67,8 @@ func (c *CaptureAPIHandler) Decorate(resource rest.Resource) {
 	c.Graph.RLock()
 	defer c.Graph.RUnlock()
 
-	res, err := ge.TopologyGremlinQuery(c.Graph, capture.GremlinQuery)
+	// TODO donde debe generarse esta petición?
+	res, err := ge.TopologyGremlinQuery(context.Background(), c.Graph, capture.GremlinQuery)
 	if err != nil {
 		logging.GetLogger().Errorf("Gremlin error: %s", err)
 		return
@@ -104,7 +106,7 @@ func (c *CaptureAPIHandler) Decorate(resource rest.Resource) {
 }
 
 // Create tests that resource GremlinQuery does not exists already
-func (c *CaptureAPIHandler) Create(r rest.Resource, opts *rest.CreateOptions) error {
+func (c *CaptureAPIHandler) Create(ctx context.Context, r rest.Resource, opts *rest.CreateOptions) error {
 	capture := r.(*types.Capture)
 
 	// check capabilities
@@ -126,7 +128,7 @@ func (c *CaptureAPIHandler) Create(r rest.Resource, opts *rest.CreateOptions) er
 		}
 	}
 
-	resources := c.Index()
+	resources := c.Index(ctx)
 	for _, resource := range resources {
 		resource := resource.(*types.Capture)
 
@@ -142,11 +144,11 @@ func (c *CaptureAPIHandler) Create(r rest.Resource, opts *rest.CreateOptions) er
 		}
 	}
 
-	return c.BasicAPIHandler.Create(r, opts)
+	return c.BasicAPIHandler.Create(ctx, r, opts)
 }
 
 // Update a capture
-func (c *CaptureAPIHandler) Update(id string, resource rest.Resource) (rest.Resource, bool, error) {
+func (c *CaptureAPIHandler) Update(ctx context.Context, id string, resource rest.Resource) (rest.Resource, bool, error) {
 	return nil, false, rest.ErrNotUpdatable
 }
 

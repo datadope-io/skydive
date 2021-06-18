@@ -20,6 +20,7 @@
 package packetinjector
 
 import (
+	"context"
 	"errors"
 	"syscall"
 	"time"
@@ -36,6 +37,9 @@ import (
 )
 
 func (o *onDemandPacketInjectServer) CreateTask(srcNode *graph.Node, resource rest.Resource) (ondemand.Task, error) {
+	ctx, span := tracer.Start(context.Background(), "onDemandPacketInjectServer.CreateTask")
+	defer span.End()
+
 	logging.GetLogger().Debugf("Registering packet injection %s on %s", resource.GetID(), srcNode.ID)
 
 	pp := resource.(*PacketInjectionRequest)
@@ -54,7 +58,7 @@ func (o *onDemandPacketInjectServer) CreateTask(srcNode *graph.Node, resource re
 		return nil, errors.New("Source node has no name")
 	}
 
-	_, nsPath, err := topology.NamespaceFromNode(o.graph, srcNode)
+	_, nsPath, err := topology.NamespaceFromNode(ctx, o.graph, srcNode)
 	if err != nil {
 		return nil, err
 	}
@@ -83,12 +87,12 @@ func (o *onDemandPacketInjectServer) CreateTask(srcNode *graph.Node, resource re
 		State:                  "active",
 	}
 
-	if o.graph.UpdateMetadata(srcNode, "PacketInjections", func(obj interface{}) bool {
+	if o.graph.UpdateMetadata(ctx, srcNode, "PacketInjections", func(obj interface{}) bool {
 		captures := obj.(*Injections)
 		*captures = append(*captures, metadata)
 		return true
 	}) == getter.ErrFieldNotFound {
-		o.graph.AddMetadata(srcNode, "PacketInjections", &Injections{metadata})
+		o.graph.AddMetadata(ctx, srcNode, "PacketInjections", &Injections{metadata})
 	}
 
 	packetSource := packetForger.PacketSource()
@@ -124,22 +128,26 @@ func (o *onDemandPacketInjectServer) CreateTask(srcNode *graph.Node, resource re
 			case <-cancel:
 				break InjectLoop
 			case <-ticker.C:
+				ctx, spanTicker := tracer.Start(context.Background(), "onDemandPacketInjectServer.CreateTask.Ticker")
 				o.graph.Lock()
-				o.graph.UpdateMetadata(srcNode, "PacketInjections", func(obj interface{}) bool {
+				o.graph.UpdateMetadata(ctx, srcNode, "PacketInjections", func(obj interface{}) bool {
 					metadata.PacketCount = packetCount
 					return true
 				})
 				o.graph.Unlock()
+				spanTicker.End()
 			}
 		}
 
+		ctx, spanTickerEnd := tracer.Start(context.Background(), "onDemandPacketInjectServer.CreateTask.Ticker.End")
+		defer spanTickerEnd.End()
 		o.graph.Lock()
-		o.graph.UpdateMetadata(srcNode, "PacketInjections", func(obj interface{}) bool {
+		o.graph.UpdateMetadata(ctx, srcNode, "PacketInjections", func(obj interface{}) bool {
 			injections := obj.(*Injections)
 			for i, injection := range *injections {
 				if injection.UUID == pp.UUID {
 					if len(*injections) <= 1 {
-						o.graph.DelMetadata(srcNode, "PacketInjections")
+						o.graph.DelMetadata(ctx, srcNode, "PacketInjections")
 						return false
 					}
 					*injections = append((*injections)[:i], (*injections)[i+1:]...)

@@ -18,12 +18,15 @@
 package endpoints
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
 	"sync"
 
 	"github.com/safchain/insanelock"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/graph/traversal"
@@ -49,8 +52,8 @@ type subscriber struct {
 	updatePolicy  UpdatePolicy
 }
 
-func (s *subscriber) getSubGraph(g *graph.Graph, lockGraph bool) (*graph.Graph, error) {
-	res, err := s.ts.Exec(g, lockGraph)
+func (s *subscriber) getSubGraph(ctx context.Context, g *graph.Graph, lockGraph bool) (*graph.Graph, error) {
+	res, err := s.ts.Exec(ctx, g, lockGraph)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +84,7 @@ type SubscriberEndpoint struct {
 	logger        logging.Logger
 }
 
-func (t *SubscriberEndpoint) newSubscriber(speaker ws.Speaker, gremlinFilter string, lockGraph bool) (s *subscriber, err error) {
+func (t *SubscriberEndpoint) newSubscriber(ctx context.Context, speaker ws.Speaker, gremlinFilter string, lockGraph bool) (s *subscriber, err error) {
 	s = &subscriber{Speaker: speaker, gremlinFilter: gremlinFilter}
 
 	if gremlinFilter != "" {
@@ -90,7 +93,7 @@ func (t *SubscriberEndpoint) newSubscriber(speaker ws.Speaker, gremlinFilter str
 			return nil, fmt.Errorf("Invalid Gremlin filter '%s' for client %s", gremlinFilter, speaker.GetRemoteHost())
 		}
 
-		if s.lastGraph, err = s.getSubGraph(t.graph, lockGraph); err != nil {
+		if s.lastGraph, err = s.getSubGraph(ctx, t.graph, lockGraph); err != nil {
 			return nil, err
 		}
 	} else {
@@ -102,12 +105,23 @@ func (t *SubscriberEndpoint) newSubscriber(speaker ws.Speaker, gremlinFilter str
 
 // OnConnected called when a subscriber got connected.
 func (t *SubscriberEndpoint) OnConnected(c ws.Speaker) error {
+	// TODO obtener el contexto de los headers? Aunque lo más seguro es que en este caso no haya
+	// información de span
+	ctx, span := tracer.Start(context.Background(), "OnConnected",
+		trace.WithAttributes(attribute.Key("client").String(c.GetRemoteHost())),
+	)
+	defer span.End()
+
 	gremlinFilter := c.GetHeaders().Get("X-Gremlin-Filter")
 	if gremlinFilter == "" {
 		gremlinFilter = c.GetURL().Query().Get("x-gremlin-filter")
 	}
 
-	subscriber, err := t.newSubscriber(c, gremlinFilter, true)
+	// TODO como generar los atributos con el mismo formato que las http.request?
+	// Podemos ver la info que tenemos en websocket.Speaker
+	span.SetAttributes(attribute.Key("query").String(gremlinFilter))
+
+	subscriber, err := t.newSubscriber(ctx, c, gremlinFilter, true)
 	if err != nil {
 		t.logger.Error(err)
 		return err
@@ -148,6 +162,11 @@ func (t *SubscriberEndpoint) OnDisconnected(c ws.Speaker) {
 // OnStructMessage is triggered when receiving a message from a subscriber.
 // It only responds to SyncRequestMsgType messages
 func (t *SubscriberEndpoint) OnStructMessage(c ws.Speaker, msg *ws.StructMessage) {
+	ctx, span := tracer.Start(context.Background(), "SubscriberEndpoint.OnStructMessage", trace.WithAttributes(
+		attribute.Key("client").String(c.GetRemoteHost()),
+	))
+	defer span.End()
+
 	msgType, obj, err := messages.UnmarshalMessage(msg)
 	if err != nil {
 		t.logger.Errorf("Graph: Unable to parse the event %v: %s", msg, err)
@@ -156,6 +175,8 @@ func (t *SubscriberEndpoint) OnStructMessage(c ws.Speaker, msg *ws.StructMessage
 
 	// this kind of message usually comes from external clients like the WebUI
 	if msgType == messages.SyncRequestMsgType {
+		span.SetAttributes(attribute.Key("msg.type").String("SyncRequest"))
+
 		t.graph.RLock()
 		defer t.graph.RUnlock()
 
@@ -171,13 +192,15 @@ func (t *SubscriberEndpoint) OnStructMessage(c ws.Speaker, msg *ws.StructMessage
 		host := c.GetRemoteHost()
 
 		if syncMsg.GremlinFilter != nil {
+			span.SetAttributes(attribute.Key("gremlin.filter").String(*syncMsg.GremlinFilter))
+
 			// filter reset
 			if *syncMsg.GremlinFilter == "" {
 				t.Lock()
 				t.subscribers[c].resetFilter()
 				t.Unlock()
 			} else {
-				subscriber, err := t.newSubscriber(c, *syncMsg.GremlinFilter, false)
+				subscriber, err := t.newSubscriber(ctx, c, *syncMsg.GremlinFilter, false)
 				if err != nil {
 					t.logger.Error(err)
 
@@ -214,7 +237,7 @@ func (t *SubscriberEndpoint) OnStructMessage(c ws.Speaker, msg *ws.StructMessage
 // notifyClients forwards local graph modification to subscribers. If a subscriber
 // specified a Gremlin filter, a 'Diff' is applied between the previous graph state
 // for this subscriber and the current graph state.
-func (t *SubscriberEndpoint) notifyClients(typ string, i interface{}, ops []graph.PartiallyUpdatedOp) {
+func (t *SubscriberEndpoint) notifyClients(ctx context.Context, typ string, i interface{}, ops []graph.PartiallyUpdatedOp) {
 	var subscribers []*subscriber
 	t.RLock()
 	for _, subscriber := range t.subscribers {
@@ -250,13 +273,13 @@ func (t *SubscriberEndpoint) notifyClients(typ string, i interface{}, ops []grap
 		}
 
 		if subscriber.gremlinFilter != "" {
-			g, err := subscriber.getSubGraph(t.graph, false)
+			g, err := subscriber.getSubGraph(ctx, t.graph, false)
 			if err != nil {
 				t.logger.Error(err)
 				continue
 			}
 
-			addedNodes, removedNodes, addedEdges, removedEdges := subscriber.lastGraph.Diff(g)
+			addedNodes, removedNodes, addedEdges, removedEdges := subscriber.lastGraph.Diff(ctx, g)
 
 			for _, n := range addedNodes {
 				subscriber.SendMessage(messages.NewStructMessage(messages.NodeAddedMsgType, n))
@@ -277,11 +300,11 @@ func (t *SubscriberEndpoint) notifyClients(typ string, i interface{}, ops []grap
 			// handle updates
 			switch typ {
 			case messages.NodeUpdatedMsgType, messages.NodePartiallyUpdatedMsgType:
-				if g.GetNode(i.(*graph.Node).ID) != nil {
+				if g.GetNode(ctx, i.(*graph.Node).ID) != nil {
 					subscriber.SendMessage(messages.NewStructMessage(msgType, msg))
 				}
 			case messages.EdgeUpdatedMsgType, messages.EdgePartiallyUpdatedMsgType:
-				if g.GetEdge(i.(*graph.Edge).ID) != nil {
+				if g.GetEdge(ctx, i.(*graph.Edge).ID) != nil {
 					subscriber.SendMessage(messages.NewStructMessage(msgType, msg))
 				}
 			}
@@ -294,33 +317,33 @@ func (t *SubscriberEndpoint) notifyClients(typ string, i interface{}, ops []grap
 }
 
 // OnNodeUpdated graph node updated event. Implements the GraphEventListener interface.
-func (t *SubscriberEndpoint) OnNodeUpdated(n *graph.Node, ops []graph.PartiallyUpdatedOp) {
-	t.notifyClients(messages.NodeUpdatedMsgType, n, ops)
+func (t *SubscriberEndpoint) OnNodeUpdated(ctx context.Context, n *graph.Node, ops []graph.PartiallyUpdatedOp) {
+	t.notifyClients(ctx, messages.NodeUpdatedMsgType, n, ops)
 }
 
 // OnNodeAdded graph node added event. Implements the GraphEventListener interface.
-func (t *SubscriberEndpoint) OnNodeAdded(n *graph.Node) {
-	t.notifyClients(messages.NodeAddedMsgType, n, nil)
+func (t *SubscriberEndpoint) OnNodeAdded(ctx context.Context, n *graph.Node) {
+	t.notifyClients(ctx, messages.NodeAddedMsgType, n, nil)
 }
 
 // OnNodeDeleted graph node deleted event. Implements the GraphEventListener interface.
-func (t *SubscriberEndpoint) OnNodeDeleted(n *graph.Node) {
-	t.notifyClients(messages.NodeDeletedMsgType, n, nil)
+func (t *SubscriberEndpoint) OnNodeDeleted(ctx context.Context, n *graph.Node) {
+	t.notifyClients(ctx, messages.NodeDeletedMsgType, n, nil)
 }
 
 // OnEdgeUpdated graph edge updated event. Implements the GraphEventListener interface.
-func (t *SubscriberEndpoint) OnEdgeUpdated(e *graph.Edge, ops []graph.PartiallyUpdatedOp) {
-	t.notifyClients(messages.EdgeUpdatedMsgType, e, nil)
+func (t *SubscriberEndpoint) OnEdgeUpdated(ctx context.Context, e *graph.Edge, ops []graph.PartiallyUpdatedOp) {
+	t.notifyClients(ctx, messages.EdgeUpdatedMsgType, e, nil)
 }
 
 // OnEdgeAdded graph edge added event. Implements the GraphEventListener interface.
-func (t *SubscriberEndpoint) OnEdgeAdded(e *graph.Edge) {
-	t.notifyClients(messages.EdgeAddedMsgType, e, nil)
+func (t *SubscriberEndpoint) OnEdgeAdded(ctx context.Context, e *graph.Edge) {
+	t.notifyClients(ctx, messages.EdgeAddedMsgType, e, nil)
 }
 
 // OnEdgeDeleted graph edge deleted event. Implements the GraphEventListener interface.
-func (t *SubscriberEndpoint) OnEdgeDeleted(e *graph.Edge) {
-	t.notifyClients(messages.EdgeDeletedMsgType, e, nil)
+func (t *SubscriberEndpoint) OnEdgeDeleted(ctx context.Context, e *graph.Edge) {
+	t.notifyClients(ctx, messages.EdgeDeletedMsgType, e, nil)
 }
 
 // NewSubscriberEndpoint returns a new server to be used by external subscribers,

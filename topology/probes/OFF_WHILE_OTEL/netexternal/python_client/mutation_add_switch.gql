@@ -1,0 +1,32 @@
+mutation addSwitchVLAN {
+  addSwitch(input:{
+    Name:"swMAD01x"
+    MAC:"00:11:22:33:44:55"
+    Vendor:"Cisco"
+    Model:"5600"
+    Interfaces:[
+      {
+        Name:"ge/1/0"
+        Aggregation:false
+        VLAN: {
+          Mode:ACCESS
+          VID:[123]
+        }
+      },
+      {
+        Name:"tr/1/0"
+        Aggregation:false
+        VLAN: {
+          Mode:TRUNK
+          VID:[123,124,125]
+          NativeVID:20
+        }
+      }
+    ]
+
+  }) {
+    Updated
+    InterfaceUpdated
+    ID
+  }
+}

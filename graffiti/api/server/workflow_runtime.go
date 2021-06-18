@@ -18,6 +18,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -28,6 +29,8 @@ import (
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/graph/traversal"
 	"github.com/skydive-project/skydive/graffiti/js"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // NewWorkflowRuntime returns a new workflow runtime
@@ -44,7 +47,7 @@ func NewWorkflowRuntime(g *graph.Graph, tr *traversal.GremlinTraversalParser, se
 			return runtime.MakeCustomError("ParseError", err.Error())
 		}
 
-		result, err := ts.Exec(g, false)
+		result, err := ts.Exec(context.Background(), g, false) // TODO donde debe originarse el context para pasar aqui?
 		if err != nil {
 			return runtime.MakeCustomError("ExecuteError", err.Error())
 		}
@@ -83,6 +86,15 @@ func NewWorkflowRuntime(g *graph.Graph, tr *traversal.GremlinTraversalParser, se
 		}
 		resource := subs[2]
 
+		// TODO inicializar a partir de info de la llamada? Tendrá info de span?
+		ctx, span := tracer.Start(context.Background(), "workflow.request", trace.WithAttributes(
+			attribute.Key("url").String(url),
+			attribute.Key("resource").String(resource),
+			attribute.Key("method").String(method),
+			// TODO estandarizar los parámetros con los de http.request
+		))
+		defer span.End()
+
 		// For topology query, we directly call the Gremlin engine
 		if resource == "topology" {
 			query := types.TopologyParams{}
@@ -101,11 +113,11 @@ func NewWorkflowRuntime(g *graph.Graph, tr *traversal.GremlinTraversalParser, se
 
 		switch method {
 		case "POST":
-			res := handler.New()
+			res := handler.New(ctx)
 			if err := json.Unmarshal([]byte(data), res); err != nil {
 				return runtime.MakeCustomError("UnmarshalError", err.Error())
 			}
-			if err := handler.Create(res, nil); err != nil {
+			if err := handler.Create(ctx, res, nil); err != nil {
 				return runtime.MakeCustomError("CreateError", err.Error())
 			}
 			b, _ := json.Marshal(res)
@@ -115,16 +127,16 @@ func NewWorkflowRuntime(g *graph.Graph, tr *traversal.GremlinTraversalParser, se
 			if len(subs) < 4 {
 				return runtime.MakeCustomError("WrongArgument", "No ID specified")
 			}
-			handler.Delete(subs[3])
+			handler.Delete(ctx, subs[3])
 
 		case "GET":
 			if len(subs) < 4 {
-				resources := handler.Index()
+				resources := handler.Index(ctx)
 				b, _ := json.Marshal(resources)
 				content = string(b)
 			} else {
 				id := subs[3]
-				obj, found := handler.Get(id)
+				obj, found := handler.Get(ctx, id)
 				if !found {
 					return runtime.MakeCustomError("NotFound", fmt.Sprintf("%s %s could not be found", resource, id))
 				}

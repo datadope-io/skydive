@@ -18,6 +18,7 @@
 package sflow
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -82,7 +83,7 @@ func (sfa *Agent) feedFlowTable() {
 
 	defer func() {
 		sfa.Graph.Lock()
-		sfa.Graph.DelMetadata(sfa.Node, "SFlow")
+		sfa.Graph.DelMetadata(context.Background(), sfa.Node, "SFlow") // TODO como gestionar estas funciones que son long running?
 		sfa.Graph.Unlock()
 	}()
 
@@ -254,7 +255,7 @@ func (sfa *Agent) feedFlowTable() {
 		}
 		sf.Metric.Last = now
 
-		if err := sfa.Graph.AddMetadata(sfa.Node, "SFlow", sf); err != nil {
+		if err := sfa.Graph.AddMetadata(context.Background(), sfa.Node, "SFlow", sf); err != nil { // TODO gestionar un span por cada loop, tras recibir conex?
 			logging.GetLogger().Errorf("Unable to add sflow metadata from: %s, %s", ra, err)
 		}
 

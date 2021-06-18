@@ -21,6 +21,7 @@
 package server
 
 import (
+	"context"
 	"time"
 
 	"github.com/skydive-project/skydive/graffiti/api/rest"
@@ -40,7 +41,7 @@ type EdgeAPIHandler struct {
 }
 
 // New creates a new edge
-func (h *EdgeAPIHandler) New() rest.Resource {
+func (h *EdgeAPIHandler) New(ctx context.Context) rest.Resource {
 	return &types.Edge{}
 }
 
@@ -50,9 +51,9 @@ func (h *EdgeAPIHandler) Name() string {
 }
 
 // Index returns the list of existing edges
-func (h *EdgeAPIHandler) Index() map[string]rest.Resource {
+func (h *EdgeAPIHandler) Index(ctx context.Context) map[string]rest.Resource {
 	h.g.RLock()
-	edges := h.g.GetEdges(nil)
+	edges := h.g.GetEdges(ctx, nil)
 	edgeMap := make(map[string]rest.Resource, len(edges))
 	for _, edge := range edges {
 		n := types.Edge(*edge)
@@ -63,11 +64,11 @@ func (h *EdgeAPIHandler) Index() map[string]rest.Resource {
 }
 
 // Get returns a edge with the specified id
-func (h *EdgeAPIHandler) Get(id string) (rest.Resource, bool) {
+func (h *EdgeAPIHandler) Get(ctx context.Context, id string) (rest.Resource, bool) {
 	h.g.RLock()
 	defer h.g.RUnlock()
 
-	e := h.g.GetEdge(graph.Identifier(id))
+	e := h.g.GetEdge(ctx, graph.Identifier(id))
 	if e == nil {
 		return nil, false
 	}
@@ -76,11 +77,11 @@ func (h *EdgeAPIHandler) Get(id string) (rest.Resource, bool) {
 }
 
 // Decorate the specified edge
-func (h *EdgeAPIHandler) Decorate(resource rest.Resource) {
+func (h *EdgeAPIHandler) Decorate(ctx context.Context, resource rest.Resource) {
 }
 
 // Create adds the specified edge to the graph
-func (h *EdgeAPIHandler) Create(resource rest.Resource, createOpts *rest.CreateOptions) error {
+func (h *EdgeAPIHandler) Create(ctx context.Context, resource rest.Resource, createOpts *rest.CreateOptions) error {
 	edge := resource.(*types.Edge)
 	graphEdge := graph.Edge(*edge)
 	if graphEdge.CreatedAt.IsZero() {
@@ -97,30 +98,30 @@ func (h *EdgeAPIHandler) Create(resource rest.Resource, createOpts *rest.CreateO
 	}
 
 	h.g.Lock()
-	err := h.g.AddEdge(&graphEdge)
+	err := h.g.AddEdge(ctx, &graphEdge)
 	h.g.Unlock()
 	return err
 }
 
 // Delete the edge with the specified id from the graph
-func (h *EdgeAPIHandler) Delete(id string) error {
+func (h *EdgeAPIHandler) Delete(ctx context.Context, id string) error {
 	h.g.RLock()
 	defer h.g.RUnlock()
 
-	edge := h.g.GetEdge(graph.Identifier(id))
+	edge := h.g.GetEdge(ctx, graph.Identifier(id))
 	if edge == nil {
 		return rest.ErrNotFound
 	}
 
-	return h.g.DelEdge(edge)
+	return h.g.DelEdge(ctx, edge)
 }
 
 // Update a edge metadata
-func (h *EdgeAPIHandler) Update(id string, resource rest.Resource) (rest.Resource, bool, error) {
+func (h *EdgeAPIHandler) Update(ctx context.Context, id string, resource rest.Resource) (rest.Resource, bool, error) {
 	h.g.Lock()
 	defer h.g.Unlock()
 
-	e := h.g.GetEdge(graph.Identifier(id))
+	e := h.g.GetEdge(ctx, graph.Identifier(id))
 	if e == nil {
 		return nil, false, rest.ErrNotFound
 	}
@@ -129,7 +130,7 @@ func (h *EdgeAPIHandler) Update(id string, resource rest.Resource) (rest.Resourc
 	updateData := resource.(*types.Edge)
 
 	previousRevision := e.Revision
-	if err := h.g.SetMetadata(e, updateData.Metadata); err != nil {
+	if err := h.g.SetMetadata(ctx, e, updateData.Metadata); err != nil {
 		return nil, false, err
 	}
 

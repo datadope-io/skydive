@@ -18,6 +18,7 @@
 package traversal
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -80,7 +81,7 @@ func (e *NextHopTraversalExtension) ParseStep(t traversal.Token, p traversal.Gre
 }
 
 // Exec NextHop step
-func (nh *NextHopGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (nh *NextHopGremlinTraversalStep) Exec(ctx context.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	switch tv := last.(type) {
 	case *traversal.GraphTraversalV:
 		nextHops := make(map[string]*topology.NextHop)

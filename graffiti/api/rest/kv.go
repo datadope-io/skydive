@@ -46,7 +46,7 @@ func (h *BasicAPIHandler) Name() string {
 }
 
 // New creates a new resource
-func (h *BasicAPIHandler) New() Resource {
+func (h *BasicAPIHandler) New(ctx context.Context) Resource {
 	return h.ResourceHandler.New()
 }
 
@@ -58,7 +58,7 @@ func (h *BasicAPIHandler) Unmarshal(b []byte) (resource Resource, err error) {
 }
 
 // Decorate the resource
-func (h *BasicAPIHandler) Decorate(resource Resource) {
+func (h *BasicAPIHandler) Decorate(ctx context.Context, resource Resource) {
 }
 
 func (h *BasicAPIHandler) collectNodes(flatten map[string]Resource, nodes etcd.Nodes) {
@@ -77,7 +77,7 @@ func (h *BasicAPIHandler) collectNodes(flatten map[string]Resource, nodes etcd.N
 }
 
 // Index returns the list of resource available in Etcd
-func (h *BasicAPIHandler) Index() map[string]Resource {
+func (h *BasicAPIHandler) Index(ctx context.Context) map[string]Resource {
 	etcdPath := fmt.Sprintf("/%s/", h.ResourceHandler.Name())
 
 	resp, err := h.EtcdClient.KeysAPI.Get(context.Background(), etcdPath, &etcd.GetOptions{Recursive: true})
@@ -91,7 +91,7 @@ func (h *BasicAPIHandler) Index() map[string]Resource {
 }
 
 // Get a specific resource
-func (h *BasicAPIHandler) Get(id string) (Resource, bool) {
+func (h *BasicAPIHandler) Get(ctx context.Context, id string) (Resource, bool) {
 	etcdPath := fmt.Sprintf("/%s/%s", h.ResourceHandler.Name(), id)
 
 	resp, err := h.EtcdClient.KeysAPI.Get(context.Background(), etcdPath, nil)
@@ -104,7 +104,7 @@ func (h *BasicAPIHandler) Get(id string) (Resource, bool) {
 }
 
 // Create a new resource in Etcd
-func (h *BasicAPIHandler) Create(resource Resource, createOpts *CreateOptions) error {
+func (h *BasicAPIHandler) Create(ctx context.Context, resource Resource, createOpts *CreateOptions) error {
 	id, _ := uuid.NewV4()
 	resource.SetID(id.String())
 
@@ -124,7 +124,7 @@ func (h *BasicAPIHandler) Create(resource Resource, createOpts *CreateOptions) e
 }
 
 // Delete a resource
-func (h *BasicAPIHandler) Delete(id string) error {
+func (h *BasicAPIHandler) Delete(ctx context.Context, id string) error {
 	etcdPath := fmt.Sprintf("/%s/%s", h.ResourceHandler.Name(), id)
 
 	_, err := h.EtcdClient.KeysAPI.Delete(context.Background(), etcdPath, nil)
@@ -135,7 +135,7 @@ func (h *BasicAPIHandler) Delete(id string) error {
 }
 
 // Update a resource
-func (h *BasicAPIHandler) Update(id string, resource Resource) (Resource, bool, error) {
+func (h *BasicAPIHandler) Update(ctx context.Context, id string, resource Resource) (Resource, bool, error) {
 	data, err := json.Marshal(&resource)
 	if err != nil {
 		return resource, false, err
@@ -170,7 +170,7 @@ func (h *BasicAPIHandler) AsyncWatch(f WatcherCallback) StoppableWatcher {
 
 	// init phase retrieve all the previous value and use init as action for the
 	// callback
-	for id, node := range h.Index() {
+	for id, node := range h.Index(context.Background()) { // TODO como gestionar esta inicializacion de una goroutina long running
 		f("init", id, node)
 	}
 

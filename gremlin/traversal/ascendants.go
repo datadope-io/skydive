@@ -18,6 +18,8 @@
 package traversal
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/skydive-project/skydive/graffiti/filters"
@@ -92,7 +94,7 @@ func (e *AscendantsTraversalExtension) ParseStep(t traversal.Token, p traversal.
 }
 
 // getAscendants given a list of nodes, add them to the ascendants list, get the ascendants of that nodes and call this function with those new nodes
-func getAscendants(g *graph.Graph, nodes []*graph.Node, ascendants *[]*graph.Node, currDepth, maxDepth int64, edgeFilter graph.ElementMatcher, visited map[graph.Identifier]bool) {
+func getAscendants(ctx context.Context, g *graph.Graph, nodes []*graph.Node, ascendants *[]*graph.Node, currDepth, maxDepth int64, edgeFilter graph.ElementMatcher, visited map[graph.Identifier]bool) {
 	var ld []*graph.Node
 	for _, node := range nodes {
 		if _, ok := visited[node.ID]; !ok {
@@ -104,20 +106,20 @@ func getAscendants(g *graph.Graph, nodes []*graph.Node, ascendants *[]*graph.Nod
 
 	if maxDepth == 0 || currDepth < maxDepth {
 		for _, parent := range nodes {
-			parents := g.LookupParents(parent, nil, edgeFilter)
-			getAscendants(g, parents, ascendants, currDepth+1, maxDepth, edgeFilter, visited)
+			parents := g.LookupParents(ctx, parent, nil, edgeFilter)
+			getAscendants(ctx, g, parents, ascendants, currDepth+1, maxDepth, edgeFilter, visited)
 		}
 	}
 }
 
 // Exec Ascendants step
-func (d *AscendantsGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
+func (d *AscendantsGremlinTraversalStep) Exec(ctx context.Context, last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	var ascendants []*graph.Node
 
 	switch tv := last.(type) {
 	case *traversal.GraphTraversalV:
 		tv.GraphTraversal.RLock()
-		getAscendants(tv.GraphTraversal.Graph, tv.GetNodes(), &ascendants, 0, d.maxDepth, d.edgeFilter, make(map[graph.Identifier]bool))
+		getAscendants(ctx, tv.GraphTraversal.Graph, tv.GetNodes(), &ascendants, 0, d.maxDepth, d.edgeFilter, make(map[graph.Identifier]bool))
 		tv.GraphTraversal.RUnlock()
 
 		return traversal.NewGraphTraversalV(tv.GraphTraversal, ascendants), nil

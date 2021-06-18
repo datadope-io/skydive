@@ -28,6 +28,9 @@ import (
 	"time"
 
 	"github.com/pierrec/xxHash/xxHash64"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	etcd "github.com/skydive-project/skydive/graffiti/etcd/client"
 	"github.com/skydive-project/skydive/graffiti/logging"
@@ -38,6 +41,8 @@ var (
 	RollingRate = time.Minute
 
 	rollingRateLock sync.RWMutex
+
+	tracer = otel.Tracer("graffiti.storage.elasticsearch")
 )
 
 type rollIndexService struct {
@@ -48,7 +53,9 @@ type rollIndexService struct {
 	election etcd.MasterElection
 }
 
-func (r *rollIndexService) cleanup(index Index) {
+func (r *rollIndexService) cleanup(ctx context.Context, index Index) {
+	span := trace.SpanFromContext(ctx)
+
 	if r.config.IndicesLimit != 0 {
 		resp, err := r.client.esClient.IndexGet(index.IndexWildcard(r.config.IndexPrefix)).Do(context.Background())
 		if err != nil {
@@ -75,12 +82,16 @@ func (r *rollIndexService) cleanup(index Index) {
 			if _, err := r.client.esClient.DeleteIndex(toDelete...).Do(context.Background()); err != nil {
 				logging.GetLogger().Errorf("Error while deleting indices: %s", err)
 			}
+			span.AddEvent("Deleted indices", trace.WithAttributes(attribute.Array("indices", toDelete)))
 		}
 	}
 }
 
 func (r *rollIndexService) roll(force bool) {
 	logging.GetLogger().Debugf("Start rolling indices (forced: %v)...", force)
+
+	ctx, span := tracer.Start(context.Background(), "rollIndexService.roll")
+	defer span.End()
 
 	for _, index := range r.indices {
 		ri := r.client.esClient.RolloverIndex(index.Alias(r.config.IndexPrefix))
@@ -120,8 +131,9 @@ func (r *rollIndexService) roll(force bool) {
 			}
 			if resp.RolledOver {
 				logging.GetLogger().Infof("Index %s rolled over", alias)
+				span.AddEvent("Index rolled over", trace.WithAttributes(attribute.Key("index").String(alias)))
 
-				r.cleanup(index)
+				r.cleanup(ctx, index)
 			}
 		}
 	}
@@ -130,6 +142,8 @@ func (r *rollIndexService) roll(force bool) {
 }
 
 func (r *rollIndexService) run() {
+	ctx, span := tracer.Start(context.Background(), "rollIndexService.run")
+
 	rollingRateLock.RLock()
 	timer := time.NewTicker(RollingRate)
 	rollingRateLock.RUnlock()
@@ -139,9 +153,11 @@ func (r *rollIndexService) run() {
 	// try to cleanup first
 	for _, index := range r.indices {
 		if r.election == nil || r.election.IsMaster() {
-			r.cleanup(index)
+			r.cleanup(ctx, index)
 		}
 	}
+
+	span.End()
 
 	for {
 		select {

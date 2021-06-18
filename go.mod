@@ -2,6 +2,7 @@ module github.com/skydive-project/skydive
 
 require (
 	git.fd.io/govpp.git v0.0.0-20190321220742-345201eedce4
+	github.com/GehirnInc/crypt v0.0.0-20200316065508-bb7000b8a962 // indirect
 	github.com/VerizonDigital/vflow v0.0.0-20190111005900-eb30d936249e
 	github.com/abbot/go-http-auth v0.4.0
 	github.com/avast/retry-go v3.0.0+incompatible
@@ -16,6 +17,9 @@ require (
 	github.com/digitalocean/go-libvirt v0.0.0-20190715144809-7b622097a793
 	github.com/docker/docker v1.13.1
 	github.com/ebay/go-ovn v0.0.0-20190726163905-ca0da4d10c52
+	github.com/evanphx/json-patch v4.9.0+incompatible // indirect
+	github.com/fatih/structs v1.1.0 // indirect
+	github.com/felixge/httpsnoop v1.0.2 // indirect
 	github.com/flosch/pongo2 v0.0.0-20190707114632-bbf5a6c351f4 // indirect
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/gima/govalid v0.0.0-20150214172340-7b486932bea2
@@ -28,14 +32,17 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.3.2
 	github.com/golangci/golangci-lint v1.18.0
+	github.com/gomatic/funcmap v1.1.0 // indirect
 	github.com/gomatic/renderizer v1.0.1
-	github.com/google/go-cmp v0.5.5 // indirect
+	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/gopacket v1.1.17
 	github.com/gophercloud/gophercloud v0.13.0
+	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uitable v0.0.0-20160404203958-36ee7e946282 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.11.3 // indirect
+	github.com/hashicorp/go-version v1.2.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/hydrogen18/stoppableListener v0.0.0-20151210151943-dadc9ccc400c
 	github.com/inconshreveable/log15 v0.0.0-20201112154412-8562bdadbbac // indirect
@@ -53,6 +60,7 @@ require (
 	github.com/lxc/lxd v0.0.0-20200330183600-518f06676866
 	github.com/mailru/easyjson v0.7.6
 	github.com/mattn/goveralls v0.0.2
+	github.com/mitchellh/hashstructure v1.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/networkservicemesh/networkservicemesh/controlplane/api v0.2.0
@@ -64,9 +72,11 @@ require (
 	github.com/olivere/elastic/v7 v7.0.21
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7 // indirect
 	github.com/pelletier/go-toml v1.7.0 // indirect
+	github.com/peterh/liner v1.2.1 // indirect
 	github.com/pierrec/xxHash v0.1.5
 	github.com/pkg/errors v0.9.1
 	github.com/pmylund/go-cache v2.1.0+incompatible
+	github.com/robertkrimen/otto v0.0.0-20200922221731-ef014fd054ac // indirect
 	github.com/safchain/ethtool v0.0.0-20190326074333-42ed695e3de8
 	github.com/safchain/insanelock v0.0.0-20200217234559-cfbf166e05b3
 	github.com/shirou/gopsutil v2.18.12+incompatible
@@ -74,7 +84,7 @@ require (
 	github.com/skydive-project/dede v0.0.0-20200217172954-b1b74a5bb856
 	github.com/skydive-project/go-debouncer v1.0.0
 	github.com/skydive-project/goloxi v0.0.0-20190117172159-db2324197a3e
-	github.com/skydive-project/skydive/graffiti v0.0.0-00010101000000-000000000000
+	github.com/skydive-project/skydive/graffiti v0.0.0-20210617151603-1f5c0863694b
 	github.com/socketplane/libovsdb v0.0.0-20160607151822-5113f8fb4d9d
 	github.com/spf13/cast v1.3.1
 	github.com/spf13/cobra v1.1.1
@@ -82,6 +92,7 @@ require (
 	github.com/spf13/viper v1.7.0
 	github.com/stretchr/testify v1.7.0
 	github.com/t-yuki/gocover-cobertura v0.0.0-20180217150009-aaee18c8195c
+	github.com/tchap/zapext v1.0.0 // indirect
 	github.com/tebeka/go2xunit v1.4.10
 	github.com/tebeka/selenium v0.0.0-20170314201507-657e45ec600f
 	github.com/tinylib/msgp v1.1.0 // indirect
@@ -90,6 +101,15 @@ require (
 	github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
 	github.com/voxelbrain/goptions v0.0.0-20180630082107-58cddc247ea2 // indirect
 	github.com/weaveworks/tcptracer-bpf v0.0.0-20170817155301-e080bd747dc6
+	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
+	go.opentelemetry.io/contrib v0.21.0 // indirect
+	go.opentelemetry.io/otel v1.0.0-RC1
+	go.opentelemetry.io/otel/exporters/jaeger v1.0.0-RC1
+	go.opentelemetry.io/otel/exporters/stdout v0.20.0 // indirect
+	go.opentelemetry.io/otel/exporters/trace/jaeger v0.20.0
+	go.opentelemetry.io/otel/sdk v1.0.0-RC1
+	go.opentelemetry.io/otel/trace v1.0.0-RC1
+	go.uber.org/zap v1.16.0 // indirect
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
@@ -101,6 +121,7 @@ require (
 	gopkg.in/mcuadros/go-syslog.v2 v2.3.0
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
 	gopkg.in/robfig/cron.v2 v2.0.0-20150107220207-be2e0b0deed5 // indirect
+	gopkg.in/sourcemap.v1 v1.0.5 // indirect
 	gopkg.in/urfave/cli.v2 v2.0.0-20170928224240-b2bf3c5abeb9 // indirect
 	gopkg.in/validator.v2 v2.0.0-20160201165114-3e4f037f12a1
 	gopkg.in/yaml.v2 v2.3.0
@@ -109,6 +130,7 @@ require (
 	k8s.io/api v0.0.0
 	k8s.io/apimachinery v0.18.2
 	k8s.io/client-go v11.0.0+incompatible
+	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
 replace (

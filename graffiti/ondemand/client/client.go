@@ -18,6 +18,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -26,6 +27,7 @@ import (
 	cache "github.com/pmylund/go-cache"
 	"github.com/safchain/insanelock"
 	"github.com/skydive-project/go-debouncer"
+	"go.opentelemetry.io/otel"
 
 	"github.com/skydive-project/skydive/graffiti/api/rest"
 	etcd "github.com/skydive-project/skydive/graffiti/etcd/client"
@@ -49,7 +51,7 @@ type OnDemandClientHandler interface {
 	GetNodeResources(resource rest.Resource) []OnDemandNodeResource
 	CheckState(n *graph.Node, resource rest.Resource) bool
 	DecodeMessage(msg json.RawMessage) (rest.Resource, error)
-	EncodeMessage(nodeID graph.Identifier, resource rest.Resource) (json.RawMessage, error)
+	EncodeMessage(ctx context.Context, nodeID graph.Identifier, resource rest.Resource) (json.RawMessage, error)
 }
 
 // OnDemandClient describes an ondemand task client based on a websocket
@@ -82,6 +84,8 @@ type nodeTask struct {
 	host     string
 	resource rest.Resource
 }
+
+var tracer = otel.Tracer("graffiti.ondemand.client")
 
 func (o *OnDemandClient) removeRegisteredNode(nodeID graph.Identifier, resourceID string) {
 	o.Lock()
@@ -130,14 +134,17 @@ func (o *OnDemandClient) OnStructMessage(c ws.Speaker, m *ws.StructMessage) {
 	}
 }
 
-func (o *OnDemandClient) registerTasks(nps map[graph.Identifier]nodeTask) {
+func (o *OnDemandClient) registerTasks(ctx context.Context, nps map[graph.Identifier]nodeTask) {
+	ctx, span := tracer.Start(context.Background(), "registerTasks")
+	defer span.End()
+
 	for _, np := range nps {
-		o.registerTask(np)
+		o.registerTask(ctx, np)
 	}
 }
 
-func (o *OnDemandClient) registerTask(np nodeTask) bool {
-	body, err := o.handler.EncodeMessage(np.id, np.resource)
+func (o *OnDemandClient) registerTask(ctx context.Context, np nodeTask) bool {
+	body, err := o.handler.EncodeMessage(ctx, np.id, np.resource)
 	if err != nil {
 		logging.GetLogger().Errorf("Unable to encode message for agent %s: %s", np.host, err)
 		return false
@@ -165,8 +172,11 @@ func (o *OnDemandClient) registerTask(np nodeTask) bool {
 	return true
 }
 
-func (o *OnDemandClient) unregisterTask(node *graph.Node, resource rest.Resource) bool {
-	body, err := o.handler.EncodeMessage(node.ID, resource)
+func (o *OnDemandClient) unregisterTask(ctx context.Context, node *graph.Node, resource rest.Resource) bool {
+	ctx, span := tracer.Start(ctx, "unregisterTask")
+	defer span.End()
+
+	body, err := o.handler.EncodeMessage(ctx, node.ID, resource)
 	if err != nil {
 		logging.GetLogger().Errorf("Unable to encode message for agent %s: %s", node.Host, err)
 		return false
@@ -216,6 +226,9 @@ func (o *OnDemandClient) nodeTasks(nrs []OnDemandNodeResource) map[graph.Identif
 // checkForRegistration check the resource gremlin expression in order to
 // register new task.
 func (o *OnDemandClient) checkForRegistrationCallback() {
+	ctx, span := tracer.Start(context.Background(), "OnDemandClient.checkForRegistrationCallback")
+	defer span.End()
+
 	if !o.IsMaster() {
 		return
 	}
@@ -229,14 +242,14 @@ func (o *OnDemandClient) checkForRegistrationCallback() {
 	for _, resource := range o.resources {
 		if nrs := o.handler.GetNodeResources(resource); len(nrs) > 0 {
 			if nps := o.nodeTasks(nrs); len(nps) > 0 {
-				go o.registerTasks(nps)
+				go o.registerTasks(ctx, nps)
 			}
 		}
 	}
 }
 
 // OnNodeAdded graph event
-func (o *OnDemandClient) OnNodeAdded(n *graph.Node) {
+func (o *OnDemandClient) OnNodeAdded(ctx context.Context, n *graph.Node) {
 	if !o.IsMaster() {
 		return
 	}
@@ -256,7 +269,7 @@ func (o *OnDemandClient) OnNodeAdded(n *graph.Node) {
 
 				// not present unregister it
 				logging.GetLogger().Debugf("Unregister remaining %s for node %s: %s", o.resourceName, n.ID, id)
-				go o.unregisterTask(n, &rest.BasicResource{UUID: id})
+				go o.unregisterTask(ctx, n, &rest.BasicResource{UUID: id})
 			}
 		}
 	} else {
@@ -265,7 +278,7 @@ func (o *OnDemandClient) OnNodeAdded(n *graph.Node) {
 }
 
 // OnNodeUpdated graph event
-func (o *OnDemandClient) OnNodeUpdated(n *graph.Node, ops []graph.PartiallyUpdatedOp) {
+func (o *OnDemandClient) OnNodeUpdated(ctx context.Context, n *graph.Node, ops []graph.PartiallyUpdatedOp) {
 	o.RLock()
 	if tasks, ok := o.registeredNodes[n.ID]; ok {
 		for resourceID, started := range tasks {
@@ -283,7 +296,7 @@ func (o *OnDemandClient) OnNodeUpdated(n *graph.Node, ops []graph.PartiallyUpdat
 }
 
 // OnNodeDeleted graph event
-func (o *OnDemandClient) OnNodeDeleted(n *graph.Node) {
+func (o *OnDemandClient) OnNodeDeleted(ctx context.Context, n *graph.Node) {
 	o.RLock()
 	if tasks, ok := o.registeredNodes[n.ID]; ok {
 		for resourceID := range tasks {
@@ -295,11 +308,11 @@ func (o *OnDemandClient) OnNodeDeleted(n *graph.Node) {
 }
 
 // OnEdgeAdded graph event
-func (o *OnDemandClient) OnEdgeAdded(e *graph.Edge) {
+func (o *OnDemandClient) OnEdgeAdded(ctx context.Context, e *graph.Edge) {
 	o.checkForRegistration.Call()
 }
 
-func (o *OnDemandClient) registerResource(resource rest.Resource) {
+func (o *OnDemandClient) registerResource(ctx context.Context, resource rest.Resource) {
 	o.graph.RLock()
 	defer o.graph.RUnlock()
 
@@ -310,20 +323,20 @@ func (o *OnDemandClient) registerResource(resource rest.Resource) {
 
 	if nrs := o.handler.GetNodeResources(resource); len(nrs) > 0 {
 		if nps := o.nodeTasks(nrs); len(nps) > 0 {
-			go o.registerTasks(nps)
+			go o.registerTasks(ctx, nps)
 		}
 	}
 }
 
-func (o *OnDemandClient) onResourceAdded(resource rest.Resource) {
+func (o *OnDemandClient) onResourceAdded(ctx context.Context, resource rest.Resource) {
 	if !o.IsMaster() {
 		return
 	}
 
-	o.registerResource(resource)
+	o.registerResource(ctx, resource)
 }
 
-func (o *OnDemandClient) unregisterResource(resource rest.Resource) {
+func (o *OnDemandClient) unregisterResource(ctx context.Context, resource rest.Resource) {
 	o.graph.RLock()
 	defer o.graph.RUnlock()
 
@@ -334,13 +347,13 @@ func (o *OnDemandClient) unregisterResource(resource rest.Resource) {
 	o.Unlock()
 
 	filter := filters.NewTermStringFilter(fmt.Sprintf("%ss.ID", o.resourceName), resource.GetID())
-	nodes := o.graph.GetNodes(graph.NewElementFilter(filter))
+	nodes := o.graph.GetNodes(ctx, graph.NewElementFilter(filter))
 	for _, node := range nodes {
-		go o.unregisterTask(node, resource)
+		go o.unregisterTask(ctx, node, resource)
 	}
 }
 
-func (o *OnDemandClient) onResourceDeleted(resource rest.Resource) {
+func (o *OnDemandClient) onResourceDeleted(ctx context.Context, resource rest.Resource) {
 	if !o.IsMaster() {
 		// fill the cache with recent delete in order to be able to delete then
 		// in case we lose the master and nobody is master yet. This cache will
@@ -349,7 +362,7 @@ func (o *OnDemandClient) onResourceDeleted(resource rest.Resource) {
 		return
 	}
 
-	o.unregisterResource(resource)
+	o.unregisterResource(ctx, resource)
 }
 
 // OnStartAsMaster event
@@ -362,15 +375,18 @@ func (o *OnDemandClient) OnStartAsSlave() {
 
 // OnSwitchToMaster event
 func (o *OnDemandClient) OnSwitchToMaster() {
+	ctx, span := tracer.Start(context.Background(), "OnDemandClient.OnSwitchToMaster")
+	defer span.End()
+
 	// try to delete recently added resource to handle case where the api got a delete but wasn't yet master
 	for _, item := range o.deletedNodeCache.Items() {
 		resource := item.Object.(rest.Resource)
-		o.unregisterResource(resource)
+		o.unregisterResource(ctx, resource)
 	}
 
-	for _, resource := range o.apiHandler.Index() {
+	for _, resource := range o.apiHandler.Index(ctx) {
 		resource := resource.(rest.Resource)
-		o.onResourceAdded(resource)
+		o.onResourceAdded(ctx, resource)
 	}
 }
 
@@ -380,13 +396,16 @@ func (o *OnDemandClient) OnSwitchToSlave() {
 
 func (o *OnDemandClient) onAPIWatcherEvent(action string, id string, resource rest.Resource) {
 	logging.GetLogger().Debugf("New watcher event %s for %s", action, id)
+	ctx, span := tracer.Start(context.Background(), "OnDemandClient.onAPIWatcherEvent")
+	defer span.End()
+
 	switch action {
 	case "init", "create", "set", "update":
 		o.subscriberPool.BroadcastMessage(ws.NewStructMessage(o.wsNotificationNamespace, "Added", resource))
-		o.onResourceAdded(resource)
+		o.onResourceAdded(ctx, resource)
 	case "expire", "delete":
 		o.subscriberPool.BroadcastMessage(ws.NewStructMessage(o.wsNotificationNamespace, "Deleted", resource))
-		o.onResourceDeleted(resource)
+		o.onResourceDeleted(ctx, resource)
 	}
 }
 
@@ -423,7 +442,7 @@ func NewOnDemandClient(g *graph.Graph, ch rest.WatchableHandler, agentPool ws.St
 		wsNamespace:             ondemand.Namespace + handler.ResourceName(),
 		wsNotificationNamespace: ondemand.Namespace + handler.ResourceName() + "Notification",
 		resourceName:            handler.ResourceName(),
-		resources:               ch.Index(),
+		resources:               ch.Index(context.Background()), // TODO donde empezar este span?
 		registeredNodes:         make(map[graph.Identifier]map[string]bool),
 		deletedNodeCache:        cache.New(election.TTL()*2, election.TTL()*2),
 	}
