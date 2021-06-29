@@ -18,6 +18,8 @@
 package traversal
 
 import (
+	"sync"
+
 	"github.com/pkg/errors"
 
 	"github.com/skydive-project/skydive/graffiti/filters"
@@ -91,35 +93,123 @@ func (e *NeighborsTraversalExtension) ParseStep(t traversal.Token, p traversal.G
 	return &NeighborsGremlinTraversalStep{context: p, maxDepth: maxDepth, edgeFilter: graph.NewElementFilter(edgeFilter)}, nil
 }
 
-// getNeighbors given a list of nodes, add them to the neighbors list, get the neighbors of that nodes and call this function with those new nodes
-func getNeighbors(g *graph.Graph, nodes []*graph.Node, neighbors *[]*graph.Node, currDepth, maxDepth int64, edgeFilter graph.ElementMatcher, visited map[graph.Identifier]bool) {
-	var newNodes []*graph.Node
-	for _, node := range nodes {
-		if _, ok := visited[node.ID]; !ok {
-			newNodes = append(newNodes, node)
-			visited[node.ID] = true
-		}
-	}
-	*neighbors = append(*neighbors, newNodes...)
+// getNeighbors given a list of nodes, get its neighbors nodes for "maxDepth" depth relationships.
+// Edges between nodes must fulfill "edgeFilter" filter.
+// Nodes passed to this function will always be in the response.
+// This funcion will execute calls to the graph concurrently, to increase response time when a persistent backend
+// is involved.
+func getNeighbors(g *graph.Graph, nodes []*graph.Node, maxDepth int64, edgeFilter graph.ElementMatcher) []*graph.Node {
+	wg := sync.WaitGroup{}
+	ndnLock := sync.Mutex{}
 
-	if maxDepth == 0 || currDepth < maxDepth {
-		// For each node get its edges and nodes
-		for _, node := range newNodes {
-			// Get neighbors nodes, ignoring the ones already visited
-			parents := g.LookupNeighborIgnoreVisited(node, nil, edgeFilter, visited)
-			getNeighbors(g, parents, neighbors, currDepth+1, maxDepth, edgeFilter, visited)
-		}
+	// Limit the number of goroutines querying the backend at the same time
+	// A high number of concurrent queries makes ElasticSearch slower.
+	backendLimitConcurrentCalls := make(chan struct{}, 40)
+
+	// visitedNodes store neighors and avoid visiting twice the same node
+	visitedNodes := map[graph.Identifier]interface{}{}
+	visitedNodesLock := sync.Mutex{}
+
+	// currentDepthNodes slice with the nodes being processed in each depth.
+	currentDepthNodes := []graph.Identifier{}
+	// nextDepthNodes slice were next depth nodes are being stored.
+	// Initializated with the list of origin nodes where it should start from.
+	nextDepthNodes := []graph.Identifier{}
+
+	// Neighbor step will return also the origin nodes
+	for _, n := range nodes {
+		visitedNodes[n.ID] = struct{}{}
+		nextDepthNodes = append(nextDepthNodes, n.ID)
 	}
+
+	// DFS
+	// BFS must not be used because could lead to ignore some servers in this case:
+	//   A -> B
+	//   B -> C
+	//   C -> D
+	//   A -> C
+	//   With depth=2, BFS will return A,B,C (C is visited in A->B->C, si ignored in A->C->D)
+	//   DFS will return, the correct, A,B,C,D
+	// Walk concurrently all nodes in the same depth.
+	// Once finished, walk the next depth.
+	for i := 0; i < int(maxDepth); i++ {
+		// Copy values from nextDepthNodes to currentDepthNodes
+		currentDepthNodes = make([]graph.Identifier, len(nextDepthNodes))
+		copy(currentDepthNodes, nextDepthNodes)
+
+		nextDepthNodes = nextDepthNodes[:0] // Clean slice, keeping capacity
+		for _, n := range currentDepthNodes {
+			wg.Add(1)
+			go func(nodeID graph.Identifier) {
+				defer wg.Done()
+
+				// Get edges for node with id "nodeID"
+				backendLimitConcurrentCalls <- struct{}{}
+				edges := g.GetNodeEdges(graph.CreateNode(nodeID, nil, graph.Time{}, "", ""), edgeFilter)
+				<-backendLimitConcurrentCalls
+
+				for _, e := range edges {
+					// Get nodeID of the other side of the edge
+					var neighborID graph.Identifier
+					if nodeID == e.Parent {
+						neighborID = e.Child
+					} else {
+						neighborID = e.Parent
+					}
+
+					// Store neighbors
+					visitedNodesLock.Lock()
+					_, ok := visitedNodes[neighborID]
+					if !ok {
+						visitedNodes[neighborID] = struct{}{}
+					}
+					visitedNodesLock.Unlock()
+
+					// Do not walk nodes already processed
+					if ok {
+						return
+					}
+
+					// Append this node ID in the list of nodes to be visited in the next depth
+					ndnLock.Lock()
+					nextDepthNodes = append(nextDepthNodes, neighborID)
+					ndnLock.Unlock()
+				}
+			}(n)
+		}
+		wg.Wait()
+	}
+
+	// Get concurrentl all nodes for the list of neighbors ids
+	neighbors := make([]*graph.Node, 0, len(visitedNodes))
+	neighborsLock := sync.Mutex{}
+
+	wg.Add(len(visitedNodes))
+	for n := range visitedNodes {
+		go func(nodeID graph.Identifier) {
+			defer wg.Done()
+
+			backendLimitConcurrentCalls <- struct{}{}
+			node := g.GetNode(nodeID)
+			<-backendLimitConcurrentCalls
+
+			neighborsLock.Lock()
+			neighbors = append(neighbors, node)
+			neighborsLock.Unlock()
+
+		}(n)
+	}
+	wg.Wait()
+
+	return neighbors
 }
 
 // Exec Neighbors step
 func (d *NeighborsGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
-	var neighbors []*graph.Node
-
 	switch tv := last.(type) {
 	case *traversal.GraphTraversalV:
 		tv.GraphTraversal.RLock()
-		getNeighbors(tv.GraphTraversal.Graph, tv.GetNodes(), &neighbors, 0, d.maxDepth, d.edgeFilter, make(map[graph.Identifier]bool))
+		neighbors := getNeighbors(tv.GraphTraversal.Graph, tv.GetNodes(), d.maxDepth, d.edgeFilter)
 		tv.GraphTraversal.RUnlock()
 
 		return traversal.NewGraphTraversalV(tv.GraphTraversal, neighbors), nil
