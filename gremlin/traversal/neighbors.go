@@ -98,7 +98,7 @@ func (e *NeighborsTraversalExtension) ParseStep(t traversal.Token, p traversal.G
 // Nodes passed to this function will always be in the response.
 // This funcion will execute calls to the graph concurrently, to increase response time when a persistent backend
 // is involved.
-func getNeighbors(g *graph.Graph, nodes []*graph.Node, maxDepth int64, edgeFilter graph.ElementMatcher) []*graph.Node {
+func (d *NeighborsGremlinTraversalStep) getNeighbors(g *graph.Graph, nodes []*graph.Node) []*graph.Node {
 	wg := sync.WaitGroup{}
 	ndnLock := sync.Mutex{}
 
@@ -132,7 +132,7 @@ func getNeighbors(g *graph.Graph, nodes []*graph.Node, maxDepth int64, edgeFilte
 	//   DFS will return, the correct, A,B,C,D
 	// Walk concurrently all nodes in the same depth.
 	// Once finished, walk the next depth.
-	for i := 0; i < int(maxDepth); i++ {
+	for i := 0; i < int(d.maxDepth); i++ {
 		// Copy values from nextDepthNodes to currentDepthNodes
 		currentDepthNodes = make([]graph.Identifier, len(nextDepthNodes))
 		copy(currentDepthNodes, nextDepthNodes)
@@ -145,7 +145,7 @@ func getNeighbors(g *graph.Graph, nodes []*graph.Node, maxDepth int64, edgeFilte
 
 				// Get edges for node with id "nodeID"
 				backendLimitConcurrentCalls <- struct{}{}
-				edges := g.GetNodeEdges(graph.CreateNode(nodeID, nil, graph.Time{}, "", ""), edgeFilter)
+				edges := g.GetNodeEdges(graph.CreateNode(nodeID, nil, graph.Time{}, "", ""), d.edgeFilter)
 				<-backendLimitConcurrentCalls
 
 				for _, e := range edges {
@@ -209,7 +209,7 @@ func (d *NeighborsGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) 
 	switch tv := last.(type) {
 	case *traversal.GraphTraversalV:
 		tv.GraphTraversal.RLock()
-		neighbors := getNeighbors(tv.GraphTraversal.Graph, tv.GetNodes(), d.maxDepth, d.edgeFilter)
+		neighbors := d.getNeighbors(tv.GraphTraversal.Graph, tv.GetNodes())
 		tv.GraphTraversal.RUnlock()
 
 		return traversal.NewGraphTraversalV(tv.GraphTraversal, neighbors), nil
