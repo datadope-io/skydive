@@ -27,9 +27,19 @@ func (f *FakeNeighborsSlowGraphBackend) GetNode(i graph.Identifier, at graph.Con
 	return f.Backend.GetNode(i, at)
 }
 
+func (f *FakeNeighborsSlowGraphBackend) GetNodesFromIDs(i []graph.Identifier, at graph.Context) []*graph.Node {
+	time.Sleep(40 * time.Millisecond)
+	return f.Backend.GetNodesFromIDs(i, at)
+}
+
 func (f *FakeNeighborsSlowGraphBackend) GetNodeEdges(n *graph.Node, at graph.Context, m graph.ElementMatcher) []*graph.Edge {
 	time.Sleep(20 * time.Millisecond)
 	return f.Backend.GetNodeEdges(n, at, m)
+}
+
+func (f *FakeNeighborsSlowGraphBackend) GetNodesEdges(n []*graph.Node, at graph.Context, m graph.ElementMatcher) []*graph.Edge {
+	time.Sleep(40 * time.Millisecond)
+	return f.Backend.GetNodesEdges(n, at, m)
 }
 
 func (f *FakeNeighborsSlowGraphBackend) EdgeAdded(e *graph.Edge) error {

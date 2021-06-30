@@ -18,8 +18,6 @@
 package traversal
 
 import (
-	"sync"
-
 	"github.com/pkg/errors"
 
 	"github.com/skydive-project/skydive/graffiti/filters"
@@ -96,30 +94,22 @@ func (e *NeighborsTraversalExtension) ParseStep(t traversal.Token, p traversal.G
 // getNeighbors given a list of nodes, get its neighbors nodes for "maxDepth" depth relationships.
 // Edges between nodes must fulfill "edgeFilter" filter.
 // Nodes passed to this function will always be in the response.
-// This funcion will execute calls to the graph concurrently, to increase response time when a persistent backend
-// is involved.
 func (d *NeighborsGremlinTraversalStep) getNeighbors(g *graph.Graph, nodes []*graph.Node) []*graph.Node {
-	wg := sync.WaitGroup{}
-	ndnLock := sync.Mutex{}
-
-	// Limit the number of goroutines querying the backend at the same time
-	// A high number of concurrent queries makes ElasticSearch slower.
-	backendLimitConcurrentCalls := make(chan struct{}, 40)
-
 	// visitedNodes store neighors and avoid visiting twice the same node
 	visitedNodes := map[graph.Identifier]interface{}{}
-	visitedNodesLock := sync.Mutex{}
 
-	// currentDepthNodes slice with the nodes being processed in each depth.
-	currentDepthNodes := []graph.Identifier{}
+	// currentDepthNodesIDs slice with the nodes being processed in each depth.
+	// We use "empty" while procesing the neighbors nodes to avoid extra calls to the backend.
+	var currentDepthNodesIDs []graph.Identifier
 	// nextDepthNodes slice were next depth nodes are being stored.
 	// Initializated with the list of origin nodes where it should start from.
-	nextDepthNodes := []graph.Identifier{}
+	nextDepthNodesIDs := make([]graph.Identifier, 0, len(nodes))
 
+	// Mark origin nodes as already visited
 	// Neighbor step will return also the origin nodes
 	for _, n := range nodes {
 		visitedNodes[n.ID] = struct{}{}
-		nextDepthNodes = append(nextDepthNodes, n.ID)
+		nextDepthNodesIDs = append(nextDepthNodesIDs, n.ID)
 	}
 
 	// DFS
@@ -130,78 +120,45 @@ func (d *NeighborsGremlinTraversalStep) getNeighbors(g *graph.Graph, nodes []*gr
 	//   A -> C
 	//   With depth=2, BFS will return A,B,C (C is visited in A->B->C, si ignored in A->C->D)
 	//   DFS will return, the correct, A,B,C,D
-	// Walk concurrently all nodes in the same depth.
-	// Once finished, walk the next depth.
 	for i := 0; i < int(d.maxDepth); i++ {
 		// Copy values from nextDepthNodes to currentDepthNodes
-		currentDepthNodes = make([]graph.Identifier, len(nextDepthNodes))
-		copy(currentDepthNodes, nextDepthNodes)
+		currentDepthNodesIDs = make([]graph.Identifier, len(nextDepthNodesIDs))
+		copy(currentDepthNodesIDs, nextDepthNodesIDs)
 
-		nextDepthNodes = nextDepthNodes[:0] // Clean slice, keeping capacity
-		for _, n := range currentDepthNodes {
-			wg.Add(1)
-			go func(nodeID graph.Identifier) {
-				defer wg.Done()
+		nextDepthNodesIDs = nextDepthNodesIDs[:0] // Clean slice, keeping capacity
+		// Get all edges for the list of nodes, filtered by edgeFilter
+		// Convert the list of node ids to a list of nodes
 
-				// Get edges for node with id "nodeID"
-				backendLimitConcurrentCalls <- struct{}{}
-				edges := g.GetNodeEdges(graph.CreateNode(nodeID, nil, graph.Time{}, "", ""), d.edgeFilter)
-				<-backendLimitConcurrentCalls
-
-				for _, e := range edges {
-					// Get nodeID of the other side of the edge
-					var neighborID graph.Identifier
-					if nodeID == e.Parent {
-						neighborID = e.Child
-					} else {
-						neighborID = e.Parent
-					}
-
-					// Store neighbors
-					visitedNodesLock.Lock()
-					_, ok := visitedNodes[neighborID]
-					if !ok {
-						visitedNodes[neighborID] = struct{}{}
-					}
-					visitedNodesLock.Unlock()
-
-					// Do not walk nodes already processed
-					if ok {
-						continue
-					}
-
-					// Append this node ID in the list of nodes to be visited in the next depth
-					ndnLock.Lock()
-					nextDepthNodes = append(nextDepthNodes, neighborID)
-					ndnLock.Unlock()
-				}
-			}(n)
+		currentDepthNodes := make([]*graph.Node, 0, len(currentDepthNodesIDs))
+		for _, nID := range currentDepthNodesIDs {
+			currentDepthNodes = append(currentDepthNodes, graph.CreateNode(nID, graph.Metadata{}, graph.Unix(0, 0), "", ""))
 		}
-		wg.Wait()
+		edges := g.GetNodesEdges(currentDepthNodes, d.edgeFilter)
+
+		for _, e := range edges {
+			// Get nodeID of the other side of the edge
+			// Store neighbors
+			// We don't know in which side of the edge are the neighbors, so, add both sides if not already visited
+			_, okParent := visitedNodes[e.Parent]
+			if !okParent {
+				visitedNodes[e.Parent] = struct{}{}
+				// Do not walk nodes already processed
+				nextDepthNodesIDs = append(nextDepthNodesIDs, e.Parent)
+			}
+			_, okChild := visitedNodes[e.Child]
+			if !okChild {
+				visitedNodes[e.Child] = struct{}{}
+				nextDepthNodesIDs = append(nextDepthNodesIDs, e.Child)
+			}
+		}
 	}
 
 	// Get concurrentl all nodes for the list of neighbors ids
-	neighbors := make([]*graph.Node, 0, len(visitedNodes))
-	neighborsLock := sync.Mutex{}
-
-	for n := range visitedNodes {
-		wg.Add(1)
-		go func(nodeID graph.Identifier) {
-			defer wg.Done()
-
-			backendLimitConcurrentCalls <- struct{}{}
-			node := g.GetNode(nodeID)
-			<-backendLimitConcurrentCalls
-
-			neighborsLock.Lock()
-			neighbors = append(neighbors, node)
-			neighborsLock.Unlock()
-
-		}(n)
+	nodesIDs := make([]graph.Identifier, 0, len(visitedNodes))
+	for n, _ := range visitedNodes {
+		nodesIDs = append(nodesIDs, n)
 	}
-	wg.Wait()
-
-	return neighbors
+	return g.GetNodesFromIDs(nodesIDs)
 }
 
 // Exec Neighbors step
