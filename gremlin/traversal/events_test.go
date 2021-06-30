@@ -9,6 +9,26 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// FakeEventsGraphBackend simulate a backend with history that could store different revisions of nodes
+type FakeEventsGraphBackend struct {
+	graph.MemoryBackend
+	Nodes []*graph.Node
+}
+
+func (b *FakeEventsGraphBackend) IsHistorySupported() bool {
+	return true
+}
+
+func (b *FakeEventsGraphBackend) GetNode(i graph.Identifier, at graph.Context) []*graph.Node {
+	nodes := []*graph.Node{}
+	for _, n := range b.Nodes {
+		if n.ID == i {
+			nodes = append(nodes, n)
+		}
+	}
+	return nodes
+}
+
 func TestMergeEventsNilNodeEvents(t *testing.T) {
 	key := "Events"
 
@@ -336,17 +356,22 @@ func TestInterfaceEvents(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			b, err := graph.NewMemoryBackend()
+			b := FakeEventsGraphBackend{
+				Nodes: test.InNodes,
+			}
+			g := graph.NewGraph("testhost", &b, "analyzer.testhost")
+
+			gt := traversal.NewGraphTraversal(g, false)
+			tvIn := traversal.NewGraphTraversalV(gt, test.InNodes)
+
+			s := EventsGremlinTraversalStep{
+				EventKey:    test.key,
+				EventAggKey: test.aggKey,
+			}
+			ts, err := s.InterfaceEvents(tvIn)
 			if err != nil {
 				t.Error(err.Error())
 			}
-			g := graph.NewGraph("testhost", b, "analyzer.testhost")
-
-			gt := traversal.NewGraphTraversal(g, false)
-			ctx := traversal.StepContext{}
-			tvIn := traversal.NewGraphTraversalV(gt, test.InNodes)
-
-			ts := InterfaceEvents(ctx, tvIn, test.key, test.aggKey)
 
 			tvOut, ok := ts.(*traversal.GraphTraversalV)
 			if !ok {
