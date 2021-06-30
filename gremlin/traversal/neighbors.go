@@ -167,7 +167,7 @@ func getNeighbors(g *graph.Graph, nodes []*graph.Node, maxDepth int64, edgeFilte
 
 					// Do not walk nodes already processed
 					if ok {
-						return
+						continue
 					}
 
 					// Append this node ID in the list of nodes to be visited in the next depth
@@ -184,8 +184,8 @@ func getNeighbors(g *graph.Graph, nodes []*graph.Node, maxDepth int64, edgeFilte
 	neighbors := make([]*graph.Node, 0, len(visitedNodes))
 	neighborsLock := sync.Mutex{}
 
-	wg.Add(len(visitedNodes))
 	for n := range visitedNodes {
+		wg.Add(1)
 		go func(nodeID graph.Identifier) {
 			defer wg.Done()
 
