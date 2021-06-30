@@ -1,0 +1,14 @@
+type Mutation {
+  """
+  Create a new network element. Does nothing if already exists.
+  """
+  addNetworkDevice(input: NetworkDeviceInput!): AddNetworkDevicePayload!
+
+  addEvent(input: EventInput!): EventPayload!
+}
+
+type Query {
+  version: String!
+}
+
+scalar Time

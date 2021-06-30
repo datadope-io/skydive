@@ -34,6 +34,7 @@ import (
 	"github.com/skydive-project/skydive/topology/probes/libvirt"
 	"github.com/skydive-project/skydive/topology/probes/lldp"
 	"github.com/skydive-project/skydive/topology/probes/lxd"
+	"github.com/skydive-project/skydive/topology/probes/netexternal"
 	"github.com/skydive-project/skydive/topology/probes/netlink"
 	"github.com/skydive-project/skydive/topology/probes/neutron"
 	"github.com/skydive-project/skydive/topology/probes/nsm"
@@ -126,6 +127,8 @@ func NewTopologyProbeBundleFromConfig(g *graph.Graph) (*probe.Bundle, error) {
 			handler, err = nsm.NewNsmProbe(g)
 		case "proccon":
 			handler, err = proccon.NewProbe(g)
+		case "netexternal":
+			handler, err = netexternal.NewProbe(g)
 		case "procpeering":
 			handler, err = procpeering.NewProbe(g)
 		default:
