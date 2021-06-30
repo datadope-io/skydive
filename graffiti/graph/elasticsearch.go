@@ -236,6 +236,30 @@ func (b *ElasticSearchBackend) GetNode(i Identifier, t Context) []*Node {
 	return nodes
 }
 
+// GetNodesFromIDs get the list of nodes for the list of identifiers within a time slice
+func (b *ElasticSearchBackend) GetNodesFromIDs(identifiersList []Identifier, t Context) []*Node {
+	identifiersFilter := []*filters.Filter{}
+	for _, i := range identifiersList {
+		identifiersFilter = append(identifiersFilter, filters.NewTermStringFilter("ID", string(i)))
+	}
+	identifiersORFilter := filters.NewOrFilter(identifiersFilter...)
+
+	nodes := b.searchNodes(&TimedSearchQuery{
+		SearchQuery: filters.SearchQuery{
+			Filter: identifiersORFilter,
+			Sort:   true,
+			SortBy: "Revision",
+		},
+		TimeFilter: getTimeFilter(t.TimeSlice),
+	})
+
+	if len(nodes) > 1 && t.TimePoint {
+		return []*Node{nodes[len(nodes)-1]}
+	}
+
+	return nodes
+}
+
 func (b *ElasticSearchBackend) indexEdge(e *Edge) error {
 	raw, err := edgeToRaw(e)
 	if err != nil {
@@ -530,6 +554,42 @@ func (b *ElasticSearchBackend) GetNodeEdges(n *Node, t Context, m ElementMatcher
 		searchQuery = filters.SearchQuery{Sort: true, SortBy: "UpdatedAt"}
 	}
 	searchQuery.Filter = NewFilterForEdge(n.ID, n.ID)
+
+	edges = b.searchEdges(&TimedSearchQuery{
+		SearchQuery:    searchQuery,
+		TimeFilter:     getTimeFilter(t.TimeSlice),
+		MetadataFilter: filter,
+	})
+
+	if len(edges) > 1 && t.TimePoint {
+		edges = dedupEdges(edges)
+	}
+
+	return
+}
+
+// GetNodesEdges return the list of all edges for a list of nodes within time slice
+func (b *ElasticSearchBackend) GetNodesEdges(nodeList []*Node, t Context, m ElementMatcher) (edges []*Edge) {
+	var filter *filters.Filter
+	if m != nil {
+		f, err := m.Filter()
+		if err != nil {
+			return []*Edge{}
+		}
+		filter = f
+	}
+
+	var searchQuery filters.SearchQuery
+	if !t.TimePoint {
+		searchQuery = filters.SearchQuery{Sort: true, SortBy: "UpdatedAt"}
+	}
+
+	nodesFilter := []*filters.Filter{}
+	for _, n := range nodeList {
+		nodesFilter = append(nodesFilter, filters.NewTermStringFilter("Parent", string(n.ID)))
+		nodesFilter = append(nodesFilter, filters.NewTermStringFilter("Child", string(n.ID)))
+	}
+	searchQuery.Filter = filters.NewOrFilter(nodesFilter...)
 
 	edges = b.searchEdges(&TimedSearchQuery{
 		SearchQuery:    searchQuery,

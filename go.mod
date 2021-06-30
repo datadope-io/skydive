@@ -84,7 +84,7 @@ require (
 	github.com/t-yuki/gocover-cobertura v0.0.0-20180217150009-aaee18c8195c
 	github.com/tebeka/go2xunit v1.4.10
 	github.com/tebeka/selenium v0.0.0-20170314201507-657e45ec600f
-	github.com/tinylib/msgp v1.1.0 // indirect
+	github.com/tinylib/msgp v1.1.0
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80 // indirect
 	github.com/vishvananda/netlink v1.0.0
 	github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df

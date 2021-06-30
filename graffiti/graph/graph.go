@@ -106,7 +106,9 @@ type Backend interface {
 	NodeAdded(n *Node) error
 	NodeDeleted(n *Node) error
 	GetNode(i Identifier, at Context) []*Node
+	GetNodesFromIDs(i []Identifier, at Context) []*Node
 	GetNodeEdges(n *Node, at Context, m ElementMatcher) []*Edge
+	GetNodesEdges(n []*Node, at Context, m ElementMatcher) []*Edge
 
 	EdgeAdded(e *Edge) error
 	EdgeDeleted(e *Edge) error
@@ -1213,6 +1215,11 @@ func (g *Graph) GetNode(i Identifier) *Node {
 	return nil
 }
 
+// GetNodesFromIDs returns a list of nodes from a list of identifiers
+func (g *Graph) GetNodesFromIDs(i []Identifier) []*Node {
+	return g.backend.GetNodesFromIDs(i, g.context)
+}
+
 // GetNodeAll from Identifier, all revisions
 func (g *Graph) GetNodeAll(i Identifier) []*Node {
 	return g.backend.GetNode(i, g.context)
@@ -1396,6 +1403,11 @@ func (g *Graph) GetEdgeNodes(e *Edge, parentMetadata, childMetadata ElementMatch
 // GetNodeEdges returns a list of edges of a node
 func (g *Graph) GetNodeEdges(n *Node, m ElementMatcher) []*Edge {
 	return g.backend.GetNodeEdges(n, g.context, m)
+}
+
+// GetNodesEdges returns the list with all edges for a list of nodes
+func (g *Graph) GetNodesEdges(n []*Node, m ElementMatcher) []*Edge {
+	return g.backend.GetNodesEdges(n, g.context, m)
 }
 
 func (g *Graph) String() string {
