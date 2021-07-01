@@ -531,7 +531,16 @@ func (c *Client) Search(query elastic.Query, opts filters.SearchQuery, indices .
 		})
 	}
 
-	return searchQuery.Do(context.Background())
+	res, err := searchQuery.Do(context.Background())
+	// Detecte partial failures (only some shards failing)
+	if err == nil && res.Shards.Failed != 0 {
+		errors := []string{}
+		for _, f := range res.Shards.Failures {
+			errors = append(errors, fmt.Sprintf("reason='%v'", f.Reason))
+		}
+		return nil, fmt.Errorf(strings.Join(errors, "; "))
+	}
+	return res, err
 }
 
 // Start the Elasticsearch client background jobs
