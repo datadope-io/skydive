@@ -1229,6 +1229,9 @@ func (g *Graph) GetNode(i Identifier) *Node {
 
 // GetNodesFromIDs returns a list of nodes from a list of identifiers
 func (g *Graph) GetNodesFromIDs(i []Identifier) []*Node {
+	if len(i) == 0 {
+		return []*Node{}
+	}
 	return g.backend.GetNodesFromIDs(i, g.context)
 }
 
@@ -1419,6 +1422,9 @@ func (g *Graph) GetNodeEdges(n *Node, m ElementMatcher) []*Edge {
 
 // GetNodesEdges returns the list with all edges for a list of nodes
 func (g *Graph) GetNodesEdges(n []*Node, m ElementMatcher) []*Edge {
+	if len(n) == 0 {
+		return []*Edge{}
+	}
 	return g.backend.GetNodesEdges(n, g.context, m)
 }
 

@@ -29,6 +29,18 @@ func (b *FakeEventsGraphBackend) GetNode(i graph.Identifier, at graph.Context) [
 	return nodes
 }
 
+func (b *FakeEventsGraphBackend) GetNodesFromIDs(identifierList []graph.Identifier, at graph.Context) []*graph.Node {
+	nodes := []*graph.Node{}
+	for _, n := range b.Nodes {
+		for _, i := range identifierList {
+			if n.ID == i {
+				nodes = append(nodes, n)
+			}
+		}
+	}
+	return nodes
+}
+
 func TestMergeEventsNilNodeEvents(t *testing.T) {
 	key := "Events"
 

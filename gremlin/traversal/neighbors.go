@@ -36,6 +36,8 @@ type NeighborsGremlinTraversalStep struct {
 	context    traversal.GremlinTraversalContext
 	maxDepth   int64
 	edgeFilter graph.ElementMatcher
+	// nextStepOnlyIDs is set to true if the next step only needs node IDs and not the whole node info
+	nextStepOnlyIDs bool
 }
 
 // NewNeighborsTraversalExtension returns a new graph traversal extension
@@ -153,11 +155,21 @@ func (d *NeighborsGremlinTraversalStep) getNeighbors(g *graph.Graph, nodes []*gr
 		}
 	}
 
+	// Return "empty" nodes (just with the ID) if the next step only need that info
+	if d.nextStepOnlyIDs {
+		ret := make([]*graph.Node, 0, len(visitedNodes))
+		for nID := range visitedNodes {
+			ret = append(ret, graph.CreateNode(nID, graph.Metadata{}, graph.Unix(0, 0), "", ""))
+		}
+		return ret
+	}
+
 	// Get concurrentl all nodes for the list of neighbors ids
 	nodesIDs := make([]graph.Identifier, 0, len(visitedNodes))
-	for n, _ := range visitedNodes {
+	for n := range visitedNodes {
 		nodesIDs = append(nodesIDs, n)
 	}
+
 	return g.GetNodesFromIDs(nodesIDs)
 }
 
@@ -176,6 +188,9 @@ func (d *NeighborsGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) 
 
 // Reduce Neighbors step
 func (d *NeighborsGremlinTraversalStep) Reduce(next traversal.GremlinTraversalStep) (traversal.GremlinTraversalStep, error) {
+	if _, ok := next.(*EventsGremlinTraversalStep); ok {
+		d.nextStepOnlyIDs = true
+	}
 	return next, nil
 }
 

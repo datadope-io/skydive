@@ -2,7 +2,6 @@ package traversal
 
 import (
 	"reflect"
-	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -131,8 +130,6 @@ func (s *EventsGremlinTraversalStep) Context() *traversal.GremlinTraversalContex
 // Events are groupped based on its key. See mergedEvents for an example.
 // All output nodes will have Metadata.aggKey defined (empty or not).
 func (s *EventsGremlinTraversalStep) InterfaceEvents(tv *traversal.GraphTraversalV) (traversal.GraphTraversalStep, error) {
-	it := s.StepContext.PaginationRange.Iterator()
-
 	// If user has defined start/end time in the parameters, use that values instead of the ones comming with the graph
 	if !s.StartTime.IsZero() && !s.EndTime.IsZero() {
 		timeSlice := graph.NewTimeSlice(
@@ -156,57 +153,33 @@ func (s *EventsGremlinTraversalStep) InterfaceEvents(tv *traversal.GraphTraversa
 
 	// uniqNodes store the latest node for each node identifier
 	uniqNodes := map[graph.Identifier]*graph.Node{}
-	uniqNodesLock := sync.Mutex{}
 
 	// events accumulate the events for each node id
 	events := map[graph.Identifier]map[string][]interface{}{}
-	eventsLock := sync.Mutex{}
 
-	// Limit the number of goroutines querying the backend at the same time
-	// A high number of concurrent queries makes ElasticSearch slower.
-	backendLimitConcurrentCalls := make(chan struct{}, 40)
-
-	wg := sync.WaitGroup{}
-
+	// Get the list of node ids
+	nodesIDs := make([]graph.Identifier, 0, len(tv.GetNodes()))
 	for _, node := range tv.GetNodes() {
-		// TODO afecta la paginación a esta función? Cuando se usa esta paginación?
-		if it.Done() {
-			break
-		}
-
-		// Spawn a different goroutine for each node to speed up this function
-		// Elasticsearch client is thread safe.
-		wg.Add(1)
-		go func(nodeID graph.Identifier) {
-			defer wg.Done()
-
-			// Get all revisions for this node
-			backendLimitConcurrentCalls <- struct{}{}
-			revisionNodes := tv.GraphTraversal.Graph.GetNodeAll(nodeID)
-			<-backendLimitConcurrentCalls
-
-			// Store only the most recent nodes
-			for _, rNode := range revisionNodes {
-				uniqNodesLock.Lock()
-				storedNode, ok := uniqNodes[rNode.ID]
-				if !ok {
-					uniqNodes[rNode.ID] = rNode
-				} else {
-					if storedNode.Revision < rNode.Revision {
-						uniqNodes[rNode.ID] = rNode
-					}
-				}
-				uniqNodesLock.Unlock()
-
-				// Store events from all revisions into the "events" variable
-				eventsLock.Lock()
-				events[rNode.ID] = mergeEvents(rNode, s.EventKey, events[rNode.ID])
-				eventsLock.Unlock()
-			}
-		}(node.ID)
+		nodesIDs = append(nodesIDs, node.ID)
 	}
 
-	wg.Wait()
+	// Get all revision for the list of node ids
+	revisionNodes := tv.GraphTraversal.Graph.GetNodesFromIDs(nodesIDs)
+
+	// Store only the most recent nodes
+	for _, rNode := range revisionNodes {
+		storedNode, ok := uniqNodes[rNode.ID]
+		if !ok {
+			uniqNodes[rNode.ID] = rNode
+		} else {
+			if storedNode.Revision < rNode.Revision {
+				uniqNodes[rNode.ID] = rNode
+			}
+		}
+
+		// Store events from all revisions into the "events" variable
+		events[rNode.ID] = mergeEvents(rNode, s.EventKey, events[rNode.ID])
+	}
 
 	// Move the nodes from the uniqNodes map to an slice required by TraversalV
 	nodes := []*graph.Node{}
