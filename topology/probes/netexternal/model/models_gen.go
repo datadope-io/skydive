@@ -7,6 +7,12 @@ import (
 )
 
 // Return value when creating a new network device.
+type AddIf2IfLinkPayload struct {
+	// Internal ID for the edge in Skydive.
+	ID string `json:"ID"`
+}
+
+// Return value when creating a new network device.
 type AddNetworkDevicePayload struct {
 	// Internal ID for the node in Skydive.
 	ID string `json:"ID"`
@@ -48,6 +54,21 @@ type EventPayload struct {
 	Ok bool `json:"Ok"`
 	// En caso de ok:false, retornamos un mensaje de error.
 	Error *string `json:"Error"`
+}
+
+// Values to create a new link between nodes.
+type If2IfLinkInput struct {
+	// Source device name.
+	SrcDevice string `json:"SrcDevice"`
+	// Source interface name.
+	SrcInterface string `json:"SrcInterface"`
+	// Destination device name.
+	DstDevice string `json:"DstDevice"`
+	// Destination interface name.
+	DstInterface string `json:"DstInterface"`
+	// Optional field to establish the creation time of the skydive elements.
+	// If not set, defaults to the current time.
+	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
 type InterfaceInput struct {

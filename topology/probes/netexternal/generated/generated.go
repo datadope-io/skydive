@@ -44,6 +44,10 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	AddIf2IfLinkPayload struct {
+		ID func(childComplexity int) int
+	}
+
 	AddNetworkDevicePayload struct {
 		ID      func(childComplexity int) int
 		Updated func(childComplexity int) int
@@ -56,6 +60,7 @@ type ComplexityRoot struct {
 
 	Mutation struct {
 		AddEvent         func(childComplexity int, input model.EventInput) int
+		AddIf2IfLink     func(childComplexity int, input model.If2IfLinkInput) int
 		AddNetworkDevice func(childComplexity int, input model.NetworkDeviceInput) int
 	}
 
@@ -66,6 +71,7 @@ type ComplexityRoot struct {
 
 type MutationResolver interface {
 	AddNetworkDevice(ctx context.Context, input model.NetworkDeviceInput) (*model.AddNetworkDevicePayload, error)
+	AddIf2IfLink(ctx context.Context, input model.If2IfLinkInput) (*model.AddIf2IfLinkPayload, error)
 	AddEvent(ctx context.Context, input model.EventInput) (*model.EventPayload, error)
 }
 type QueryResolver interface {
@@ -86,6 +92,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	ec := executionContext{nil, e}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "AddIf2IfLinkPayload.ID":
+		if e.complexity.AddIf2IfLinkPayload.ID == nil {
+			break
+		}
+
+		return e.complexity.AddIf2IfLinkPayload.ID(childComplexity), true
 
 	case "AddNetworkDevicePayload.ID":
 		if e.complexity.AddNetworkDevicePayload.ID == nil {
@@ -126,6 +139,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.AddEvent(childComplexity, args["input"].(model.EventInput)), true
+
+	case "Mutation.addIf2IfLink":
+		if e.complexity.Mutation.AddIf2IfLink == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addIf2IfLink_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AddIf2IfLink(childComplexity, args["input"].(model.If2IfLinkInput)), true
 
 	case "Mutation.addNetworkDevice":
 		if e.complexity.Mutation.AddNetworkDevice == nil {
@@ -216,6 +241,8 @@ var sources = []*ast.Source{
   """
   addNetworkDevice(input: NetworkDeviceInput!): AddNetworkDevicePayload!
 
+  addIf2IfLink(input: If2IfLinkInput!): AddIf2IfLinkPayload!
+
   addEvent(input: EventInput!): EventPayload!
 }
 
@@ -281,6 +308,44 @@ type EventPayload{
     En caso de ok:false, retornamos un mensaje de error.
     """
     Error: String
+}
+`, BuiltIn: false},
+	{Name: "schema_link.graphqls", Input: `"""
+Values to create a new link between nodes.
+"""
+input If2IfLinkInput {
+  """
+  Source device name.
+  """
+  SrcDevice: String!
+  """
+  Source interface name.
+  """
+  SrcInterface: String!
+  """
+  Destination device name.
+  """
+  DstDevice: String!
+  """
+  Destination interface name.
+  """
+  DstInterface: String!
+  """
+  Optional field to establish the creation time of the skydive elements.
+  If not set, defaults to the current time.
+  """
+  CreatedAt: Time
+}
+
+
+"""
+Return value when creating a new network device.
+"""
+type AddIf2IfLinkPayload {
+  """
+  Internal ID for the edge in Skydive.
+  """
+  ID: String!
 }
 `, BuiltIn: false},
 	{Name: "schema_netdevice.graphqls", Input: `"""
@@ -362,6 +427,21 @@ func (ec *executionContext) field_Mutation_addEvent_args(ctx context.Context, ra
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_addIf2IfLink_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.If2IfLinkInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐIf2IfLinkInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_addNetworkDevice_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -429,6 +509,41 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _AddIf2IfLinkPayload_ID(ctx context.Context, field graphql.CollectedField, obj *model.AddIf2IfLinkPayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "AddIf2IfLinkPayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
 
 func (ec *executionContext) _AddNetworkDevicePayload_ID(ctx context.Context, field graphql.CollectedField, obj *model.AddNetworkDevicePayload) (ret graphql.Marshaler) {
 	defer func() {
@@ -607,6 +722,48 @@ func (ec *executionContext) _Mutation_addNetworkDevice(ctx context.Context, fiel
 	res := resTmp.(*model.AddNetworkDevicePayload)
 	fc.Result = res
 	return ec.marshalNAddNetworkDevicePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddNetworkDevicePayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_addIf2IfLink(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_addIf2IfLink_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddIf2IfLink(rctx, args["input"].(model.If2IfLinkInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.AddIf2IfLinkPayload)
+	fc.Result = res
+	return ec.marshalNAddIf2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddIf2IfLinkPayload(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_addEvent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1896,6 +2053,58 @@ func (ec *executionContext) unmarshalInputEventInput(ctx context.Context, obj in
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputIf2IfLinkInput(ctx context.Context, obj interface{}) (model.If2IfLinkInput, error) {
+	var it model.If2IfLinkInput
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "SrcDevice":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("SrcDevice"))
+			it.SrcDevice, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "SrcInterface":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("SrcInterface"))
+			it.SrcInterface, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "DstDevice":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("DstDevice"))
+			it.DstDevice, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "DstInterface":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("DstInterface"))
+			it.DstInterface, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "CreatedAt":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("CreatedAt"))
+			it.CreatedAt, err = ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputInterfaceInput(ctx context.Context, obj interface{}) (model.InterfaceInput, error) {
 	var it model.InterfaceInput
 	var asMap = obj.(map[string]interface{})
@@ -1992,6 +2201,33 @@ func (ec *executionContext) unmarshalInputNetworkDeviceInput(ctx context.Context
 
 // region    **************************** object.gotpl ****************************
 
+var addIf2IfLinkPayloadImplementors = []string{"AddIf2IfLinkPayload"}
+
+func (ec *executionContext) _AddIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, obj *model.AddIf2IfLinkPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, addIf2IfLinkPayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AddIf2IfLinkPayload")
+		case "ID":
+			out.Values[i] = ec._AddIf2IfLinkPayload_ID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var addNetworkDevicePayloadImplementors = []string{"AddNetworkDevicePayload"}
 
 func (ec *executionContext) _AddNetworkDevicePayload(ctx context.Context, sel ast.SelectionSet, obj *model.AddNetworkDevicePayload) graphql.Marshaler {
@@ -2070,6 +2306,11 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = graphql.MarshalString("Mutation")
 		case "addNetworkDevice":
 			out.Values[i] = ec._Mutation_addNetworkDevice(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "addIf2IfLink":
+			out.Values[i] = ec._Mutation_addIf2IfLink(ctx, field)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -2378,6 +2619,20 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) marshalNAddIf2IfLinkPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v model.AddIf2IfLinkPayload) graphql.Marshaler {
+	return ec._AddIf2IfLinkPayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAddIf2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v *model.AddIf2IfLinkPayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._AddIf2IfLinkPayload(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNAddNetworkDevicePayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddNetworkDevicePayload(ctx context.Context, sel ast.SelectionSet, v model.AddNetworkDevicePayload) graphql.Marshaler {
 	return ec._AddNetworkDevicePayload(ctx, sel, &v)
 }
@@ -2424,6 +2679,11 @@ func (ec *executionContext) marshalNEventPayload2ᚖgithubᚗcomᚋskydiveᚑpro
 		return graphql.Null
 	}
 	return ec._EventPayload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐIf2IfLinkInput(ctx context.Context, v interface{}) (model.If2IfLinkInput, error) {
+	res, err := ec.unmarshalInputIf2IfLinkInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNNetworkDeviceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐNetworkDeviceInput(ctx context.Context, v interface{}) (model.NetworkDeviceInput, error) {

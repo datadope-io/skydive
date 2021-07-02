@@ -20,13 +20,15 @@ const (
 	TypeInterface = "interface"
 	TypeServer    = "server"
 
-	MetadataRelationTypeKey = "RelationType"
-	RelationTypeOwnership   = "ownership"
+	MetaKeyRelationType   = "RelationType"
+	RelationTypeOwnership = "ownership"
+	RelationConnectsTo    = "ConnectsTo"
 
-	MetadataTypeKey   = "Type"
-	MetadataNameKey   = "Name"
-	MetadataVendorKey = "Vendor"
-	MetadataModelKey  = "Model"
+	MetaKeyType        = "Type"
+	MetaKeyName        = "Name"
+	MetaKeyVendor      = "Vendor"
+	MetaKeyModel       = "Model"
+	MetaKeyAggregation = "Aggregation"
 )
 
 // newEdge create a new edge in Skydive with a custom Origin field
@@ -100,10 +102,9 @@ func (r *Resolver) createInterfaces(
 		}
 
 		// Generate ID: sha256("device__ifName")
-		nodeName := device.Metadata[MetadataNameKey]
-		idStr := fmt.Sprintf("%s__%s", nodeName, iface.Name)
-		h := sha256.Sum256([]byte(idStr))
-		id := graph.Identifier(fmt.Sprintf("%x", h))
+		nodeName := device.Metadata[MetaKeyName]
+		s := fmt.Sprintf("%s__%s", nodeName, iface.Name)
+		id := str2GraphID(s)
 
 		node := r.Graph.GetNode(id)
 		if node == nil {
@@ -128,10 +129,10 @@ func (r *Resolver) createInterfaces(
 		// Link node with interface
 		if !r.Graph.AreLinked(device, node, nil) {
 			_, err = r.newEdge(device, node, map[string]interface{}{
-				MetadataRelationTypeKey: RelationTypeOwnership,
+				MetaKeyRelationType: RelationTypeOwnership,
 			}, createdAt)
 			if err != nil {
-				return updated, fmt.Errorf("unable to link node (%+v) to interface (%+v): %v", node, node, err)
+				return updated, fmt.Errorf("unable to link node (%+v) to interface (%+v): %v", device, node, err)
 			}
 		}
 
@@ -140,15 +141,44 @@ func (r *Resolver) createInterfaces(
 	return updated, nil
 }
 
-func (r *Resolver) addNodeWithInterfaces(
+func (r *Resolver) createIf2IfEdge(
+	srcDevice string,
+	srcInterface string,
+	dstDevice string,
+	dstInterface string,
+	createdAt *time.Time,
+) (edge *graph.Edge, err error) {
+	// Get source node
+	s := fmt.Sprintf("%s__%s", srcDevice, srcInterface)
+	srcNode := r.Graph.GetNode(str2GraphID(s))
+
+	// Get destination node
+	s = fmt.Sprintf("%s__%s", dstDevice, dstInterface)
+	dstNode := r.Graph.GetNode(str2GraphID(s))
+
+	edge, err = r.newEdge(srcNode, dstNode, map[string]interface{}{
+		MetaKeyRelationType: RelationConnectsTo,
+	}, createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("unable to link (%+v) with (%+v): %v", srcNode, dstNode, err)
+	}
+
+	return edge, nil
+}
+
+func str2GraphID(input string) graph.Identifier {
+	hash := sha256.Sum256([]byte(input))
+	return graph.Identifier(fmt.Sprintf("%x", hash))
+}
+
+func (r *Resolver) addDeviceWithInterfaces(
 	name string,
 	metadata graph.Metadata,
 	interfaces []*model.InterfaceInput,
 	createdAt *time.Time,
 ) (node *graph.Node, updated bool, interfaceUpdated bool, err error) {
 
-	h := sha256.Sum256([]byte(name))
-	id := graph.Identifier(fmt.Sprintf("%x", h))
+	id := str2GraphID(name)
 	node = r.Graph.GetNode(id)
 
 	// Create, if it does not exists.

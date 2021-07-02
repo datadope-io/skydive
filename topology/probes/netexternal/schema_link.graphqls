@@ -1,0 +1,37 @@
+"""
+Values to create a new link between nodes.
+"""
+input If2IfLinkInput {
+  """
+  Source device name.
+  """
+  SrcDevice: String!
+  """
+  Source interface name.
+  """
+  SrcInterface: String!
+  """
+  Destination device name.
+  """
+  DstDevice: String!
+  """
+  Destination interface name.
+  """
+  DstInterface: String!
+  """
+  Optional field to establish the creation time of the skydive elements.
+  If not set, defaults to the current time.
+  """
+  CreatedAt: Time
+}
+
+
+"""
+Return value when creating a new network device.
+"""
+type AddIf2IfLinkPayload {
+  """
+  Internal ID for the edge in Skydive.
+  """
+  ID: String!
+}

@@ -23,13 +23,13 @@ func (r *mutationResolver) AddNetworkDevice(ctx context.Context, input model.Net
 	}
 
 	metadata := map[string]interface{}{
-		MetadataNameKey:   input.Name,
-		MetadataVendorKey: input.Vendor,
-		MetadataModelKey:  input.Model,
-		MetadataTypeKey:   deviceType,
+		MetaKeyName:   input.Name,
+		MetaKeyVendor: input.Vendor,
+		MetaKeyModel:  input.Model,
+		MetaKeyType:   deviceType,
 	}
 
-	node, updated, _, err := r.addNodeWithInterfaces(input.Name, metadata,
+	node, updated, _, err := r.addDeviceWithInterfaces(input.Name, metadata,
 		input.Interfaces, input.CreatedAt)
 	if err != nil {
 		return nil, err
@@ -42,14 +42,30 @@ func (r *mutationResolver) AddNetworkDevice(ctx context.Context, input model.Net
 	return &payload, nil
 }
 
+func (r *mutationResolver) AddIf2IfLink(ctx context.Context, input model.If2IfLinkInput) (*model.AddIf2IfLinkPayload, error) {
+	r.Graph.Lock()
+	defer r.Graph.Unlock()
+
+	edge, err := r.createIf2IfEdge(input.SrcDevice, input.SrcInterface,
+		input.DstDevice, input.DstInterface, input.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	payload := model.AddIf2IfLinkPayload{
+		ID: string(edge.ID),
+	}
+	return &payload, nil
+}
+
 func (r *mutationResolver) AddEvent(ctx context.Context, input model.EventInput) (*model.EventPayload, error) {
 	r.Graph.Lock()
 	defer r.Graph.Unlock()
 
 	metadata := map[string]interface{}{
-		MetadataNameKey: input.Name,
-		MetadataTypeKey: "host",
-		"foo":           "bar",
+		MetaKeyName: input.Name,
+		MetaKeyType: "host",
+		"foo":       "bar",
 	}
 
 	var ok bool = true
