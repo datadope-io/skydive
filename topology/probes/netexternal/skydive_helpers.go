@@ -91,8 +91,12 @@ func (r *Resolver) createInterfaces(
 	// Iterate over user defined interfaces, creating or updating while needed
 	for _, iface := range interfaces {
 		ifaceMetadata := map[string]interface{}{
-			MetadataNameKey: iface.Name,
-			MetadataTypeKey: "interface",
+			MetaKeyName: iface.Name,
+			MetaKeyType: "interface",
+		}
+
+		if iface.Aggregation != nil {
+			ifaceMetadata[MetaKeyAggregation] = iface.Aggregation
 		}
 
 		// Generate ID: sha256("device__ifName")
