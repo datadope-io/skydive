@@ -98,7 +98,7 @@ func (r *Resolver) createInterfaces(
 		}
 
 		if iface.Aggregation != nil {
-			ifaceMetadata[MetaKeyAggregation] = iface.Aggregation
+			ifaceMetadata[MetaKeyAggregation] = *iface.Aggregation
 		}
 
 		// Generate ID: sha256("device__ifName")

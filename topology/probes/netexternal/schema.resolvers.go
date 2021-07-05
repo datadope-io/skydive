@@ -14,19 +14,25 @@ func (r *mutationResolver) AddNetworkDevice(ctx context.Context, input model.Net
 	r.Graph.Lock()
 	defer r.Graph.Unlock()
 
-	var deviceType *string
-	if input.Type == nil {
-		str := "host"
-		deviceType = &str
-	} else {
-		deviceType = input.Type
+	// Use "host" as the default device type
+	// TODO: definir subtype (router, switch) y dejar type como host siempre.
+	deviceType := "host"
+	if input.Type != nil {
+		deviceType = *input.Type
 	}
 
 	metadata := map[string]interface{}{
-		MetaKeyName:   input.Name,
-		MetaKeyVendor: input.Vendor,
-		MetaKeyModel:  input.Model,
-		MetaKeyType:   deviceType,
+		MetaKeyName: input.Name,
+		MetaKeyType: deviceType,
+	}
+
+	// Set optional metadata fields if defined
+	if input.Vendor != nil {
+		metadata[MetaKeyVendor] = *input.Vendor
+	}
+
+	if input.Model != nil {
+		metadata[MetaKeyModel] = *input.Model
 	}
 
 	node, updated, _, err := r.addDeviceWithInterfaces(input.Name, metadata,
