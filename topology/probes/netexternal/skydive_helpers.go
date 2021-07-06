@@ -89,7 +89,6 @@ func (r *Resolver) createInterfaces(
 	interfaces []*model.InterfaceInput,
 	createdAt *time.Time,
 ) (updated bool, err error) {
-
 	// Iterate over user defined interfaces, creating or updating while needed
 	for _, iface := range interfaces {
 		ifaceMetadata := map[string]interface{}{
@@ -97,48 +96,100 @@ func (r *Resolver) createInterfaces(
 			MetaKeyType: "interface",
 		}
 
-		if iface.Aggregation != nil {
-			ifaceMetadata[MetaKeyAggregation] = *iface.Aggregation
-		}
-
 		// Generate ID: sha256("device__ifName")
 		nodeName := device.Metadata[MetaKeyName]
 		s := fmt.Sprintf("%s__%s", nodeName, iface.Name)
-		id := str2GraphID(s)
+		ifID := str2GraphID(s)
 
-		node := r.Graph.GetNode(id)
-		if node == nil {
+		ifNode := r.Graph.GetNode(ifID)
+		if ifNode == nil {
 			// Create the interface and assign the node to "iface" var
-			node, err = r.newNode(id, ifaceMetadata, createdAt)
+			ifNode, err = r.newNode(ifID, ifaceMetadata, createdAt)
 			if err != nil {
 				logging.GetLogger().Errorf("unable to create interface %+v: %v", ifaceMetadata, err)
 				return updated, fmt.Errorf("unable to create interface: %v", err)
 			}
 		} else {
-			revisionPreUpdateIface := node.Revision
-			errS := r.Graph.SetMetadata(node, ifaceMetadata)
+			revisionPreUpdateIface := ifNode.Revision
+			errS := r.Graph.SetMetadata(ifNode, ifaceMetadata)
 			if errS != nil {
-				logging.GetLogger().Errorf("unable to update interface metadata %+v: %v", node, err)
-				return updated, fmt.Errorf("unable to update interface metadata %+v: %v", node, err)
+				logging.GetLogger().Errorf("unable to update interface metadata %+v: %v", ifNode, err)
+				return updated, fmt.Errorf("unable to update interface metadata %+v: %v", ifNode, err)
 			}
-			if revisionPreUpdateIface != node.Revision {
+			if revisionPreUpdateIface != ifNode.Revision {
 				updated = true
 			}
 		}
 
-		// Link node with interface
-		if !r.Graph.AreLinked(device, node, nil) {
-			_, err = r.newEdge(device, node, map[string]interface{}{
-				MetaKeyRelationType: RelationTypeOwnership,
-			}, createdAt)
-			if err != nil {
-				return updated, fmt.Errorf("unable to link node (%+v) to interface (%+v): %v", device, node, err)
+		if iface.Aggregation != nil && *iface.Aggregation != "" {
+			aggregation := *iface.Aggregation
+			ifaceMetadata[MetaKeyAggregation] = aggregation
+			r.createAggrIface(aggregation, device, ifNode, createdAt)
+		} else {
+			// Link node with interface
+			if !r.Graph.AreLinked(device, ifNode, nil) {
+				_, err = r.newEdge(device, ifNode, map[string]interface{}{
+					MetaKeyRelationType: RelationTypeOwnership,
+				}, createdAt)
+				if err != nil {
+					return updated, fmt.Errorf("unable to link node (%+v) to interface (%+v): %v", device, ifNode, err)
+				}
 			}
 		}
-
 	}
 
 	return updated, nil
+}
+
+func (r *Resolver) createAggrIface(
+	aggregation string,
+	device *graph.Node,
+	ifNode *graph.Node,
+	createdAt *time.Time,
+) error {
+	var err error
+	aggMetadata := map[string]interface{}{
+		MetaKeyName: aggregation,
+		MetaKeyType: "aggregation",
+	}
+
+	nodeName := device.Metadata[MetaKeyName]
+	s := fmt.Sprintf("%s__%s", nodeName, aggregation)
+	aggID := str2GraphID(s)
+
+	aggNode := r.Graph.GetNode(aggID)
+	if aggNode == nil {
+		// Create the interface and assign the node to "iface" var
+		aggNode, err = r.newNode(aggID, aggMetadata, createdAt)
+		if err != nil {
+			fmt.Printf("unable to create aggregate interface %+v: %v\n", aggMetadata, err)
+			return fmt.Errorf("unable to create aggregate interface: %v", err)
+		}
+	}
+
+	// Link device with aggregate interface
+	if !r.Graph.AreLinked(device, aggNode, nil) {
+		_, err = r.newEdge(device, aggNode, map[string]interface{}{
+			MetaKeyRelationType: RelationTypeOwnership,
+		}, createdAt)
+		if err != nil {
+			fmt.Printf("unable to link device (%+v) to aggregation (%+v): %v\n", device, aggNode, err)
+			return fmt.Errorf("unable to link device (%+v) to aggregation (%+v): %v", device, aggNode, err)
+		}
+	}
+
+	// Link interface with aggregate interface
+	if !r.Graph.AreLinked(aggNode, ifNode, nil) {
+		_, err = r.newEdge(aggNode, ifNode, map[string]interface{}{
+			MetaKeyRelationType: RelationTypeOwnership,
+		}, createdAt)
+		if err != nil {
+			fmt.Printf("unable to link interface (%+v) to aggregation (%+v): %v\n", ifNode, aggNode, err)
+			return fmt.Errorf("unable to link interface (%+v) to aggregation (%+v): %v", ifNode, aggNode, err)
+		}
+	}
+
+	return nil
 }
 
 func (r *Resolver) createIf2IfEdge(
