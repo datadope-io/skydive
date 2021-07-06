@@ -91,13 +91,15 @@ func (r *Resolver) createInterfaces(
 ) (updated bool, err error) {
 	// Iterate over user defined interfaces, creating or updating while needed
 	for _, iface := range interfaces {
+		nodeName := device.Metadata[MetaKeyName]
+
 		ifaceMetadata := map[string]interface{}{
 			MetaKeyName: iface.Name,
+			"Device":    nodeName,
 			MetaKeyType: "interface",
 		}
 
 		// Generate ID: sha256("device__ifName")
-		nodeName := device.Metadata[MetaKeyName]
 		s := fmt.Sprintf("%s__%s", nodeName, iface.Name)
 		ifID := str2GraphID(s)
 
@@ -126,15 +128,9 @@ func (r *Resolver) createInterfaces(
 			ifaceMetadata[MetaKeyAggregation] = aggregation
 			r.createAggrIface(aggregation, device, ifNode, createdAt)
 		} else {
-			// Link node with interface
-			if !r.Graph.AreLinked(device, ifNode, nil) {
-				_, err = r.newEdge(device, ifNode, map[string]interface{}{
-					MetaKeyRelationType: RelationTypeOwnership,
-				}, createdAt)
-				if err != nil {
-					return updated, fmt.Errorf("unable to link node (%+v) to interface (%+v): %v", device, ifNode, err)
-				}
-			}
+			aggregation := "NoAggregation"
+			ifaceMetadata[MetaKeyAggregation] = aggregation
+			r.createAggrIface(aggregation, device, ifNode, createdAt)
 		}
 	}
 
@@ -148,12 +144,14 @@ func (r *Resolver) createAggrIface(
 	createdAt *time.Time,
 ) error {
 	var err error
+	nodeName := device.Metadata[MetaKeyName]
+
 	aggMetadata := map[string]interface{}{
 		MetaKeyName: aggregation,
+		"Device":    nodeName,
 		MetaKeyType: "aggregation",
 	}
 
-	nodeName := device.Metadata[MetaKeyName]
 	s := fmt.Sprintf("%s__%s", nodeName, aggregation)
 	aggID := str2GraphID(s)
 
