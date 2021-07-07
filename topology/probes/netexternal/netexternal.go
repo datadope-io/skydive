@@ -34,10 +34,12 @@ func (p *Probe) Start() error {
 		},
 	}))
 
-	http.Handle("/", playground.Handler("netexternal GraphQL playground", "/query"))
-	http.Handle("/query", srv)
+	mux := http.NewServeMux()
 
-	go http.ListenAndServe(listenEndpoint, nil)
+	mux.Handle("/", playground.Handler("netexternal GraphQL playground", "/query"))
+	mux.Handle("/query", srv)
+
+	go http.ListenAndServe(listenEndpoint, mux)
 
 	logging.GetLogger().Infof("Listening for network elements on %v", listenEndpoint)
 
