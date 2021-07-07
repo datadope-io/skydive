@@ -128,7 +128,7 @@ func (r *Resolver) createInterfaces(
 			ifaceMetadata[MetaKeyAggregation] = aggregation
 			r.createAggrIface(aggregation, device, ifNode, createdAt)
 		} else {
-			aggregation := "NoAggregation"
+			aggregation := iface.Name + "__NoAggregation"
 			ifaceMetadata[MetaKeyAggregation] = aggregation
 			r.createAggrIface(aggregation, device, ifNode, createdAt)
 		}
