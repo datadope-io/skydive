@@ -1,56 +1,41 @@
-"""
-Values to create a new network device.
-"""
+# Values to create a new network device.
 input NetworkDeviceInput {
-  """
-  Device name. Used as the primary key.
-  """
+  # Device name. Used as the primary key.
   Name: String!
-  """
-  Device type: router, switch, etc.
-  """
+
+  # Device type: router, switch, etc.
   Type: String
-  """
-  Vendor of the device: Cisco, Juniper, etc.
-  """
+
+  # Vendor of the device: Cisco, Juniper, etc.
   Vendor: String
-  """
-  Device model, eg.: CBS250-8P-E-2G
-  """
+
+  # Device model, eg.: CBS250-8P-E-2G
   Model: String
-  """
-  Device interfaces with LLDP information.
-  """
+
+  # Device interfaces with LLDP information.
   Interfaces: [InterfaceInput]
-  """
-  Optional field to establish the creation time of the skydive elements.
-  If not set, defaults to the current time.
-  """
+
+  # Optional field to establish the creation time of the skydive elements. If
+  # not set, defaults to the current time.
   CreatedAt: Time
 }
 
+# Values to create a new interface.
 input InterfaceInput {
-  """
-  Name of the interface, eg.: ge/0/1
-  """
+  # Name of the interface, eg.: ge/0/1
   Name: String!
-  """
-  Set true for virtual interfaces aggregatting other physical interfaces (LACP)
-  """
+
+  # Set true for virtual interfaces aggregating other physical interfaces
+  # (LACP)
   Aggregation: String
 }
 
-"""
-Return value when creating a new network device.
-"""
+# Return value when creating a new network device.
 type AddNetworkDevicePayload {
-  """
-  Internal ID for the node in Skydive.
-  """
+  # Internal ID for the node in Skydive.
   ID: String!
-  """
-  Return true if a device with this name already exists
-  and metadata values have been updated.
-  """
+
+  # Return true if a device with this name already exists and metadata values
+  # have been updated.
   Updated: Boolean!
 }

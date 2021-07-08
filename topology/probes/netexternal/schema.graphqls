@@ -1,7 +1,5 @@
 type Mutation {
-  """
-  Create a new network element. Does nothing if already exists.
-  """
+  # Create a new network element. Does nothing if already exists.
   addNetworkDevice(input: NetworkDeviceInput!): AddNetworkDevicePayload!
 
   addIf2IfLink(input: If2IfLinkInput!): AddIf2IfLinkPayload!
