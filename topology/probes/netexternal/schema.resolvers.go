@@ -64,19 +64,13 @@ func (r *mutationResolver) AddIf2IfLink(ctx context.Context, input model.If2IfLi
 	return &payload, nil
 }
 
-func (r *mutationResolver) AddEvent(ctx context.Context, input model.EventInput) (*model.EventPayload, error) {
+func (r *mutationResolver) AddEvents(ctx context.Context, input []*model.EventInput) (*model.EventPayload, error) {
 	r.Graph.Lock()
 	defer r.Graph.Unlock()
 
-	metadata := map[string]interface{}{
-		MetaKeyName: input.Name,
-		MetaKeyType: "host",
-		"foo":       "bar",
-	}
-
 	var ok bool = true
 	var err_msg string
-	_, err := r.updateNode(input.Name, metadata, input.Time)
+	err := r.createEvents(input)
 	if err != nil {
 		ok = false
 		err_msg = err.Error()

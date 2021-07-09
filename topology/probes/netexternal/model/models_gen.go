@@ -6,91 +6,45 @@ import (
 	"time"
 )
 
-// Return value when creating a new network device.
 type AddIf2IfLinkPayload struct {
-	// Internal ID for the edge in Skydive.
 	ID string `json:"ID"`
 }
 
-// Return value when creating a new network device.
 type AddNetworkDevicePayload struct {
-	// Internal ID for the node in Skydive.
-	ID string `json:"ID"`
-	// Return true if a device with this name already exists
-	// and metadata values have been updated.
-	Updated bool `json:"Updated"`
+	ID      string `json:"ID"`
+	Updated bool   `json:"Updated"`
 }
 
-// Datos de entrada para crear un evento y asociarlo a un nodo
 type EventInput struct {
-	// Nombre del nodo al que queremos añadir un evento.
-	// Solo algunos tipos de nodos pueden recibir eventos, son aquellos que se pueden
-	// identificar unívocamente por su Name+Type: servers, software, routers, switches, etc
-	// Otros como las interfaces, tienen el mismo Name+Type y se diferencian por su relación
-	// con otros nodos del primer tipo. A estos últimos no podemos añadir alarmas directamente.
-	Name string `json:"Name"`
-	// Cadena obligatoria con la que podamos relacionar eventos generados por el mismo origen.
-	// Por ejemplo, para Zabbix, la pkey será el triggerID, con el que logramos identificar
-	// que distintos eventos proceden del mismo origen.
-	// En el caso de alarmas enviadas por Elastic-ML, tendrá que ser una combinación de
-	// nombre de la función y otros parámetros con los que logremos distinguir que eventos
-	// con los "mismos" enviados en distintos momentos en el tiempo.
-	Pkey string `json:"Pkey"`
-	// Para los nodos tipo Router o Switch, se permite pasar, de manera opcional, el nombre
-	// de la interfaz involucrada en el evento.
-	// En caso de que dicha interfaz exista asociada al router/switch, se meterá la alarma
-	// en el nodo interfaz. En caso contrario, la alarma se asociará al router/switch.
-	Interface *string `json:"Interface"`
-	// Fecha del evento. En caso de no estar definido se usará la fecha actual
-	Time *time.Time `json:"Time"`
-	// Texto con formato JSON donde añadimos información extra del evento.
-	// Aquí podemos añadir, por ejemplo, la criticidad del evento, un texto descriptivo, etc
-	Metadata string `json:"Metadata"`
+	Device  string     `json:"Device"`
+	Source  string     `json:"Source"`
+	Payload string     `json:"Payload"`
+	Time    *time.Time `json:"Time"`
 }
 
-// Respuesta enviada al usuario al crear un evento
 type EventPayload struct {
-	// Return if the addEvent mutation was processed correctly
-	Ok bool `json:"Ok"`
-	// En caso de ok:false, retornamos un mensaje de error.
+	Ok    bool    `json:"Ok"`
 	Error *string `json:"Error"`
 }
 
-// Values to create a new link between nodes.
 type If2IfLinkInput struct {
-	// Source device name.
-	SrcDevice string `json:"SrcDevice"`
-	// Source interface name.
-	SrcInterface string `json:"SrcInterface"`
-	// Destination device name.
-	DstDevice string `json:"DstDevice"`
-	// Destination interface name.
-	DstInterface string `json:"DstInterface"`
-	// Optional field to establish the creation time of the skydive elements.
-	// If not set, defaults to the current time.
-	CreatedAt *time.Time `json:"CreatedAt"`
+	SrcDevice    string     `json:"SrcDevice"`
+	SrcInterface string     `json:"SrcInterface"`
+	DstDevice    string     `json:"DstDevice"`
+	DstInterface string     `json:"DstInterface"`
+	CreatedAt    *time.Time `json:"CreatedAt"`
 }
 
 type InterfaceInput struct {
-	// Name of the interface, eg.: ge/0/1
-	Name string `json:"Name"`
-	// Set true for virtual interfaces aggregatting other physical interfaces (LACP)
+	Name        string  `json:"Name"`
 	Aggregation *string `json:"Aggregation"`
 }
 
-// Values to create a new network device.
 type NetworkDeviceInput struct {
-	// Device name. Used as the primary key.
-	Name string `json:"Name"`
-	// Device type: router, switch, etc.
-	Type *string `json:"Type"`
-	// Vendor of the device: Cisco, Juniper, etc.
-	Vendor *string `json:"Vendor"`
-	// Device model, eg.: CBS250-8P-E-2G
-	Model *string `json:"Model"`
-	// Device interfaces with LLDP information.
+	Name       string            `json:"Name"`
+	Type       *string           `json:"Type"`
+	Vendor     *string           `json:"Vendor"`
+	Model      *string           `json:"Model"`
 	Interfaces []*InterfaceInput `json:"Interfaces"`
-	// Optional field to establish the creation time of the skydive elements.
-	// If not set, defaults to the current time.
-	CreatedAt *time.Time `json:"CreatedAt"`
+	CreatedAt  *time.Time        `json:"CreatedAt"`
 }

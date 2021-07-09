@@ -59,7 +59,7 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddEvent         func(childComplexity int, input model.EventInput) int
+		AddEvents        func(childComplexity int, input []*model.EventInput) int
 		AddIf2IfLink     func(childComplexity int, input model.If2IfLinkInput) int
 		AddNetworkDevice func(childComplexity int, input model.NetworkDeviceInput) int
 	}
@@ -72,7 +72,7 @@ type ComplexityRoot struct {
 type MutationResolver interface {
 	AddNetworkDevice(ctx context.Context, input model.NetworkDeviceInput) (*model.AddNetworkDevicePayload, error)
 	AddIf2IfLink(ctx context.Context, input model.If2IfLinkInput) (*model.AddIf2IfLinkPayload, error)
-	AddEvent(ctx context.Context, input model.EventInput) (*model.EventPayload, error)
+	AddEvents(ctx context.Context, input []*model.EventInput) (*model.EventPayload, error)
 }
 type QueryResolver interface {
 	Version(ctx context.Context) (string, error)
@@ -128,17 +128,17 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.EventPayload.Ok(childComplexity), true
 
-	case "Mutation.addEvent":
-		if e.complexity.Mutation.AddEvent == nil {
+	case "Mutation.addEvents":
+		if e.complexity.Mutation.AddEvents == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_addEvent_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_addEvents_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.AddEvent(childComplexity, args["input"].(model.EventInput)), true
+		return e.complexity.Mutation.AddEvents(childComplexity, args["input"].([]*model.EventInput)), true
 
 	case "Mutation.addIf2IfLink":
 		if e.complexity.Mutation.AddIf2IfLink == nil {
@@ -236,14 +236,12 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 
 var sources = []*ast.Source{
 	{Name: "schema.graphqls", Input: `type Mutation {
-  """
-  Create a new network element. Does nothing if already exists.
-  """
+  # Create a new network element. Does nothing if already exists.
   addNetworkDevice(input: NetworkDeviceInput!): AddNetworkDevicePayload!
 
   addIf2IfLink(input: If2IfLinkInput!): AddIf2IfLinkPayload!
 
-  addEvent(input: EventInput!): EventPayload!
+  addEvents(input: [EventInput!]!): EventPayload!
 }
 
 type Query {
@@ -252,156 +250,95 @@ type Query {
 
 scalar Time
 `, BuiltIn: false},
-	{Name: "schema_events.graphqls", Input: `"""
-Datos de entrada para crear un evento y asociarlo a un nodo
-"""
+	{Name: "schema_events.graphqls", Input: `# Values to create a new device event.
 input EventInput {
-    """
-    Nombre del nodo al que queremos añadir un evento.
-    Solo algunos tipos de nodos pueden recibir eventos, son aquellos que se pueden
-    identificar unívocamente por su Name+Type: servers, software, routers, switches, etc
-    Otros como las interfaces, tienen el mismo Name+Type y se diferencian por su relación
-    con otros nodos del primer tipo. A estos últimos no podemos añadir alarmas directamente.
-    """
-    Name: String!
+    # Device to which the event will be added
+    Device: String!
 
-    """
-    Cadena obligatoria con la que podamos relacionar eventos generados por el mismo origen.
-    Por ejemplo, para Zabbix, la pkey será el triggerID, con el que logramos identificar
-    que distintos eventos proceden del mismo origen.
-    En el caso de alarmas enviadas por Elastic-ML, tendrá que ser una combinación de
-    nombre de la función y otros parámetros con los que logremos distinguir que eventos
-    con los "mismos" enviados en distintos momentos en el tiempo.
-    """
-    Pkey: String!
+    # System that originated the event (e.g: AlarmsML, Zabbix, etc.)
+    Source: String!
 
-    """
-    Para los nodos tipo Router o Switch, se permite pasar, de manera opcional, el nombre
-    de la interfaz involucrada en el evento.
-    En caso de que dicha interfaz exista asociada al router/switch, se meterá la alarma
-    en el nodo interfaz. En caso contrario, la alarma se asociará al router/switch.
-    """
-    Interface: String
+    # Event data
+    Payload: String!
 
-    """
-    Fecha del evento. En caso de no estar definido se usará la fecha actual
-    """
+    # Event date and time. Defaults to current time.
     Time: Time
-
-    """
-    Texto con formato JSON donde añadimos información extra del evento.
-    Aquí podemos añadir, por ejemplo, la criticidad del evento, un texto descriptivo, etc
-    """
-    Metadata: String!
 }
 
-"""
-Respuesta enviada al usuario al crear un evento
-"""
+# Return value when creating a new network device.
 type EventPayload{
-    """
-    Return if the addEvent mutation was processed correctly
-    """
+    # Return if the addEvent mutation was processed correctly
     Ok: Boolean!
 
-    """
-    En caso de ok:false, retornamos un mensaje de error.
-    """
+    # Error message if Ok is false
     Error: String
 }
 `, BuiltIn: false},
-	{Name: "schema_link.graphqls", Input: `"""
-Values to create a new link between nodes.
-"""
+	{Name: "schema_link.graphqls", Input: `# Values to create a new link between nodes.
 input If2IfLinkInput {
-  """
-  Source device name.
-  """
+  # Source device name.
   SrcDevice: String!
-  """
-  Source interface name.
-  """
+
+  # Source interface name.
   SrcInterface: String!
-  """
-  Destination device name.
-  """
+
+  # Destination device name.
   DstDevice: String!
-  """
-  Destination interface name.
-  """
+
+  # Destination interface name.
   DstInterface: String!
-  """
-  Optional field to establish the creation time of the skydive elements.
-  If not set, defaults to the current time.
-  """
+
+  # Optional field to establish the creation time of the skydive elements. If
+  # not set, defaults to the current time.
   CreatedAt: Time
 }
 
 
-"""
-Return value when creating a new network device.
-"""
+# Return value when creating a new link between interfaces.
 type AddIf2IfLinkPayload {
-  """
-  Internal ID for the edge in Skydive.
-  """
+  # Internal ID for the edge in Skydive.
   ID: String!
 }
 `, BuiltIn: false},
-	{Name: "schema_netdevice.graphqls", Input: `"""
-Values to create a new network device.
-"""
+	{Name: "schema_netdevice.graphqls", Input: `# Values to create a new network device.
 input NetworkDeviceInput {
-  """
-  Device name. Used as the primary key.
-  """
+  # Device name. Used as the primary key.
   Name: String!
-  """
-  Device type: router, switch, etc.
-  """
+
+  # Device type: router, switch, etc.
   Type: String
-  """
-  Vendor of the device: Cisco, Juniper, etc.
-  """
+
+  # Vendor of the device: Cisco, Juniper, etc.
   Vendor: String
-  """
-  Device model, eg.: CBS250-8P-E-2G
-  """
+
+  # Device model, eg.: CBS250-8P-E-2G
   Model: String
-  """
-  Device interfaces with LLDP information.
-  """
+
+  # Device interfaces with LLDP information.
   Interfaces: [InterfaceInput]
-  """
-  Optional field to establish the creation time of the skydive elements.
-  If not set, defaults to the current time.
-  """
+
+  # Optional field to establish the creation time of the skydive elements. If
+  # not set, defaults to the current time.
   CreatedAt: Time
 }
 
+# Values to create a new interface.
 input InterfaceInput {
-  """
-  Name of the interface, eg.: ge/0/1
-  """
+  # Name of the interface, eg.: ge/0/1
   Name: String!
-  """
-  Set true for virtual interfaces aggregatting other physical interfaces (LACP)
-  """
+
+  # Set true for virtual interfaces aggregating other physical interfaces
+  # (LACP)
   Aggregation: String
 }
 
-"""
-Return value when creating a new network device.
-"""
+# Return value when creating a new network device.
 type AddNetworkDevicePayload {
-  """
-  Internal ID for the node in Skydive.
-  """
+  # Internal ID for the node in Skydive.
   ID: String!
-  """
-  Return true if a device with this name already exists
-  and metadata values have been updated.
-  """
+
+  # Return true if a device with this name already exists and metadata values
+  # have been updated.
   Updated: Boolean!
 }
 `, BuiltIn: false},
@@ -412,13 +349,13 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
-func (ec *executionContext) field_Mutation_addEvent_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_addEvents_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 model.EventInput
+	var arg0 []*model.EventInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalNEventInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐEventInput(ctx, tmp)
+		arg0, err = ec.unmarshalNEventInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐEventInputᚄ(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -766,7 +703,7 @@ func (ec *executionContext) _Mutation_addIf2IfLink(ctx context.Context, field gr
 	return ec.marshalNAddIf2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddIf2IfLinkPayload(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Mutation_addEvent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_addEvents(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -783,7 +720,7 @@ func (ec *executionContext) _Mutation_addEvent(ctx context.Context, field graphq
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Mutation_addEvent_args(ctx, rawArgs)
+	args, err := ec.field_Mutation_addEvents_args(ctx, rawArgs)
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
@@ -791,7 +728,7 @@ func (ec *executionContext) _Mutation_addEvent(ctx context.Context, field graphq
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().AddEvent(rctx, args["input"].(model.EventInput))
+		return ec.resolvers.Mutation().AddEvents(rctx, args["input"].([]*model.EventInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2007,27 +1944,27 @@ func (ec *executionContext) unmarshalInputEventInput(ctx context.Context, obj in
 
 	for k, v := range asMap {
 		switch k {
-		case "Name":
+		case "Device":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Name"))
-			it.Name, err = ec.unmarshalNString2string(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Device"))
+			it.Device, err = ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-		case "Pkey":
+		case "Source":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Pkey"))
-			it.Pkey, err = ec.unmarshalNString2string(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Source"))
+			it.Source, err = ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-		case "Interface":
+		case "Payload":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Interface"))
-			it.Interface, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Payload"))
+			it.Payload, err = ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2036,14 +1973,6 @@ func (ec *executionContext) unmarshalInputEventInput(ctx context.Context, obj in
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Time"))
 			it.Time, err = ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		case "Metadata":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Metadata"))
-			it.Metadata, err = ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2314,8 +2243,8 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "addEvent":
-			out.Values[i] = ec._Mutation_addEvent(ctx, field)
+		case "addEvents":
+			out.Values[i] = ec._Mutation_addEvents(ctx, field)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -2662,9 +2591,30 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) unmarshalNEventInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐEventInput(ctx context.Context, v interface{}) (model.EventInput, error) {
+func (ec *executionContext) unmarshalNEventInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐEventInputᚄ(ctx context.Context, v interface{}) ([]*model.EventInput, error) {
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]*model.EventInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNEventInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐEventInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNEventInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐEventInput(ctx context.Context, v interface{}) (*model.EventInput, error) {
 	res, err := ec.unmarshalInputEventInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNEventPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐEventPayload(ctx context.Context, sel ast.SelectionSet, v model.EventPayload) graphql.Marshaler {

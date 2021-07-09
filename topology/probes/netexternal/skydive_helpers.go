@@ -2,6 +2,7 @@ package netexternal
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -66,22 +67,84 @@ func (r *Resolver) newNode(id graph.Identifier, m graph.Metadata, createdAt *tim
 	return n, nil
 }
 
-func (r *Resolver) updateNode(id string, m graph.Metadata, modifiedAt *time.Time) (*graph.Node, error) {
-	old_node := r.Graph.GetNode(graph.Identifier(id))
+func (r *Resolver) createEvents(events []*model.EventInput) error {
+	for _, event := range events {
+		switch event.Source {
+		case "AlarmsML":
+			err := r.createAlarmsMLEvent(event.Device, event.Payload, event.Time)
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("Unknown type of event")
+		}
+	}
+
+	return nil
+}
+
+func (r *Resolver) createAlarmsMLEvent(device string, payload string, eventTime *time.Time) error {
+	id := str2GraphID(device)
+	old_node := r.Graph.GetNode(id)
 	if old_node == nil {
-		return nil, fmt.Errorf("Node doesn't exist")
+		return fmt.Errorf("Device doesn't exist")
+	}
+
+	type alarmsMLEvent struct {
+		Id          *string  `json:"job_id" validate:"nonnil"`
+		Span        *uint    `json:"bucket_span" validate:"nonnil"`
+		Function    *string  `json:"function" validate:"nonnil"`
+		Probability *float64 `json:"probability" validate:"nonnil"`
+		Score       *float64 `json:"record_score" validate:"nonnil"`
+		Field       *string  `json:"by_field_value" validate:"nonnil"`
+	}
+
+	var event alarmsMLEvent
+	err := json.Unmarshal([]byte(payload), &event)
+	if err != nil {
+		return fmt.Errorf("Error decoding the event JSON payload")
+	}
+
+	if event.Id == nil || event.Span == nil || event.Function == nil || event.Probability == nil || event.Score == nil {
+		return fmt.Errorf("A required field is missing")
+	}
+
+	eventData := map[string]interface{}{
+		"bucket_span":  *event.Span,
+		"probability":  *event.Probability,
+		"record_score": *event.Score,
+	}
+
+	eventID := *event.Id + "__" + *event.Function
+	if event.Field != nil {
+		eventID = eventID + "__" + *event.Field
+	}
+
+	m := old_node.Metadata
+	if val, found := m["AlarmsML"]; found {
+		alarms, ok := val.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("Invalid previous alarms")
+		}
+		alarms[eventID] = eventData
+		m["AlarmsML"] = alarms
+	} else {
+		m["AlarmsML"] = map[string]interface{}{
+			eventID: eventData,
+		}
 	}
 
 	new_node := graph.CreateNode(old_node.ID, m, old_node.CreatedAt, old_node.Host, old_node.Origin)
 	// Increment revision
 	new_node.Revision = old_node.Revision + 1
+	new_node.UpdatedAt = graph.Time(*eventTime)
 
-	err := r.Graph.NodeUpdated(new_node)
+	err = r.Graph.NodeUpdated(new_node)
 	if err != nil {
-		return nil, fmt.Errorf("Updating node")
+		return fmt.Errorf("Updating node")
 	}
 
-	return new_node, nil
+	return nil
 }
 
 func (r *Resolver) createInterfaces(
