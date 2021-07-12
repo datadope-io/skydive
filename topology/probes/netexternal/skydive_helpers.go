@@ -4,12 +4,14 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"time"
 
 	uuid "github.com/nu7hatch/gouuid"
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/logging"
 	"github.com/skydive-project/skydive/topology/probes/netexternal/model"
+	validator "gopkg.in/validator.v2"
 )
 
 const (
@@ -84,19 +86,13 @@ func (r *Resolver) createEvents(events []*model.EventInput) error {
 }
 
 func (r *Resolver) createAlarmsMLEvent(device string, payload string, eventTime *time.Time) error {
-	id := str2GraphID(device)
-	old_node := r.Graph.GetNode(id)
-	if old_node == nil {
-		return fmt.Errorf("Device doesn't exist")
-	}
-
 	type alarmsMLEvent struct {
-		Id          *string  `json:"job_id" validate:"nonnil"`
-		Span        *uint    `json:"bucket_span" validate:"nonnil"`
-		Function    *string  `json:"function" validate:"nonnil"`
-		Probability *float64 `json:"probability" validate:"nonnil"`
-		Score       *float64 `json:"record_score" validate:"nonnil"`
-		Field       *string  `json:"by_field_value" validate:"nonnil"`
+		Id          *string  `json:"job_id" validate:"nonzero"`
+		Span        *uint    `json:"bucket_span" validate:"nonzero"`
+		Function    *string  `json:"function" validate:"nonzero"`
+		Probability *float64 `json:"probability" validate:"nonzero"`
+		Score       *float64 `json:"record_score" validate:"nonzero"`
+		Field       *string  `json:"by_field_value"`
 	}
 
 	var event alarmsMLEvent
@@ -105,8 +101,9 @@ func (r *Resolver) createAlarmsMLEvent(device string, payload string, eventTime 
 		return fmt.Errorf("Error decoding the event JSON payload")
 	}
 
-	if event.Id == nil || event.Span == nil || event.Function == nil || event.Probability == nil || event.Score == nil {
-		return fmt.Errorf("A required field is missing")
+	err = validator.Validate(event)
+	if err != nil {
+		return fmt.Errorf("A required field is missing: %v", err)
 	}
 
 	eventData := map[string]interface{}{
@@ -115,9 +112,26 @@ func (r *Resolver) createAlarmsMLEvent(device string, payload string, eventTime 
 		"record_score": *event.Score,
 	}
 
+	var old_node *graph.Node
+
 	eventID := *event.Id + "__" + *event.Function
-	if event.Field != nil {
+	if event.Field != nil && *event.Field != "" {
 		eventID = eventID + "__" + *event.Field
+
+		re := regexp.MustCompile(`traffic\.[[:alpha:]]xt_`)
+		iface := re.ReplaceAllString(*event.Field, "")
+		node_name := fmt.Sprintf("%s__%s", device, iface)
+		id := str2GraphID(node_name)
+
+		old_node = r.Graph.GetNode(id)
+	}
+
+	if old_node == nil {
+		id := str2GraphID(device)
+		old_node = r.Graph.GetNode(id)
+		if old_node == nil {
+			return fmt.Errorf("Device doesn't exist")
+		}
 	}
 
 	m := old_node.Metadata
