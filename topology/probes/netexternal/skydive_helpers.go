@@ -112,7 +112,7 @@ func (r *Resolver) createAlarmsMLEvent(device string, payload string, eventTime 
 		"record_score": *event.Score,
 	}
 
-	var old_node *graph.Node
+	var oldNode *graph.Node
 
 	eventID := *event.Id + "__" + *event.Function
 	if event.Field != nil && *event.Field != "" {
@@ -120,21 +120,21 @@ func (r *Resolver) createAlarmsMLEvent(device string, payload string, eventTime 
 
 		re := regexp.MustCompile(`traffic\.[[:alpha:]]xt_`)
 		iface := re.ReplaceAllString(*event.Field, "")
-		node_name := fmt.Sprintf("%s__%s", device, iface)
-		id := str2GraphID(node_name)
+		nodeName := fmt.Sprintf("%s__%s", device, iface)
+		id := str2GraphID(nodeName)
 
-		old_node = r.Graph.GetNode(id)
+		oldNode = r.Graph.GetNode(id)
 	}
 
-	if old_node == nil {
+	if oldNode == nil {
 		id := str2GraphID(device)
-		old_node = r.Graph.GetNode(id)
-		if old_node == nil {
+		oldNode = r.Graph.GetNode(id)
+		if oldNode == nil {
 			return fmt.Errorf("Device doesn't exist")
 		}
 	}
 
-	m := old_node.Metadata
+	m := oldNode.Metadata
 	if val, found := m["AlarmsML"]; found {
 		alarms, ok := val.(map[string]interface{})
 		if !ok {
@@ -148,12 +148,12 @@ func (r *Resolver) createAlarmsMLEvent(device string, payload string, eventTime 
 		}
 	}
 
-	new_node := graph.CreateNode(old_node.ID, m, old_node.CreatedAt, old_node.Host, old_node.Origin)
+	newNode := graph.CreateNode(oldNode.ID, m, oldNode.CreatedAt, oldNode.Host, oldNode.Origin)
 	// Increment revision
-	new_node.Revision = old_node.Revision + 1
-	new_node.UpdatedAt = graph.Time(*eventTime)
+	newNode.Revision = oldNode.Revision + 1
+	newNode.UpdatedAt = graph.Time(*eventTime)
 
-	err = r.Graph.NodeUpdated(new_node)
+	err = r.Graph.NodeUpdated(newNode)
 	if err != nil {
 		return fmt.Errorf("Updating node")
 	}
