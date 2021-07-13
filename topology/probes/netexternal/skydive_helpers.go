@@ -87,12 +87,15 @@ func (r *Resolver) createEvents(events []*model.EventInput) error {
 
 func (r *Resolver) createAlarmsMLEvent(device string, payload string, eventTime *time.Time) error {
 	type alarmsMLEvent struct {
-		Id          *string  `json:"job_id" validate:"nonzero"`
-		Span        *uint    `json:"bucket_span" validate:"nonzero"`
-		Function    *string  `json:"function" validate:"nonzero"`
-		Probability *float64 `json:"probability" validate:"nonzero"`
-		Score       *float64 `json:"record_score" validate:"nonzero"`
-		Field       *string  `json:"by_field_value"`
+		Id          string  `json:"job_id" validate:"nonzero"`
+		Span        uint    `json:"bucket_span" validate:"nonzero"`
+		Function    string  `json:"function" validate:"nonzero"`
+		Probability float64 `json:"probability" validate:"nonzero"`
+		Score       float64 `json:"record_score" validate:"nonzero"`
+		Field       string  `json:"by_field_value"`
+		CreatedAt   graph.Time
+		UpdatedAt   graph.Time
+		DeletedAt   graph.Time
 	}
 
 	var event alarmsMLEvent
@@ -106,20 +109,14 @@ func (r *Resolver) createAlarmsMLEvent(device string, payload string, eventTime 
 		return fmt.Errorf("A required field is missing: %v", err)
 	}
 
-	eventData := map[string]interface{}{
-		"bucket_span":  *event.Span,
-		"probability":  *event.Probability,
-		"record_score": *event.Score,
-	}
-
 	var oldNode *graph.Node
 
-	eventID := *event.Id + "__" + *event.Function
-	if event.Field != nil && *event.Field != "" {
-		eventID = eventID + "__" + *event.Field
+	eventID := event.Id + "__" + event.Function
+	if event.Field != "" {
+		eventID = eventID + "__" + event.Field
 
 		re := regexp.MustCompile(`traffic\.[[:alpha:]]xt_`)
-		iface := re.ReplaceAllString(*event.Field, "")
+		iface := re.ReplaceAllString(event.Field, "")
 		nodeName := fmt.Sprintf("%s__%s", device, iface)
 		id := str2GraphID(nodeName)
 
@@ -136,15 +133,25 @@ func (r *Resolver) createAlarmsMLEvent(device string, payload string, eventTime 
 
 	m := oldNode.Metadata
 	if val, found := m["AlarmsML"]; found {
-		alarms, ok := val.(map[string]interface{})
+		alarms, ok := val.(map[string]alarmsMLEvent)
 		if !ok {
 			return fmt.Errorf("Invalid previous alarms")
 		}
-		alarms[eventID] = eventData
-		m["AlarmsML"] = alarms
+
+		if oldEvent, exists := alarms[eventID]; exists {
+			event.UpdatedAt = graph.Time(*eventTime)
+			event.CreatedAt = oldEvent.CreatedAt
+			alarms[eventID] = event
+			m["AlarmsML"] = alarms
+		} else {
+			event.CreatedAt = graph.Time(*eventTime)
+			alarms[eventID] = event
+			m["AlarmsML"] = alarms
+		}
 	} else {
-		m["AlarmsML"] = map[string]interface{}{
-			eventID: eventData,
+		event.CreatedAt = graph.Time(*eventTime)
+		m["AlarmsML"] = map[string]alarmsMLEvent{
+			eventID: event,
 		}
 	}
 
