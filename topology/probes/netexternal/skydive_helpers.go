@@ -32,6 +32,7 @@ const (
 	MetaKeyVendor      = "Vendor"
 	MetaKeyModel       = "Model"
 	MetaKeyAggregation = "Aggregation"
+	MetaKeyAlarmsML    = "AlarmsML"
 )
 
 // newEdge create a new edge in Skydive with a custom Origin field
@@ -86,37 +87,33 @@ func (r *Resolver) createEvents(events []*model.EventInput) error {
 }
 
 func (r *Resolver) createAlarmsMLEvent(device string, payload string, eventTime *time.Time) error {
-	type alarmsMLEvent struct {
+	type eventPayload struct {
 		Id          string  `json:"job_id" validate:"nonzero"`
-		Span        uint    `json:"bucket_span" validate:"nonzero"`
+		Span        int64   `json:"bucket_span" validate:"nonzero"`
 		Function    string  `json:"function" validate:"nonzero"`
-		Probability float64 `json:"probability" validate:"nonzero"`
 		Score       float64 `json:"record_score" validate:"nonzero"`
+		Probability float64 `json:"probability"`
 		Field       string  `json:"by_field_value"`
-		CreatedAt   graph.Time
-		UpdatedAt   graph.Time
-		DeletedAt   graph.Time
 	}
-
-	var event alarmsMLEvent
-	err := json.Unmarshal([]byte(payload), &event)
+	var eventRaw eventPayload
+	err := json.Unmarshal([]byte(payload), &eventRaw)
 	if err != nil {
 		return fmt.Errorf("Error decoding the event JSON payload")
 	}
 
-	err = validator.Validate(event)
+	err = validator.Validate(eventRaw)
 	if err != nil {
 		return fmt.Errorf("A required field is missing: %v", err)
 	}
 
 	var oldNode *graph.Node
 
-	eventID := event.Id + "__" + event.Function
-	if event.Field != "" {
-		eventID = eventID + "__" + event.Field
+	eventID := eventRaw.Id + "__" + eventRaw.Function
+	if eventRaw.Field != "" {
+		eventID = eventID + "__" + eventRaw.Field
 
 		re := regexp.MustCompile(`traffic\.[[:alpha:]]xt_`)
-		iface := re.ReplaceAllString(event.Field, "")
+		iface := re.ReplaceAllString(eventRaw.Field, "")
 		nodeName := fmt.Sprintf("%s__%s", device, iface)
 		id := str2GraphID(nodeName)
 
@@ -131,38 +128,42 @@ func (r *Resolver) createAlarmsMLEvent(device string, payload string, eventTime 
 		}
 	}
 
-	m := oldNode.Metadata
-	if val, found := m["AlarmsML"]; found {
-		alarms, ok := val.(map[string]alarmsMLEvent)
-		if !ok {
-			return fmt.Errorf("Invalid previous alarms")
-		}
-
-		if oldEvent, exists := alarms[eventID]; exists {
-			event.UpdatedAt = graph.Time(*eventTime)
-			event.CreatedAt = oldEvent.CreatedAt
-			alarms[eventID] = event
-			m["AlarmsML"] = alarms
-		} else {
-			event.CreatedAt = graph.Time(*eventTime)
-			alarms[eventID] = event
-			m["AlarmsML"] = alarms
-		}
-	} else {
-		event.CreatedAt = graph.Time(*eventTime)
-		m["AlarmsML"] = map[string]alarmsMLEvent{
-			eventID: event,
-		}
+	event := AlarmsMLEvent{
+		Id:          eventRaw.Id,
+		Span:        eventRaw.Span,
+		Function:    eventRaw.Function,
+		Score:       fmt.Sprintf("%.8f", eventRaw.Score),
+		Probability: fmt.Sprintf("%e", eventRaw.Probability),
+		Field:       eventRaw.Field,
+		CreatedAt:   graph.Time(*eventTime),
+		UpdatedAt:   graph.Time(*eventTime),
 	}
 
-	newNode := graph.CreateNode(oldNode.ID, m, oldNode.CreatedAt, oldNode.Host, oldNode.Origin)
-	// Increment revision
-	newNode.Revision = oldNode.Revision + 1
-	newNode.UpdatedAt = graph.Time(*eventTime)
+	updateErr := r.Graph.UpdateMetadata(oldNode, MetaKeyAlarmsML, func(field interface{}) bool {
+		currentAlarmsPtr, ok := field.(*AlarmsML)
+		if !ok {
+			logging.GetLogger().Warningf("Unable to convert %v (%T) to *AlarmsML", field, field)
+			return false
+		}
+		currentAlarms := *currentAlarmsPtr
 
-	err = r.Graph.NodeUpdated(newNode)
-	if err != nil {
-		return fmt.Errorf("Updating node")
+		currentEvent, exists := currentAlarms[eventID]
+		if exists {
+			event.CreatedAt = currentEvent.CreatedAt
+			currentAlarms[eventID] = event
+		} else {
+			currentAlarms[eventID] = event
+		}
+		return true
+	})
+
+	if updateErr != nil {
+		var alarms AlarmsML = make(map[string]AlarmsMLEvent)
+		alarms[eventID] = event
+		err = r.Graph.AddMetadata(oldNode, MetaKeyAlarmsML, &alarms)
+		if err != nil {
+			return fmt.Errorf("Unable to create or update the event")
+		}
 	}
 
 	return nil

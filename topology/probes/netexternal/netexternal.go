@@ -58,3 +58,8 @@ func NewProbe(g *graph.Graph) (*Probe, error) {
 
 	return probe, nil
 }
+
+// Register called at initialization to register metadata decoders
+func Register() {
+	graph.NodeMetadataDecoders[MetaKeyAlarmsML] = MetadataDecoder
+}
