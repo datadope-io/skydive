@@ -1,6 +1,7 @@
 package traversal
 
 import (
+	"fmt"
 	"reflect"
 	"time"
 
@@ -18,7 +19,7 @@ type EventsTraversalExtension struct {
 // EventsGremlinTraversalStep step aggregates events from different revisions of the nodes into a new metadata key.
 // This step should be used with a presistant backend, so it can access previous revisions of the nodes.
 // To use this step we should select a metadata key (first parameter), where the events will be read from.
-// Inside this Metadata.Key events should have the format map[string]interface{}.
+// Inside this Metadata.Key events should have the format map[interface{}]interface{} (could be a type based on that).
 // The second parameter is the metadata key where all the events will be aggregated.
 // The aggregation will with the format: map[string][]interface{}.
 // All events with the same key in the map will be joined in an slice.
@@ -202,21 +203,40 @@ func (s *EventsGremlinTraversalStep) InterfaceEvents(tv *traversal.GraphTraversa
 // mergeEvents return the merge of node.Key events with the ones already stored in nodeEvents
 // Eg.:
 //   node:       Metadata.key: {"a":{x}, "b":{y}}
-//   nodeEvents:               {"a":{z}}
+//   nodeEvents:               {"a":[{z}]}
 //   return:     Metadata.key: {"a":[{x},{z}], "b":[{y}]}
 //
-// Ignore if Metadata.key has an invalid format.
+// Ignore if Metadata.key has an invalid format (not a map).
+// Reflect is used to be able to access map's defined in different types.
+// Event aggregation data type should be map[string]interface{} to be able to be encoded with JSON
 func mergeEvents(node *graph.Node, key string, nodeEvents map[string][]interface{}) map[string][]interface{} {
 	if nodeEvents == nil {
 		nodeEvents = map[string][]interface{}{}
 	}
 
 	n1EventsIface, n1Err := node.GetField(key)
+
 	if n1Err == nil {
-		// Ignore Metadata.key values with not a valid format
-		n1Events, _ := n1EventsIface.(map[string]interface{})
+		// Ignore Metadata.key values which are not a map
+		n1EventsValue := reflect.ValueOf(n1EventsIface)
+
+		// If the metadata value is a pointer, resolve it
+		if n1EventsValue.Kind() == reflect.Ptr {
+			n1EventsValue = n1EventsValue.Elem()
+		}
+
+		// Events step only accepts a map as data origin
+		if n1EventsValue.Kind() != reflect.Map {
+			logging.GetLogger().Errorf("Invalid type for events, expecting a map, but it is %v", n1EventsValue.Kind())
+			return nodeEvents
+		}
+
+		iter := n1EventsValue.MapRange()
 	NODE_EVENTS:
-		for k, v := range n1Events {
+		for iter.Next() {
+			k := fmt.Sprintf("%v", iter.Key().Interface())
+			v := iter.Value().Interface()
+
 			// Do not append if the same event already exists
 			for _, storedEvent := range nodeEvents[k] {
 				if reflect.DeepEqual(storedEvent, v) {
