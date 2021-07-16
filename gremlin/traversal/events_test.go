@@ -45,15 +45,36 @@ func TestMergeEventsNilNodeEvents(t *testing.T) {
 	key := "Events"
 
 	metadataNode1 := graph.Metadata{key: map[string]interface{}{
-		"abc": map[string]string{"descr": "foo"},
+		"abc": map[interface{}]string{"descr": "foo"},
 	}}
 	node := CreateNode("nodeA", metadataNode1, graph.TimeUTC(), 1)
 
 	nodeEventsAgg := mergeEvents(node, key, nil)
 
-	expected := map[string][]interface{}{
+	expected := map[interface{}][]interface{}{
 		"abc": {
-			map[string]string{"descr": "foo"},
+			map[interface{}]string{"descr": "foo"},
+		},
+	}
+
+	assert.Equal(t, expected, nodeEventsAgg)
+}
+
+func TestMergeEventsPointerValue(t *testing.T) {
+	key := "Events"
+
+	value := map[string]interface{}{
+		"abc": map[interface{}]string{"descr": "foo"},
+	}
+
+	metadataNode1 := graph.Metadata{key: &value}
+	node := CreateNode("nodeA", metadataNode1, graph.TimeUTC(), 1)
+
+	nodeEventsAgg := mergeEvents(node, key, nil)
+
+	expected := map[interface{}][]interface{}{
+		"abc": {
+			map[interface{}]string{"descr": "foo"},
 		},
 	}
 
@@ -64,11 +85,11 @@ func TestMergeEvents(t *testing.T) {
 	tests := []struct {
 		name        string
 		nodesEvents []interface{}
-		expected    map[string][]interface{}
+		expected    map[interface{}][]interface{}
 	}{
 		{
 			name:     "no nodes",
-			expected: map[string][]interface{}{},
+			expected: map[interface{}][]interface{}{},
 		},
 		{
 			name: "one node",
@@ -76,7 +97,7 @@ func TestMergeEvents(t *testing.T) {
 				map[string]interface{}{
 					"abc": map[string]string{"descr": "foo"},
 				}},
-			expected: map[string][]interface{}{
+			expected: map[interface{}][]interface{}{
 				"abc": {
 					map[string]string{"descr": "foo"},
 				},
@@ -91,7 +112,7 @@ func TestMergeEvents(t *testing.T) {
 				map[string]interface{}{
 					"xyz": map[string]string{"descr": "bar"},
 				}},
-			expected: map[string][]interface{}{
+			expected: map[interface{}][]interface{}{
 				"abc": {
 					map[string]string{"descr": "foo"},
 				},
@@ -109,7 +130,7 @@ func TestMergeEvents(t *testing.T) {
 				map[string]interface{}{
 					"abc": map[string]string{"descr": "bar"},
 				}},
-			expected: map[string][]interface{}{
+			expected: map[interface{}][]interface{}{
 				"abc": {
 					map[string]string{"descr": "foo"},
 					map[string]string{"descr": "bar"},
@@ -126,7 +147,7 @@ func TestMergeEvents(t *testing.T) {
 					"abc": map[string]string{"descr": "foo"},
 					"xxx": map[string]string{"descr": "bar"},
 				}},
-			expected: map[string][]interface{}{
+			expected: map[interface{}][]interface{}{
 				"abc": {
 					map[string]string{"descr": "foo"},
 				},
@@ -141,7 +162,7 @@ func TestMergeEvents(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			nodeEventsAgg := map[string][]interface{}{}
+			nodeEventsAgg := map[interface{}][]interface{}{}
 
 			for _, nodeEvents := range test.nodesEvents {
 				metadataNode1 := graph.Metadata{key: nodeEvents}
