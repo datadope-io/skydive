@@ -2,16 +2,16 @@ package netexternal
 
 import (
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
-	"regexp"
+	"strings"
 	"time"
 
 	uuid "github.com/nu7hatch/gouuid"
+	"github.com/skydive-project/skydive/graffiti/getter"
 	"github.com/skydive-project/skydive/graffiti/graph"
+	"github.com/skydive-project/skydive/graffiti/graph/traversal"
 	"github.com/skydive-project/skydive/graffiti/logging"
 	"github.com/skydive-project/skydive/topology/probes/netexternal/model"
-	validator "gopkg.in/validator.v2"
 )
 
 const (
@@ -32,7 +32,7 @@ const (
 	MetaKeyVendor      = "Vendor"
 	MetaKeyModel       = "Model"
 	MetaKeyAggregation = "Aggregation"
-	MetaKeyAlarmsML    = "AlarmsML"
+	MetaKeyEvents      = "Events"
 )
 
 // newEdge create a new edge in Skydive with a custom Origin field
@@ -70,100 +70,128 @@ func (r *Resolver) newNode(id graph.Identifier, m graph.Metadata, createdAt *tim
 	return n, nil
 }
 
-func (r *Resolver) createEvents(events []*model.EventInput) error {
-	for _, event := range events {
-		switch event.Source {
-		case "AlarmsML":
-			err := r.createAlarmsMLEvent(event.Device, event.Payload, event.Time)
-			if err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("Unknown type of event")
+// getNodeFromGremlinQuery return a single node from a gremlin query
+func (r *Resolver) getNodeFromGremlinQuery(query string) (*graph.Node, error) {
+	tr := traversal.NewGremlinTraversalParser()
+	ts, err := tr.Parse(strings.NewReader(query))
+	if err != nil {
+		return nil, fmt.Errorf("parsing gremlin query: %v", err)
+	}
+
+	// Execute the gremlin query
+	res, err := ts.Exec(r.Graph, false)
+	if err != nil {
+		return nil, fmt.Errorf("executing gremlin query: %v", err)
+	}
+
+	// Assume the gremlin query is outputting a list of nodes Fail otherwise
+	tv, ok := res.(*traversal.GraphTraversalV)
+	if !ok {
+		return nil, fmt.Errorf("invalid graph output, expecting nodes")
+	}
+
+	// Only one node is expected
+	nodes := tv.GetNodes()
+	if len(nodes) != 1 {
+		return nil, fmt.Errorf("expecting only one node, gremlin query returned %d", len(nodes))
+	}
+
+	return nodes[0], nil
+}
+
+// closeEvent remove an event from a node specified by a gremlin query
+func (r *Resolver) closeEvent(event model.CloseEventInput) error {
+	node, err := r.getNodeFromGremlinQuery(event.GremlinQuery)
+	if err != nil {
+		return err
+	}
+
+	var updateErr error
+
+	err = r.Graph.UpdateMetadata(node, MetaKeyEvents, func(field interface{}) bool {
+		nodeEvents, ok := field.(*Events)
+		if !ok {
+			logging.GetLogger().Warningf("Unable to convert Metadata.%s (type %T) to *Events", MetaKeyEvents, field)
+			updateErr = fmt.Errorf("invalid Metadata.%s format", MetaKeyEvents)
+			return false
 		}
+
+		if _, eventExists := (*nodeEvents)[event.ID]; !eventExists {
+			// event does not exists in the node
+			updateErr = fmt.Errorf("event ID '%s' does not exists in node %v", event.ID, node.ID)
+			return false
+		}
+		delete(*nodeEvents, event.ID)
+		return true
+	})
+	if err != nil {
+		fmt.Errorf("unable to delete event: %v", err)
+	}
+	if updateErr != nil {
+		fmt.Errorf("unable to delete event: %v", updateErr)
 	}
 
 	return nil
 }
 
-func (r *Resolver) createAlarmsMLEvent(device string, payload string, eventTime *time.Time) error {
-	type eventPayload struct {
-		Id          string  `json:"job_id" validate:"nonzero"`
-		Span        int64   `json:"bucket_span" validate:"nonzero"`
-		Function    string  `json:"function" validate:"nonzero"`
-		Score       float64 `json:"record_score" validate:"nonzero"`
-		Probability float64 `json:"probability"`
-		Field       string  `json:"by_field_value"`
-	}
-	var eventRaw eventPayload
-	err := json.Unmarshal([]byte(payload), &eventRaw)
+// createEvent exec the gremlin query to get the node where the event should be added
+func (r *Resolver) createEvent(event *model.AddEventInput) error {
+	node, err := r.getNodeFromGremlinQuery(event.GremlinQuery)
 	if err != nil {
-		return fmt.Errorf("Error decoding the event JSON payload")
+		return err
 	}
 
-	err = validator.Validate(eventRaw)
-	if err != nil {
-		return fmt.Errorf("A required field is missing: %v", err)
+	// Parse the gremlin query
+	// Map the GraphQL event data, to the data stored in Metadata.Events
+	e := Event{
+		Level:     event.Level.String(),
+		CreatedAt: graph.Time(time.Now()),
+		UpdatedAt: graph.Time(time.Now()),
 	}
 
-	var oldNode *graph.Node
-
-	eventID := eventRaw.Id + "__" + eventRaw.Function
-	if eventRaw.Field != "" {
-		eventID = eventID + "__" + eventRaw.Field
-
-		re := regexp.MustCompile(`traffic\.[[:alpha:]]xt_`)
-		iface := re.ReplaceAllString(eventRaw.Field, "")
-		nodeName := fmt.Sprintf("%s__%s", device, iface)
-		id := str2GraphID(nodeName)
-
-		oldNode = r.Graph.GetNode(id)
+	// Set TTL if defined
+	if event.TTL != nil {
+		e.TTL = int64(*event.TTL)
 	}
 
-	if oldNode == nil {
-		id := str2GraphID(device)
-		oldNode = r.Graph.GetNode(id)
-		if oldNode == nil {
-			return fmt.Errorf("Device doesn't exist")
+	// Set payload if defined
+	if len(event.Payload) > 0 {
+		payloadValues := make([]PayloadValues, 0, len(event.Payload))
+		for _, v := range event.Payload {
+			payloadValues = append(payloadValues, PayloadValues{
+				Key:   v.Key,
+				Value: v.Value,
+			})
 		}
+		e.Payload = payloadValues
 	}
 
-	event := AlarmsMLEvent{
-		Id:          eventRaw.Id,
-		Span:        eventRaw.Span,
-		Function:    eventRaw.Function,
-		Score:       fmt.Sprintf("%.8f", eventRaw.Score),
-		Probability: fmt.Sprintf("%e", eventRaw.Probability),
-		Field:       eventRaw.Field,
-		CreatedAt:   graph.Time(*eventTime),
-		UpdatedAt:   graph.Time(*eventTime),
-	}
-
-	updateErr := r.Graph.UpdateMetadata(oldNode, MetaKeyAlarmsML, func(field interface{}) bool {
-		currentAlarmsPtr, ok := field.(*AlarmsML)
+	// Add the event to that node obtained from the gremlin query.
+	// All events are stored into Metadata.Events
+	// Previous event is substituted by the new one, except CreatedAt value, that remains.
+	err = r.Graph.UpdateMetadata(node, MetaKeyEvents, func(field interface{}) bool {
+		nodeEvents, ok := field.(*Events)
 		if !ok {
-			logging.GetLogger().Warningf("Unable to convert %v (%T) to *AlarmsML", field, field)
+			logging.GetLogger().Warningf("Unable to convert Metadata.%s (type %T) to *Events", MetaKeyEvents, field)
 			return false
 		}
-		currentAlarms := *currentAlarmsPtr
 
-		currentEvent, exists := currentAlarms[eventID]
-		if exists {
-			event.CreatedAt = currentEvent.CreatedAt
-			currentAlarms[eventID] = event
-		} else {
-			currentAlarms[eventID] = event
+		if nodeEvent, eventExists := (*nodeEvents)[event.ID]; eventExists {
+			// Event already exists in the node metadata
+			e.CreatedAt = nodeEvent.CreatedAt
 		}
+		(*nodeEvents)[event.ID] = e
 		return true
 	})
-
-	if updateErr != nil {
-		var alarms AlarmsML = make(map[string]AlarmsMLEvent)
-		alarms[eventID] = event
-		err = r.Graph.AddMetadata(oldNode, MetaKeyAlarmsML, &alarms)
+	if err == getter.ErrFieldNotFound {
+		// Metadata.Events does not exists. Create it.
+		events := Events{event.ID: e}
+		err = r.Graph.AddMetadata(node, MetaKeyEvents, &events)
 		if err != nil {
-			return fmt.Errorf("Unable to create or update the event")
+			return fmt.Errorf("adding new Events key in Metadata")
 		}
+	} else if err != nil {
+		return fmt.Errorf("unable to add event: %v", err)
 	}
 
 	return nil

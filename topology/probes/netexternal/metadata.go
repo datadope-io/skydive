@@ -12,27 +12,32 @@ import (
 
 // easyjson:json
 // gendecoder
-type AlarmsML map[string]AlarmsMLEvent
+type Events map[string]Event
 
 // easyjson:json
 // gendecoder
-type AlarmsMLEvent struct {
-	Id          string
-	Span        int64 
-	Function    string
-	Score       string
-	Probability string
-	Field       string
-	CreatedAt   graph.Time
-	UpdatedAt   graph.Time
-	DeletedAt   graph.Time
+type Event struct {
+	// TTL is the duration, in seconds, when this event should be closed after UpdatedAt date
+	TTL       int64
+	Level     string
+	Payload   []PayloadValues
+	CreatedAt graph.Time
+	UpdatedAt graph.Time
+}
+
+// PayloadValues extra metadata that could be added to the events
+// easyjson:json
+// gendecoder
+type PayloadValues struct {
+	Key   string
+	Value string
 }
 
 // MetadataDecoder implements a json message raw decoder
 func MetadataDecoder(raw json.RawMessage) (getter.Getter, error) {
-	var a AlarmsML
+	var a Events
 	if err := json.Unmarshal(raw, &a); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal AlarmsML metadata %s: %s", string(raw), err)
+		return nil, fmt.Errorf("unable to unmarshal Events metadata %s: %s", string(raw), err)
 	}
 
 	return &a, nil

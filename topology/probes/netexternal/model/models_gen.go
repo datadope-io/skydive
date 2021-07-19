@@ -3,8 +3,24 @@
 package model
 
 import (
+	"fmt"
+	"io"
+	"strconv"
 	"time"
 )
+
+type AddEventInput struct {
+	GremlinQuery string      `json:"GremlinQuery"`
+	ID           string      `json:"ID"`
+	Level        EventLevel  `json:"Level"`
+	Payload      []*KeyValue `json:"Payload"`
+	TTL          *int        `json:"TTL"`
+}
+
+type AddEventPayload struct {
+	Ok    bool    `json:"Ok"`
+	Error *string `json:"Error"`
+}
 
 type AddIf2IfLinkPayload struct {
 	ID string `json:"ID"`
@@ -15,14 +31,12 @@ type AddNetworkDevicePayload struct {
 	Updated bool   `json:"Updated"`
 }
 
-type EventInput struct {
-	Device  string     `json:"Device"`
-	Source  string     `json:"Source"`
-	Payload string     `json:"Payload"`
-	Time    *time.Time `json:"Time"`
+type CloseEventInput struct {
+	GremlinQuery string `json:"GremlinQuery"`
+	ID           string `json:"ID"`
 }
 
-type EventPayload struct {
+type CloseEventPayload struct {
 	Ok    bool    `json:"Ok"`
 	Error *string `json:"Error"`
 }
@@ -40,6 +54,11 @@ type InterfaceInput struct {
 	Aggregation *string `json:"Aggregation"`
 }
 
+type KeyValue struct {
+	Key   string `json:"Key"`
+	Value string `json:"Value"`
+}
+
 type NetworkDeviceInput struct {
 	Name       string            `json:"Name"`
 	Type       *string           `json:"Type"`
@@ -47,4 +66,47 @@ type NetworkDeviceInput struct {
 	Model      *string           `json:"Model"`
 	Interfaces []*InterfaceInput `json:"Interfaces"`
 	CreatedAt  *time.Time        `json:"CreatedAt"`
+}
+
+type EventLevel string
+
+const (
+	EventLevelInfo     EventLevel = "INFO"
+	EventLevelWarning  EventLevel = "WARNING"
+	EventLevelCritical EventLevel = "CRITICAL"
+)
+
+var AllEventLevel = []EventLevel{
+	EventLevelInfo,
+	EventLevelWarning,
+	EventLevelCritical,
+}
+
+func (e EventLevel) IsValid() bool {
+	switch e {
+	case EventLevelInfo, EventLevelWarning, EventLevelCritical:
+		return true
+	}
+	return false
+}
+
+func (e EventLevel) String() string {
+	return string(e)
+}
+
+func (e *EventLevel) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = EventLevel(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid EventLevel", str)
+	}
+	return nil
+}
+
+func (e EventLevel) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }

@@ -1,21 +1,56 @@
-# Values to create a new device event.
-input EventInput {
-    # Device to which the event will be added
-    Device: String!
+# Return value when adding new events
+type AddEventPayload {
+    # Return if the addEvent mutation was processed correctly
+    Ok: Boolean!
 
-    # System that originated the event (e.g: AlarmsML, Zabbix, etc.)
-    Source: String!
-
-    # Event data
-    Payload: String!
-
-    # Event date and time. Defaults to current time.
-    Time: Time
+    # Error message if Ok is false
+    Error: String
 }
 
-# Return value when creating a new network device.
-type EventPayload{
-    # Return if the addEvent mutation was processed correctly
+input AddEventInput {
+    # Skydive Gremlin query to select in which node add the events
+    GremlinQuery: String!
+
+    # Identifier of each particular alarm.
+    # Events with same ID will be updated.
+    # Use some prefix, indicating the source of alarm, to prevent collision with other systems identifiers
+    ID: String!
+
+    # Define the event criticity level
+    Level: EventLevel!
+
+    # Event metadata, appended to the event.
+    Payload: [KeyValue!]
+
+    # Time to live of the event.
+    # If defined, this event will be closed automatically after this number of seconds.
+    # Closing time will not be exact, it will depend on the garbage collector interval execution.
+    TTL: Int
+}
+
+# Possible values to define an event criticity
+enum EventLevel {
+    INFO
+    WARNING
+    CRITICAL
+}
+
+# Simple input to add any extra data in a key-value fashion
+input KeyValue {
+    Key: String!
+    Value: String!
+}
+
+input CloseEventInput {
+    GremlinQuery: String!
+
+    # Identifier of each particular alarm.
+    ID: String!
+}
+
+# Return value when closing an event
+type CloseEventPayload {
+    # Return if the closeEvent mutation was processed correctly
     Ok: Boolean!
 
     # Error message if Ok is false

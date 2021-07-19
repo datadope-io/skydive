@@ -4,7 +4,8 @@ type Mutation {
 
   addIf2IfLink(input: If2IfLinkInput!): AddIf2IfLinkPayload!
 
-  addEvents(input: [EventInput!]!): EventPayload!
+  addEvents(input: [AddEventInput!]!): AddEventPayload!
+  closeEvent(input: CloseEventInput!): CloseEventPayload!
 }
 
 type Query {

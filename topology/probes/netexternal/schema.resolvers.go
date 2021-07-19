@@ -5,6 +5,7 @@ package netexternal
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/skydive-project/skydive/topology/probes/netexternal/generated"
 	"github.com/skydive-project/skydive/topology/probes/netexternal/model"
@@ -64,23 +65,49 @@ func (r *mutationResolver) AddIf2IfLink(ctx context.Context, input model.If2IfLi
 	return &payload, nil
 }
 
-func (r *mutationResolver) AddEvents(ctx context.Context, input []*model.EventInput) (*model.EventPayload, error) {
+func (r *mutationResolver) AddEvents(ctx context.Context, input []*model.AddEventInput) (*model.AddEventPayload, error) {
 	r.Graph.Lock()
 	defer r.Graph.Unlock()
 
-	var ok bool = true
-	var err_msg string
-	err := r.createEvents(input)
-	if err != nil {
-		ok = false
-		err_msg = err.Error()
+	var errors []error
+
+	for _, event := range input {
+		err := r.createEvent(event)
+		if err != nil {
+			errors = append(errors, err)
+		}
 	}
 
-	payload := model.EventPayload{
-		Ok:    ok,
-		Error: &err_msg,
+	if len(errors) != 0 {
+		msg := fmt.Sprintf("%v", errors)
+		e := fmt.Errorf(msg)
+
+		return &model.AddEventPayload{
+			Ok:    false,
+			Error: &msg,
+		}, e
+	}
+
+	payload := model.AddEventPayload{
+		Ok:    true,
+		Error: nil,
 	}
 	return &payload, nil
+}
+
+func (r *mutationResolver) CloseEvent(ctx context.Context, input model.CloseEventInput) (*model.CloseEventPayload, error) {
+	err := r.closeEvent(input)
+	if err != nil {
+		errorMessage := err.Error()
+		return &model.CloseEventPayload{
+			Ok:    false,
+			Error: &errorMessage,
+		}, err
+	}
+
+	return &model.CloseEventPayload{
+		Ok: true,
+	}, nil
 }
 
 func (r *queryResolver) Version(ctx context.Context) (string, error) {
