@@ -1,4 +1,4 @@
-package netexternal
+package graphql
 
 // This file will be automatically regenerated based on the schema, any resolver implementations
 // will be copied through when generating and any unknown code will be moved to the end.
@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/skydive-project/skydive/topology/probes/netexternal/generated"
-	"github.com/skydive-project/skydive/topology/probes/netexternal/model"
+	"github.com/skydive-project/skydive/topology/probes/graphql/generated"
+	"github.com/skydive-project/skydive/topology/probes/graphql/model"
 )
 
 func (r *mutationResolver) AddNetworkDevice(ctx context.Context, input model.NetworkDeviceInput) (*model.AddNetworkDevicePayload, error) {

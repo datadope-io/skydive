@@ -1,11 +1,11 @@
-package netexternal
+package graphql
 
 import (
 	"testing"
 	"time"
 
 	"github.com/skydive-project/skydive/graffiti/graph"
-	"github.com/skydive-project/skydive/topology/probes/netexternal/model"
+	"github.com/skydive-project/skydive/topology/probes/graphql/model"
 	"github.com/stretchr/testify/assert"
 )
 

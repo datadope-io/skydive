@@ -119,7 +119,7 @@ analyzer:
       # - ovn
       # - procpeering
       # - proccon
-      # - netexternal
+      # - graphql
 
     k8s:
       # kubeconfig resolution order:
@@ -205,9 +205,9 @@ analyzer:
         # Same format as "interval"
         delete_duration: 3h
 
-    # Probe to listen for external calls to create network elements
-    netexternal:
-      # Where does this probe listen for new data
+    # Probe to provide a GraphQL API with different functionalities
+    graphql:
+      # Where does this probe listen for queries
       listen: 0.0.0.0:4001
 
   replication:

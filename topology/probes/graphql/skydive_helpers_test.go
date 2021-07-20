@@ -1,4 +1,4 @@
-package netexternal
+package graphql
 
 import (
 	"testing"

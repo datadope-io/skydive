@@ -1,4 +1,4 @@
-package netexternal
+package graphql
 
 import (
 	"crypto/sha256"
@@ -13,7 +13,7 @@ import (
 
 const (
 	// PrefixOriginName defines the prefix set in nodes/edges Origin field
-	PrefixOriginName = "netexternal."
+	PrefixOriginName = "graphql."
 )
 
 // newEdge create a new edge in Skydive with a custom Origin field

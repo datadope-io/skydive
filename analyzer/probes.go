@@ -29,12 +29,12 @@ import (
 	"github.com/skydive-project/skydive/topology"
 	"github.com/skydive-project/skydive/topology/probes/blockdev"
 	"github.com/skydive-project/skydive/topology/probes/fabric"
+	"github.com/skydive-project/skydive/topology/probes/graphql"
 	"github.com/skydive-project/skydive/topology/probes/istio"
 	"github.com/skydive-project/skydive/topology/probes/k8s"
 	"github.com/skydive-project/skydive/topology/probes/libvirt"
 	"github.com/skydive-project/skydive/topology/probes/lldp"
 	"github.com/skydive-project/skydive/topology/probes/lxd"
-	"github.com/skydive-project/skydive/topology/probes/netexternal"
 	"github.com/skydive-project/skydive/topology/probes/netlink"
 	"github.com/skydive-project/skydive/topology/probes/neutron"
 	"github.com/skydive-project/skydive/topology/probes/nsm"
@@ -128,8 +128,8 @@ func NewTopologyProbeBundleFromConfig(g *graph.Graph) (*probe.Bundle, error) {
 			handler, err = nsm.NewNsmProbe(g)
 		case "proccon":
 			handler, err = proccon.NewProbe(g)
-		case "netexternal":
-			handler, err = netexternal.NewProbe(g)
+		case "graphql":
+			handler, err = graphql.NewProbe(g)
 		case "procpeering":
 			handler, err = procpeering.NewProbe(g)
 		default:

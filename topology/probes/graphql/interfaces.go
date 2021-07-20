@@ -1,4 +1,4 @@
-package netexternal
+package graphql
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/logging"
-	"github.com/skydive-project/skydive/topology/probes/netexternal/model"
+	"github.com/skydive-project/skydive/topology/probes/graphql/model"
 )
 
 const (

@@ -1,6 +1,6 @@
-//go:generate go run github.com/skydive-project/skydive/graffiti/gendecoder -package github.com/skydive-project/skydive/topology/probes/netexternal
+//go:generate go run github.com/skydive-project/skydive/graffiti/gendecoder -package github.com/skydive-project/skydive/topology/probes/graphql
 //go:generate go run github.com/mailru/easyjson/easyjson $GOFILE
-package netexternal
+package graphql
 
 import (
 	"encoding/json"

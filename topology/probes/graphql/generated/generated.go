@@ -13,7 +13,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
-	"github.com/skydive-project/skydive/topology/probes/netexternal/model"
+	"github.com/skydive-project/skydive/topology/probes/graphql/model"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -424,7 +424,7 @@ func (ec *executionContext) field_Mutation_addEvents_args(ctx context.Context, r
 	var arg0 []*model.AddEventInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalNAddEventInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddEventInputᚄ(ctx, tmp)
+		arg0, err = ec.unmarshalNAddEventInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐAddEventInputᚄ(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -439,7 +439,7 @@ func (ec *executionContext) field_Mutation_addIf2IfLink_args(ctx context.Context
 	var arg0 model.If2IfLinkInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalNIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐIf2IfLinkInput(ctx, tmp)
+		arg0, err = ec.unmarshalNIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐIf2IfLinkInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -454,7 +454,7 @@ func (ec *executionContext) field_Mutation_addNetworkDevice_args(ctx context.Con
 	var arg0 model.NetworkDeviceInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalNNetworkDeviceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐNetworkDeviceInput(ctx, tmp)
+		arg0, err = ec.unmarshalNNetworkDeviceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetworkDeviceInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -469,7 +469,7 @@ func (ec *executionContext) field_Mutation_closeEvent_args(ctx context.Context, 
 	var arg0 model.CloseEventInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalNCloseEventInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐCloseEventInput(ctx, tmp)
+		arg0, err = ec.unmarshalNCloseEventInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐCloseEventInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -809,7 +809,7 @@ func (ec *executionContext) _Mutation_addNetworkDevice(ctx context.Context, fiel
 	}
 	res := resTmp.(*model.AddNetworkDevicePayload)
 	fc.Result = res
-	return ec.marshalNAddNetworkDevicePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddNetworkDevicePayload(ctx, field.Selections, res)
+	return ec.marshalNAddNetworkDevicePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐAddNetworkDevicePayload(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_addIf2IfLink(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -851,7 +851,7 @@ func (ec *executionContext) _Mutation_addIf2IfLink(ctx context.Context, field gr
 	}
 	res := resTmp.(*model.AddIf2IfLinkPayload)
 	fc.Result = res
-	return ec.marshalNAddIf2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddIf2IfLinkPayload(ctx, field.Selections, res)
+	return ec.marshalNAddIf2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐAddIf2IfLinkPayload(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_addEvents(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -893,7 +893,7 @@ func (ec *executionContext) _Mutation_addEvents(ctx context.Context, field graph
 	}
 	res := resTmp.(*model.AddEventPayload)
 	fc.Result = res
-	return ec.marshalNAddEventPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddEventPayload(ctx, field.Selections, res)
+	return ec.marshalNAddEventPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐAddEventPayload(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_closeEvent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -935,7 +935,7 @@ func (ec *executionContext) _Mutation_closeEvent(ctx context.Context, field grap
 	}
 	res := resTmp.(*model.CloseEventPayload)
 	fc.Result = res
-	return ec.marshalNCloseEventPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐCloseEventPayload(ctx, field.Selections, res)
+	return ec.marshalNCloseEventPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐCloseEventPayload(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_version(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2157,7 +2157,7 @@ func (ec *executionContext) unmarshalInputAddEventInput(ctx context.Context, obj
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Level"))
-			it.Level, err = ec.unmarshalNEventLevel2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐEventLevel(ctx, v)
+			it.Level, err = ec.unmarshalNEventLevel2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐEventLevel(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2165,7 +2165,7 @@ func (ec *executionContext) unmarshalInputAddEventInput(ctx context.Context, obj
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Payload"))
-			it.Payload, err = ec.unmarshalOKeyValue2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐKeyValueᚄ(ctx, v)
+			it.Payload, err = ec.unmarshalOKeyValue2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐKeyValueᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2361,7 +2361,7 @@ func (ec *executionContext) unmarshalInputNetworkDeviceInput(ctx context.Context
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Interfaces"))
-			it.Interfaces, err = ec.unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceInput(ctx, v)
+			it.Interfaces, err = ec.unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐInterfaceInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2839,7 +2839,7 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) unmarshalNAddEventInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddEventInputᚄ(ctx context.Context, v interface{}) ([]*model.AddEventInput, error) {
+func (ec *executionContext) unmarshalNAddEventInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐAddEventInputᚄ(ctx context.Context, v interface{}) ([]*model.AddEventInput, error) {
 	var vSlice []interface{}
 	if v != nil {
 		if tmp1, ok := v.([]interface{}); ok {
@@ -2852,7 +2852,7 @@ func (ec *executionContext) unmarshalNAddEventInput2ᚕᚖgithubᚗcomᚋskydive
 	res := make([]*model.AddEventInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNAddEventInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddEventInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNAddEventInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐAddEventInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -2860,16 +2860,16 @@ func (ec *executionContext) unmarshalNAddEventInput2ᚕᚖgithubᚗcomᚋskydive
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalNAddEventInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddEventInput(ctx context.Context, v interface{}) (*model.AddEventInput, error) {
+func (ec *executionContext) unmarshalNAddEventInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐAddEventInput(ctx context.Context, v interface{}) (*model.AddEventInput, error) {
 	res, err := ec.unmarshalInputAddEventInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNAddEventPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddEventPayload(ctx context.Context, sel ast.SelectionSet, v model.AddEventPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNAddEventPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐAddEventPayload(ctx context.Context, sel ast.SelectionSet, v model.AddEventPayload) graphql.Marshaler {
 	return ec._AddEventPayload(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNAddEventPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddEventPayload(ctx context.Context, sel ast.SelectionSet, v *model.AddEventPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNAddEventPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐAddEventPayload(ctx context.Context, sel ast.SelectionSet, v *model.AddEventPayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2879,11 +2879,11 @@ func (ec *executionContext) marshalNAddEventPayload2ᚖgithubᚗcomᚋskydiveᚑ
 	return ec._AddEventPayload(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNAddIf2IfLinkPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v model.AddIf2IfLinkPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNAddIf2IfLinkPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐAddIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v model.AddIf2IfLinkPayload) graphql.Marshaler {
 	return ec._AddIf2IfLinkPayload(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNAddIf2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v *model.AddIf2IfLinkPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNAddIf2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐAddIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v *model.AddIf2IfLinkPayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2893,11 +2893,11 @@ func (ec *executionContext) marshalNAddIf2IfLinkPayload2ᚖgithubᚗcomᚋskydiv
 	return ec._AddIf2IfLinkPayload(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNAddNetworkDevicePayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddNetworkDevicePayload(ctx context.Context, sel ast.SelectionSet, v model.AddNetworkDevicePayload) graphql.Marshaler {
+func (ec *executionContext) marshalNAddNetworkDevicePayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐAddNetworkDevicePayload(ctx context.Context, sel ast.SelectionSet, v model.AddNetworkDevicePayload) graphql.Marshaler {
 	return ec._AddNetworkDevicePayload(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNAddNetworkDevicePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐAddNetworkDevicePayload(ctx context.Context, sel ast.SelectionSet, v *model.AddNetworkDevicePayload) graphql.Marshaler {
+func (ec *executionContext) marshalNAddNetworkDevicePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐAddNetworkDevicePayload(ctx context.Context, sel ast.SelectionSet, v *model.AddNetworkDevicePayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2922,16 +2922,16 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) unmarshalNCloseEventInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐCloseEventInput(ctx context.Context, v interface{}) (model.CloseEventInput, error) {
+func (ec *executionContext) unmarshalNCloseEventInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐCloseEventInput(ctx context.Context, v interface{}) (model.CloseEventInput, error) {
 	res, err := ec.unmarshalInputCloseEventInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNCloseEventPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐCloseEventPayload(ctx context.Context, sel ast.SelectionSet, v model.CloseEventPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNCloseEventPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐCloseEventPayload(ctx context.Context, sel ast.SelectionSet, v model.CloseEventPayload) graphql.Marshaler {
 	return ec._CloseEventPayload(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNCloseEventPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐCloseEventPayload(ctx context.Context, sel ast.SelectionSet, v *model.CloseEventPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNCloseEventPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐCloseEventPayload(ctx context.Context, sel ast.SelectionSet, v *model.CloseEventPayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2941,27 +2941,27 @@ func (ec *executionContext) marshalNCloseEventPayload2ᚖgithubᚗcomᚋskydive�
 	return ec._CloseEventPayload(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNEventLevel2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐEventLevel(ctx context.Context, v interface{}) (model.EventLevel, error) {
+func (ec *executionContext) unmarshalNEventLevel2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐEventLevel(ctx context.Context, v interface{}) (model.EventLevel, error) {
 	var res model.EventLevel
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNEventLevel2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐEventLevel(ctx context.Context, sel ast.SelectionSet, v model.EventLevel) graphql.Marshaler {
+func (ec *executionContext) marshalNEventLevel2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐEventLevel(ctx context.Context, sel ast.SelectionSet, v model.EventLevel) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐIf2IfLinkInput(ctx context.Context, v interface{}) (model.If2IfLinkInput, error) {
+func (ec *executionContext) unmarshalNIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐIf2IfLinkInput(ctx context.Context, v interface{}) (model.If2IfLinkInput, error) {
 	res, err := ec.unmarshalInputIf2IfLinkInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNKeyValue2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐKeyValue(ctx context.Context, v interface{}) (*model.KeyValue, error) {
+func (ec *executionContext) unmarshalNKeyValue2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐKeyValue(ctx context.Context, v interface{}) (*model.KeyValue, error) {
 	res, err := ec.unmarshalInputKeyValue(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNNetworkDeviceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐNetworkDeviceInput(ctx context.Context, v interface{}) (model.NetworkDeviceInput, error) {
+func (ec *executionContext) unmarshalNNetworkDeviceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetworkDeviceInput(ctx context.Context, v interface{}) (model.NetworkDeviceInput, error) {
 	res, err := ec.unmarshalInputNetworkDeviceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
@@ -3249,7 +3249,7 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	return graphql.MarshalInt(*v)
 }
 
-func (ec *executionContext) unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceInput(ctx context.Context, v interface{}) ([]*model.InterfaceInput, error) {
+func (ec *executionContext) unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐInterfaceInput(ctx context.Context, v interface{}) ([]*model.InterfaceInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -3265,7 +3265,7 @@ func (ec *executionContext) unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiv
 	res := make([]*model.InterfaceInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalOInterfaceInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalOInterfaceInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐInterfaceInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -3273,7 +3273,7 @@ func (ec *executionContext) unmarshalOInterfaceInput2ᚕᚖgithubᚗcomᚋskydiv
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalOInterfaceInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐInterfaceInput(ctx context.Context, v interface{}) (*model.InterfaceInput, error) {
+func (ec *executionContext) unmarshalOInterfaceInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐInterfaceInput(ctx context.Context, v interface{}) (*model.InterfaceInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -3281,7 +3281,7 @@ func (ec *executionContext) unmarshalOInterfaceInput2ᚖgithubᚗcomᚋskydive�
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalOKeyValue2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐKeyValueᚄ(ctx context.Context, v interface{}) ([]*model.KeyValue, error) {
+func (ec *executionContext) unmarshalOKeyValue2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐKeyValueᚄ(ctx context.Context, v interface{}) ([]*model.KeyValue, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -3297,7 +3297,7 @@ func (ec *executionContext) unmarshalOKeyValue2ᚕᚖgithubᚗcomᚋskydiveᚑpr
 	res := make([]*model.KeyValue, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNKeyValue2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋnetexternalᚋmodelᚐKeyValue(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNKeyValue2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐKeyValue(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
