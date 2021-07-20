@@ -6,6 +6,7 @@ package netexternal
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/skydive-project/skydive/topology/probes/netexternal/generated"
 	"github.com/skydive-project/skydive/topology/probes/netexternal/model"
@@ -72,7 +73,7 @@ func (r *mutationResolver) AddEvents(ctx context.Context, input []*model.AddEven
 	var errors []error
 
 	for _, event := range input {
-		err := r.createEvent(event)
+		err := r.createEvent(event, time.Now())
 		if err != nil {
 			errors = append(errors, err)
 		}

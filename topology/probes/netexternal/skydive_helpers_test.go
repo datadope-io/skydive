@@ -2,20 +2,11 @@ package netexternal
 
 import (
 	"testing"
+	"time"
 
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/stretchr/testify/assert"
 )
-
-// TODO test enviar una query incorrecta (que falle el parser)
-// TODO enviar query incorrecta (que falle el exec)
-// TODO query que devuelve edges u otra cosa, debe dar error
-// TODO query que devuelve 0 nodos. Query que devuelve 2 nodos
-// TODO error intentando actualizar (que falla UpdateMetadata)
-// TODO intentar añadir un evento a ua key que no existe
-// TODO comprobar las fechas al crear nuevos elementos y modificarlos
-// TODO al modificar elementos se borran todos los valores anteriores y se pisan con los nuevos
-// TODO borrar un evento que no existe devuelve un error
 
 func TestGetNodeFromGremlinQuery(t *testing.T) {
 	testCases := []struct {
@@ -34,6 +25,29 @@ func TestGetNodeFromGremlinQuery(t *testing.T) {
 			desc:          "query should return nodes",
 			query:         "G.E()",
 			expectedError: "invalid graph output, expecting nodes",
+		},
+		{
+			desc:          "expected one node",
+			query:         "G.V()",
+			expectedError: "expecting only one node, gremlin query returned 0",
+		},
+		{
+			desc:  "only one node expected",
+			query: "G.V()",
+			nodes: []*graph.Node{
+				createNode("a", graph.Metadata{"Name": "a", "Type": "host"}),
+				createNode("b", graph.Metadata{"Name": "b", "Type": "host"}),
+			},
+			expectedError: "expecting only one node, gremlin query returned 2",
+		},
+		{
+			desc:  "return the node selected by the query",
+			query: "G.V().Has('Name','a')",
+			nodes: []*graph.Node{
+				createNode("a", graph.Metadata{"Name": "a", "Type": "host"}),
+				createNode("b", graph.Metadata{"Name": "b", "Type": "host"}),
+			},
+			expectedNode: createNode("a", graph.Metadata{"Name": "a", "Type": "host"}),
 		},
 	}
 	for _, tC := range testCases {
@@ -66,5 +80,5 @@ func newGraph(t *testing.T) *graph.Graph {
 
 // createNode func to create nodes for testing
 func createNode(id string, m graph.Metadata) *graph.Node {
-	return graph.CreateNode(graph.Identifier(id), m, graph.TimeUTC(), "host", "origin")
+	return graph.CreateNode(graph.Identifier(id), m, graph.Time(time.Unix(100, 100)), "host", "origin")
 }
