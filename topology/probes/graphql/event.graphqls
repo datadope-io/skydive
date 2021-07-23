@@ -1,0 +1,97 @@
+"""
+Data to select a node and add a event.
+"""
+input event_AddInput {
+  """
+  Skydive Gremlin query to select in which node add the events
+  """
+  GremlinQuery: String!
+
+  """
+  Identifier of each particular alarm.
+  Events with same ID will be updated.
+  Use some prefix, indicating the source of alarm, to prevent collision with other systems identifiers
+  """
+  ID: String!
+
+  """
+  Define the event criticity level
+  """
+  Level: event_Level!
+
+  """
+  Event metadata, appended to the event.
+  """
+  Payload: [event_KeyValue!]
+
+  """
+  Time to live of the event.
+  If defined, this event will be closed automatically after this number of seconds.
+  Closing time will not be exact, it will depend on the garbage collector interval execution.
+  """
+  TTL: Int
+}
+
+"""
+Possible values to define an event criticity
+"""
+enum event_Level {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+"""
+Simple input to add any extra data in a key-value fashion
+"""
+input event_KeyValue {
+  Key: String!
+  Value: String!
+}
+
+input event_CloseInput {
+  GremlinQuery: String!
+
+  """
+  Identifier of each particular alarm.
+  """
+  ID: String!
+}
+
+"""
+Return value when adding new event
+"""
+type event_AddPayload {
+  """
+  Internal Skydive ID of the node modified.
+  """
+  ID: String!
+}
+
+"""
+Return value when adding new events
+"""
+type event_AddMultiplePayload {
+  """
+  Number of events processed correctly
+  """
+  Ok: Int!
+  """
+  Number of events processed with error
+  """
+  Fail: Int!
+  """
+  List of errors associated with events not processed
+  """
+  Errors: [String!]!
+}
+
+"""
+Return value when closing an event
+"""
+type event_ClosePayload {
+  """
+  Internal Skydive ID of the node modified.
+  """
+  ID: String!
+}

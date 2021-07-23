@@ -1,0 +1,306 @@
+"""
+Return information about the creation/update of an Skydive node
+"""
+type net_NodePayload {
+  """
+  Internal ID for the node in Skydive.
+  """
+  ID: String!
+
+  """
+  Return true if a new node has been created
+  """
+  NodeCreated: Boolean!
+
+  """
+  Return true if a node with this name already exists and metadata values
+  have been updated.
+  """
+  NodeUpdated: Boolean!
+}
+
+"""
+Return information about the creation/update of an Skydive edge
+"""
+type net_EdgePayload {
+  """
+  Internal ID for the edge in Skydive.
+  """
+  ID: String!
+
+  """
+  Return true if a new edge has been created
+  """
+  EdgeCreated: Boolean!
+
+  """
+  Return true if a edge with this name already exists and metadata values
+  have been updated.
+  """
+  EdgeUpdated: Boolean!
+}
+
+"""
+Use a Gremlin query or a Skydive ID to select a node in the Skydive graph.
+"""
+input net_Selector {
+  """
+  Select device by using its Skydive internal ID
+  """
+  ID: String
+  """
+  Skydive Gremlin query to select the device
+  """
+  GremlinQuery: String
+}
+
+"""
+Values to create a new network device.
+"""
+input net_DeviceInput {
+  """
+  Device name. Used as the primary key.
+  """
+  Name: String!
+
+  """
+  Device type: router, switch, etc.
+  """
+  Type: net_DeviceType
+
+  """
+  Vendor of the device: Cisco, Juniper, etc.
+  """
+  Vendor: String
+
+  """
+  Device model, eg.: CBS250-8P-E-2G
+  """
+  Model: String
+
+  """
+  Optional field to establish the creation time of the skydive elements. If
+  not set, defaults to the current time.
+  If the node already exists and this value is different from the existing one, it will
+  produce an error.
+  """
+  CreatedAt: Time
+}
+
+"""
+Define the kind of network device
+"""
+enum net_DeviceType {
+  Router
+  Switch
+}
+
+"""
+Return value when creating a new network device.
+"""
+type net_DevicePayload {
+  """
+  Information about the device
+  """
+  Device: net_NodePayload!
+}
+
+"""
+Values to add a physical interface to a network device.
+Aggregation interface is created if it does not exists.
+"""
+input net_AddInterfaceInput {
+  """
+  Select which network device owns this interface
+  """
+  DeviceSelector: net_Selector!
+  """
+  Data of the interface to be added
+  """
+  Interface: net_InterfaceInput!
+  """
+  If this interface is aggregated, name of the aggregation
+  """
+  Aggregation: String
+  """
+  Optional field to establish the creation time of the skydive elements. If
+  not set, defaults to the current time.
+  """
+  CreatedAt: Time
+}
+
+"""
+Return value when creating a new physical interface.
+"""
+type net_InterfacePayload {
+  """
+  Information about the physical interface
+  """
+  Interface: net_NodePayload!
+  """
+  Information about the aggregation interface.
+  Define only if the input has an aggregation interface defined.
+  """
+  Aggregation: net_NodePayload!
+}
+
+"""
+Values to add a physical interface to a network device
+"""
+input net_AddAggregationInput {
+  """
+  Select which network device owns this aggregation
+  """
+  DeviceSelector: net_Selector!
+  """
+  Data of the aggregation to be added
+  """
+  Aggregation: net_InterfaceInput!
+  """
+  Optional field to establish the creation time of the skydive elements. If
+  not set, defaults to the current time.
+  """
+  CreatedAt: Time
+}
+
+"""
+Return value when creating a new aggregation interface.
+"""
+type net_AggregationPayload {
+  """
+  Information about the aggregation interface.
+  """
+  Aggregation: net_NodePayload!
+}
+
+"""
+Data defining a network interface
+"""
+input net_InterfaceInput {
+  """
+  Name of the interface
+  """
+  Name: String!
+  """
+  Ethernet data of the interface
+  """
+  Ethernet: net_EthernetInput
+  """
+  IP addresses of the interface, IPv4 or IPv6
+  IP data of the interface.
+  IPv4 format: 192.0.2.0/24
+  IPv6 format: 2001:db8::/32
+  """
+  IP: [String!]
+}
+
+"""
+Ethernet data related to an interface
+"""
+input net_EthernetInput {
+  """
+  VLAN data of the interface
+  """
+  VLAN: net_VLANInput
+}
+
+"""
+VLAN data for an interface
+"""
+input net_VLANInput {
+  """
+  If the interface is in access mode, this input should be defined
+  """
+  Access: net_VLANAccessInput
+  """
+  If the interface is in trunk mode, this input should be defined
+  """
+  Trunk: net_VLANTrunkInput
+}
+
+"""
+VLAN data for interfaces configured in access mode
+"""
+input net_VLANAccessInput {
+  """
+  List of VLAN IDs to be accepted by the trunk port
+  """
+  AcceptedVIDs: [Int!]!
+  """
+  Native VLAN ID.
+  VLAN ID used for untagged packets
+  """
+  NativeVLANVID: Int
+}
+
+"""
+VLAN data for interfaces configured in trunk mode
+"""
+input net_VLANTrunkInput {
+  """
+  VLAN id
+  """
+  VID: Int!
+}
+
+"""
+Values to add a logical interface backed by a physical or aggregation interface
+"""
+input net_AddLogicalInterfaceInput {
+  """
+  Select which interface owns this logical interface
+  """
+  InterfaceSelector: net_Selector!
+  """
+  Data of the logical interface to be added
+  """
+  Interface: net_InterfaceInput!
+  """
+  Optional field to establish the creation time of the skydive elements. If
+  not set, defaults to the current time.
+  """
+  CreatedAt: Time
+}
+
+"""
+Return value when creating a new logical interface interface.
+"""
+type net_LogicalInterfacePayload {
+  """
+  Information about the logical interface.
+  """
+  LogicalInterface: net_NodePayload!
+}
+
+
+"""
+Values to create a new link between nodes.
+"""
+input net_If2IfLinkInput {
+  """
+  Source interface.
+  """
+  SrcInterface: net_Selector!
+
+  """
+  Destination interface.
+  """
+  DstInterface: net_Selector!
+
+  """
+  Optional field to establish the creation time of the skydive elements. If
+  not set, defaults to the current time.
+  """
+  CreatedAt: Time
+}
+
+
+"""
+Return value when creating a new link between interfaces.
+"""
+type net_AddIf2IfLinkPayload {
+  """
+  Internal ID for the edge in Skydive.
+  """
+  InterfaceLink: net_EdgePayload!
+}

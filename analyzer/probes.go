@@ -29,6 +29,7 @@ import (
 	"github.com/skydive-project/skydive/topology"
 	"github.com/skydive-project/skydive/topology/probes/blockdev"
 	"github.com/skydive-project/skydive/topology/probes/fabric"
+	"github.com/skydive-project/skydive/topology/probes/graphql"
 	"github.com/skydive-project/skydive/topology/probes/istio"
 	"github.com/skydive-project/skydive/topology/probes/k8s"
 	"github.com/skydive-project/skydive/topology/probes/libvirt"
@@ -58,6 +59,7 @@ func registerStaticProbes() {
 	libvirt.Register()
 	ovn.Register()
 	proccon.Register()
+	graphql.Register()
 }
 
 func registerPluginProbes() error {
@@ -132,6 +134,8 @@ func NewTopologyProbeBundleFromConfig(g *graph.Graph) (*probe.Bundle, error) {
 			handler, err = nsm.NewNsmProbe(g)
 		case "proccon":
 			handler, err = proccon.NewProbe(g)
+		case "graphql":
+			handler, err = graphql.NewProbe(g)
 		case "procpeering":
 			handler, err = procpeering.NewProbe(g)
 		default:

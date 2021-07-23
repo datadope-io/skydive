@@ -142,6 +142,8 @@ func init() {
 	cfg.SetDefault("analyzer.topology.k8s.config_file", "/etc/skydive/kubeconfig")
 	cfg.SetDefault("analyzer.topology.ovn.address", "unix:///var/run/ovn/ovnnb_db.sock")
 	cfg.SetDefault("analyzer.topology.istio.config_file", "/etc/skydive/kubeconfig")
+	cfg.SetDefault("analyzer.topology.graphql.listen", "0.0.0.0:8080")
+	cfg.SetDefault("analyzer.topology.graphql.event.garbage_collector_interval", "2m")
 
 	cfg.SetDefault("auth.basic.type", "basic") // defined for backward compatibility
 	cfg.SetDefault("auth.keystone.tenant_name", "admin")

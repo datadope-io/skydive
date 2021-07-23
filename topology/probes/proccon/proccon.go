@@ -668,8 +668,7 @@ func (p *Probe) Start() error {
 	msgp.RegisterExtension(-1, func() msgp.Extension { return new(MessagePackTime) })
 
 	listenEndpoint := config.GetString("analyzer.topology.proccon.listen")
-	http.Handle("/", p)
-	go http.ListenAndServe(listenEndpoint, nil)
+	go http.ListenAndServe(listenEndpoint, p)
 	logging.GetLogger().Infof("Listening for new network metrics on %v", listenEndpoint)
 
 	p.GCdone = make(chan bool)
