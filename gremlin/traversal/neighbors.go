@@ -1,20 +1,3 @@
-/*
- * Copyright (C) 2018 Red Hat, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy ofthe License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specificlanguage governing permissions and
- * limitations under the License.
- *
- */
-
 package traversal
 
 import (
@@ -31,7 +14,15 @@ type NeighborsTraversalExtension struct {
 	NeighborsToken traversal.Token
 }
 
-// NeighborsGremlinTraversalStep rawpackets step
+// NeighborsGremlinTraversalStep navigate the graph starting from a node, following edges
+// from parent to child and from child to parent.
+// It follows the same sintaxis as Ascendants and Descendants step.
+// The behaviour is like Ascendants+Descendants combined.
+// If only one param is defined, it is used as depth, eg: G.V('id').Neighbors(4)
+// If we have an event number of parameters, they are used as edge filter, and
+// depth is defaulted to one, eg.: G.V('id').Neighbors("Type","foo","RelationType","bar")
+// If we have an odd, but >1, number of parameters, all but the last one are used as
+// edge filters and the last one as depth, eg.: G.V('id').Neighbors("Type","foo","RelationType","bar",3)
 type NeighborsGremlinTraversalStep struct {
 	context    traversal.GremlinTraversalContext
 	maxDepth   int64
@@ -188,7 +179,8 @@ func (d *NeighborsGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) 
 
 // Reduce Neighbors step
 func (d *NeighborsGremlinTraversalStep) Reduce(next traversal.GremlinTraversalStep) (traversal.GremlinTraversalStep, error) {
-	if _, ok := next.(*EventsGremlinTraversalStep); ok {
+	// Hhe Merge step only needs the ids of nodes. Saving some queries.
+	if _, ok := next.(*MergeGremlinTraversalStep); ok {
 		d.nextStepOnlyIDs = true
 	}
 	return next, nil

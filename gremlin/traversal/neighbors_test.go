@@ -5,7 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skydive-project/skydive/graffiti/filters"
 	"github.com/skydive-project/skydive/graffiti/graph"
+	"github.com/skydive-project/skydive/graffiti/graph/traversal"
+	"github.com/skydive-project/skydive/topology"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -82,6 +85,7 @@ func TestGetNeighbors(t *testing.T) {
 		originNodes   []*graph.Node
 		maxDepth      int64
 		edgeFilter    graph.ElementMatcher
+		onlyIDs       bool
 		expectedNodes []*graph.Node
 	}{
 		{
@@ -95,6 +99,22 @@ func TestGetNeighbors(t *testing.T) {
 			},
 			maxDepth:   0,
 			edgeFilter: nil,
+			expectedNodes: []*graph.Node{
+				graph.CreateNode(graph.Identifier("A"), graph.Metadata{}, graph.Unix(0, 0), "", ""),
+			},
+		},
+		{
+			desc: "one graph node with only ids strip all node data except id",
+			graphNodes: []*graph.Node{
+				graph.CreateNode(graph.Identifier("A"), graph.Metadata{"foo": "bar"}, graph.Unix(100, 0), "host", "origin"),
+			},
+			graphEdges: []*graph.Edge{},
+			originNodes: []*graph.Node{
+				graph.CreateNode(graph.Identifier("A"), graph.Metadata{"foo": "bar"}, graph.Unix(100, 0), "host", "origin"),
+			},
+			maxDepth:   0,
+			edgeFilter: nil,
+			onlyIDs:    true,
 			expectedNodes: []*graph.Node{
 				graph.CreateNode(graph.Identifier("A"), graph.Metadata{}, graph.Unix(0, 0), "", ""),
 			},
@@ -297,13 +317,111 @@ func TestGetNeighbors(t *testing.T) {
 			}
 
 			d := NeighborsGremlinTraversalStep{
-				maxDepth:   tC.maxDepth,
-				edgeFilter: tC.edgeFilter,
+				maxDepth:        tC.maxDepth,
+				edgeFilter:      tC.edgeFilter,
+				nextStepOnlyIDs: tC.onlyIDs,
 			}
 			neighbors := d.getNeighbors(g, tC.originNodes)
 
 			assert.ElementsMatch(t, neighbors, tC.expectedNodes)
 
+		})
+	}
+}
+
+func TestNeighborsParseStep(t *testing.T) {
+	ownershipFilter, err := topology.OwnershipMetadata().Filter()
+	assert.Nil(t, err)
+
+	relationTypeFooFilter, err := traversal.ParamsToFilter(filters.BoolFilterOp_OR, "RelationType", "foo")
+	assert.Nil(t, err)
+
+	relationTypeFooTypeBarFilter, err := traversal.ParamsToFilter(filters.BoolFilterOp_OR, "RelationType", "foo", "Type", "bar")
+	assert.Nil(t, err)
+
+	tests := []struct {
+		name                  string
+		token                 traversal.Token
+		traversalCtx          traversal.GremlinTraversalContext
+		expectedTraversalStep traversal.GremlinTraversalStep
+		expectedError         string
+	}{
+		{
+			name:  "non merge token",
+			token: traversal.COUNT,
+		},
+		{
+			name:  "nil traversalCtx is default values, depth one and ownership edge filter",
+			token: traversalNeighborsToken,
+			expectedTraversalStep: &NeighborsGremlinTraversalStep{
+				maxDepth:   1,
+				edgeFilter: graph.NewElementFilter(ownershipFilter),
+			},
+		},
+		{
+			name:  "one string param",
+			token: traversalNeighborsToken,
+			traversalCtx: traversal.GremlinTraversalContext{
+				Params: []interface{}{"foo"},
+			},
+			expectedError: "Neighbors last argument must be the maximum depth specified as an integer",
+		},
+		{
+			name:  "only one param, int number, is depth",
+			token: traversalNeighborsToken,
+			traversalCtx: traversal.GremlinTraversalContext{
+				Params: []interface{}{int64(3)},
+			},
+			expectedTraversalStep: &NeighborsGremlinTraversalStep{
+				context: traversal.GremlinTraversalContext{
+					Params: []interface{}{int64(3)},
+				},
+				maxDepth:   3,
+				edgeFilter: graph.NewElementFilter(ownershipFilter),
+			},
+		},
+		{
+			name:  "two string params are used as edge filter",
+			token: traversalNeighborsToken,
+			traversalCtx: traversal.GremlinTraversalContext{
+				Params: []interface{}{"RelationType", "foo"},
+			},
+			expectedTraversalStep: &NeighborsGremlinTraversalStep{
+				context: traversal.GremlinTraversalContext{
+					Params: []interface{}{"RelationType", "foo"},
+				},
+				maxDepth:   1,
+				edgeFilter: graph.NewElementFilter(relationTypeFooFilter),
+			},
+		},
+		{
+			name:  "four string params are used as edge filter and last int64 as depth",
+			token: traversalNeighborsToken,
+			traversalCtx: traversal.GremlinTraversalContext{
+				Params: []interface{}{"RelationType", "foo", "Type", "bar", int64(5)},
+			},
+			expectedTraversalStep: &NeighborsGremlinTraversalStep{
+				context: traversal.GremlinTraversalContext{
+					Params: []interface{}{"RelationType", "foo", "Type", "bar", int64(5)},
+				},
+				maxDepth:   5,
+				edgeFilter: graph.NewElementFilter(relationTypeFooTypeBarFilter),
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			e := NeighborsTraversalExtension{NeighborsToken: traversalNeighborsToken}
+
+			traversalStep, err := e.ParseStep(test.token, test.traversalCtx)
+			if test.expectedError != "" {
+				assert.EqualErrorf(t, err, test.expectedError, "error")
+			} else {
+				assert.Nil(t, err, "nil error")
+			}
+
+			assert.Equalf(t, test.expectedTraversalStep, traversalStep, "step")
 		})
 	}
 }
@@ -320,15 +438,17 @@ func BenchmarkGetNeighbors(b *testing.B) {
 
 	parentNodes := 20
 
+	var node *graph.Node
+	var nodeChild *graph.Node
 	for n := 0; n < parentNodes; n++ {
-		node, err := g.NewNode(graph.Identifier(fmt.Sprintf("%d", n)), graph.Metadata{})
+		node, err = g.NewNode(graph.Identifier(fmt.Sprintf("%d", n)), graph.Metadata{})
 		if err != nil {
 			b.Error(err.Error())
 		}
 
 		//  Childs of this node
 		for nc := 0; nc < 60; nc++ {
-			nodeChild, err := g.NewNode(graph.Identifier(fmt.Sprintf("%d-%d", n, nc)), graph.Metadata{})
+			nodeChild, err = g.NewNode(graph.Identifier(fmt.Sprintf("%d-%d", n, nc)), graph.Metadata{})
 			if err != nil {
 				b.Error(err.Error())
 			}
