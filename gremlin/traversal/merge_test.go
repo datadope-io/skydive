@@ -41,7 +41,7 @@ func (b *FakeMergeGraphBackend) GetNodesFromIDs(identifierList []graph.Identifie
 	return nodes
 }
 
-func TestMergeMergeNilNodeMerge(t *testing.T) {
+func TestMergeMetadataNilNodeMerge(t *testing.T) {
 	key := "Merge"
 
 	metadataNode1 := graph.Metadata{key: map[string]interface{}{
@@ -60,7 +60,7 @@ func TestMergeMergeNilNodeMerge(t *testing.T) {
 	assert.Equal(t, expected, nodeMergeAgg)
 }
 
-func TestMergeMergePointerValue(t *testing.T) {
+func TestMergeMetadataPointerValue(t *testing.T) {
 	key := "Merge"
 
 	value := map[string]interface{}{
@@ -221,7 +221,7 @@ func TestInterfaceMerge(t *testing.T) {
 			},
 		},
 		{
-			name:   "one input node with key defined and one alarm",
+			name:   "one input node with key defined and one element",
 			key:    "Merge",
 			aggKey: "MergeAgg",
 			InNodes: []*graph.Node{
@@ -239,7 +239,52 @@ func TestInterfaceMerge(t *testing.T) {
 			},
 		},
 		{
-			name:   "two different input nodes with key defined and one alarm each one",
+			name:   "one input node with a complex element",
+			key:    "Merge",
+			aggKey: "MergeAgg",
+			InNodes: []*graph.Node{
+				CreateNode("A", graph.Metadata{
+					"Merge": map[string]interface{}{
+						"e1": map[string]interface{}{
+							"desc": "a",
+							"TTL":  45,
+							"Payload": []interface{}{
+								map[string]interface{}{"Key": "foo"},
+								map[string]interface{}{"Value": "bar"},
+							},
+						},
+					},
+				}, graph.Time(time.Unix(0, 0)), 1),
+			},
+			OutNodes: []*graph.Node{
+				CreateNode("A", graph.Metadata{
+					"Merge": map[string]interface{}{
+						"e1": map[string]interface{}{
+							"desc": "a",
+							"TTL":  45,
+							"Payload": []interface{}{
+								map[string]interface{}{"Key": "foo"},
+								map[string]interface{}{"Value": "bar"},
+							},
+						},
+					},
+					"MergeAgg": map[string][]interface{}{
+						"e1": {
+							map[string]interface{}{
+								"desc": "a",
+								"TTL":  45,
+								"Payload": []interface{}{
+									map[string]interface{}{"Key": "foo"},
+									map[string]interface{}{"Value": "bar"},
+								},
+							},
+						},
+					},
+				}, graph.Time(time.Unix(0, 0)), 1),
+			},
+		},
+		{
+			name:   "two different input nodes with key defined and one element each one",
 			key:    "Merge",
 			aggKey: "MergeAxx",
 			InNodes: []*graph.Node{
@@ -420,8 +465,8 @@ func TestInterfaceMerge(t *testing.T) {
 			tvIn := traversal.NewGraphTraversalV(gt, test.InNodes)
 
 			s := MergeGremlinTraversalStep{
-				EventKey:    test.key,
-				EventAggKey: test.aggKey,
+				MergeKey:    test.key,
+				MergeAggKey: test.aggKey,
 				StartTime:   test.startTime,
 				EndTime:     test.endTime,
 			}
@@ -438,6 +483,34 @@ func TestInterfaceMerge(t *testing.T) {
 			assert.ElementsMatch(t, test.OutNodes, tvOut.GetNodes())
 		})
 	}
+}
+
+func TestInterfaceMergeDoNotModifyOriginNodes(t *testing.T) {
+	n := CreateNode("A", graph.Metadata{
+		"Merge": map[string]interface{}{"e1": map[string]interface{}{"desc": "a"}},
+	}, graph.Time(time.Unix(0, 0)), 1)
+
+	nCopy := CreateNode("A", graph.Metadata{
+		"Merge": map[string]interface{}{"e1": map[string]interface{}{"desc": "a"}},
+	}, graph.Time(time.Unix(0, 0)), 1)
+
+	b := FakeMergeGraphBackend{
+		Nodes: []*graph.Node{n},
+	}
+	g := graph.NewGraph("testhost", &b, "analyzer.testhost")
+
+	gt := traversal.NewGraphTraversal(g, false)
+	tvIn := traversal.NewGraphTraversalV(gt, []*graph.Node{n})
+
+	s := MergeGremlinTraversalStep{
+		MergeKey:    "Merge",
+		MergeAggKey: "AggMerge",
+	}
+	_, err := s.InterfaceMerge(tvIn)
+	assert.Nil(t, err)
+
+	// Node stored in the graph should not be modified
+	assert.Equal(t, b.GetNode("A", graph.Context{})[0], nCopy)
 }
 
 func TestEventsParseStep(t *testing.T) {
@@ -483,8 +556,8 @@ func TestEventsParseStep(t *testing.T) {
 				GremlinTraversalContext: traversal.GremlinTraversalContext{
 					Params: []interface{}{"key", "aggKey"},
 				},
-				EventKey:    "key",
-				EventAggKey: "aggKey",
+				MergeKey:    "key",
+				MergeAggKey: "aggKey",
 			},
 		},
 		{
@@ -497,8 +570,8 @@ func TestEventsParseStep(t *testing.T) {
 				GremlinTraversalContext: traversal.GremlinTraversalContext{
 					Params: []interface{}{"key", "aggKey", int64(1627987976), int64(1627987977)},
 				},
-				EventKey:    "key",
-				EventAggKey: "aggKey",
+				MergeKey:    "key",
+				MergeAggKey: "aggKey",
 				StartTime:   time.Unix(1627987976, 0),
 				EndTime:     time.Unix(1627987977, 0),
 			},
@@ -527,6 +600,36 @@ func TestEventsParseStep(t *testing.T) {
 			assert.Equalf(t, test.expectedTraversalStep, traversalStep, "step")
 		})
 	}
+}
+
+func TestCopyNode(t *testing.T) {
+	origNode := CreateNode("A", graph.Metadata{"foo": "bar"}, graph.Time(time.Unix(100, 0)), 1)
+	cn, err := cloneNode(origNode)
+	assert.Nil(t, err)
+	assert.Equalf(t, origNode, cn, "cloned node same")
+
+	ok := cn.Metadata.SetField("new", "foobar")
+	assert.Truef(t, ok, "cloned node SetField")
+
+	assert.NotEqualf(t, origNode, cn, "cloned node has metadata modified")
+
+	cn.Revision = 99
+	assert.NotEqualf(t, origNode, cn, "cloned node has revision modified")
+
+	cn.Host = "modified"
+	assert.NotEqualf(t, origNode, cn, "cloned node has host modified")
+
+	cn.Origin = "modified"
+	assert.NotEqualf(t, origNode, cn, "cloned node has orig modified")
+
+	cn.CreatedAt = graph.Time(time.Unix(999, 999))
+	assert.NotEqualf(t, origNode, cn, "cloned node has CreatedAt modified")
+
+	cn.UpdatedAt = graph.Time(time.Unix(999, 999))
+	assert.NotEqualf(t, origNode, cn, "cloned node has UpdatedAt modified")
+
+	cn.DeletedAt = graph.Time(time.Unix(999, 999))
+	assert.NotEqualf(t, origNode, cn, "cloned node has DeletedAt modified")
 }
 
 // CreateNode func to create nodes with a specific node revision

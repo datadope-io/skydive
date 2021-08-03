@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/mohae/deepcopy"
 	"github.com/pkg/errors"
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/graph/traversal"
@@ -16,21 +17,23 @@ type MergeTraversalExtension struct {
 	MergeToken traversal.Token
 }
 
-// MergeGremlinTraversalStep step aggregates events from different revisions of the nodes into a new metadata key.
+// MergeGremlinTraversalStep step aggregates elements from different revisions of the nodes into a new metadata key.
+// Nodes returned by this step are copies of the nodes in the graph, not the actual nodes.
+// The reason is because this step is not meant to modify nodes in the graph, just for the output.
 // This step should be used with a presistant backend, so it can access previous revisions of the nodes.
-// To use this step we should select a metadata key (first parameter), where the events will be read from.
-// Inside this Metadata.Key events should have the format map[interface{}]interface{} (could be a type based on that).
-// The second parameter is the metadata key where all the events will be aggregated.
+// To use this step we should select a metadata key (first parameter), where the elements will be read from.
+// Inside this Metadata.Key elements should have the format map[interface{}]interface{} (could be a type based on that).
+// The second parameter is the metadata key where all the elements will be aggregated.
 // The aggregation will with the format: map[string][]interface{}.
-// All events with the same key in the map will be joined in an slice.
+// All elements with the same key in the map will be joined in an slice.
 // To use this step we can use a graph with a time period context, eg: G.At(1479899809,3600).V().Merge('A','B').
 // Or we can define the time period in the step: G.V().Merge('A','B',1500000000,1500099999).
 // Note that in this case we define the start and end time, while in "At" is start time and duration.
 // In both cases, Merge step will use the nodes given by the previous step.
 type MergeGremlinTraversalStep struct {
 	traversal.GremlinTraversalContext
-	EventKey    string
-	EventAggKey string
+	MergeKey    string
+	MergeAggKey string
 	StartTime   time.Time
 	EndTime     time.Time
 }
@@ -46,7 +49,7 @@ func NewMergeTraversalExtension() *MergeTraversalExtension {
 // which represents it. Return true if it have found a match
 func (e *MergeTraversalExtension) ScanIdent(s string) (traversal.Token, bool) {
 	switch s {
-	case "EVENTS":
+	case "MERGE":
 		return e.MergeToken, true
 	}
 	return traversal.IDENT, false
@@ -60,26 +63,26 @@ func (e *MergeTraversalExtension) ParseStep(t traversal.Token, p traversal.Greml
 		return nil, nil
 	}
 
-	var eventKey, eventAggKey string
+	var mergeKey, mergeAggKey string
 	var startTime, endTime time.Time
 	var ok bool
 
 	switch len(p.Params) {
 	case 2:
-		eventKey, ok = p.Params[0].(string)
+		mergeKey, ok = p.Params[0].(string)
 		if !ok {
 			return nil, errors.New("Merge first parameter have to be a string")
 		}
-		eventAggKey, ok = p.Params[1].(string)
+		mergeAggKey, ok = p.Params[1].(string)
 		if !ok {
 			return nil, errors.New("Merge second parameter have to be a string")
 		}
 	case 4:
-		eventKey, ok = p.Params[0].(string)
+		mergeKey, ok = p.Params[0].(string)
 		if !ok {
 			return nil, errors.New("Merge first parameter have to be a string")
 		}
-		eventAggKey, ok = p.Params[1].(string)
+		mergeAggKey, ok = p.Params[1].(string)
 		if !ok {
 			return nil, errors.New("Merge second parameter have to be a string")
 		}
@@ -99,14 +102,14 @@ func (e *MergeTraversalExtension) ParseStep(t traversal.Token, p traversal.Greml
 
 	return &MergeGremlinTraversalStep{
 		GremlinTraversalContext: p,
-		EventKey:                eventKey,
-		EventAggKey:             eventAggKey,
+		MergeKey:                mergeKey,
+		MergeAggKey:             mergeAggKey,
 		StartTime:               startTime,
 		EndTime:                 endTime,
 	}, nil
 }
 
-// Exec executes the events step
+// Exec executes the merge step
 func (s *MergeGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (traversal.GraphTraversalStep, error) {
 	switch tv := last.(type) {
 	case *traversal.GraphTraversalV:
@@ -116,17 +119,17 @@ func (s *MergeGremlinTraversalStep) Exec(last traversal.GraphTraversalStep) (tra
 	return nil, traversal.ErrExecutionError
 }
 
-// Reduce events step
+// Reduce merge step
 func (s *MergeGremlinTraversalStep) Reduce(next traversal.GremlinTraversalStep) (traversal.GremlinTraversalStep, error) {
 	return next, nil
 }
 
-// Context events step
+// Context merge step
 func (s *MergeGremlinTraversalStep) Context() *traversal.GremlinTraversalContext {
 	return &s.GremlinTraversalContext
 }
 
-// InterfaceMerge for each node id, group all the events stored in Metadata.key from the
+// InterfaceMerge for each node id, group all the elements stored in Metadata.key from the
 // input nodes and put them into the newest node for each id into Metadata.aggKey.
 // Merge are groupped based on its key. See mergedMetadata for an example.
 // All output nodes will have Metadata.aggKey defined (empty or not).
@@ -155,8 +158,8 @@ func (s *MergeGremlinTraversalStep) InterfaceMerge(tv *traversal.GraphTraversalV
 	// uniqNodes store the latest node for each node identifier
 	uniqNodes := map[graph.Identifier]*graph.Node{}
 
-	// events accumulate the events for each node id
-	events := map[graph.Identifier]map[string][]interface{}{}
+	// elements accumulate the elements for each node id
+	elements := map[graph.Identifier]map[string][]interface{}{}
 
 	// Get the list of node ids
 	nodesIDs := make([]graph.Identifier, 0, len(tv.GetNodes()))
@@ -178,29 +181,36 @@ func (s *MergeGremlinTraversalStep) InterfaceMerge(tv *traversal.GraphTraversalV
 			}
 		}
 
-		// Store events from all revisions into the "events" variable
-		events[rNode.ID] = mergeMetadata(rNode, s.EventKey, events[rNode.ID])
+		// Store elements from all revisions into the "elements" variable
+		elements[rNode.ID] = mergeMetadata(rNode, s.MergeKey, elements[rNode.ID])
 	}
 
 	// Move the nodes from the uniqNodes map to an slice required by TraversalV
+	// Return a copy of the nodes, not the actual graph nodes, because we don't want
+	// to modify nodes with this step, just append some extra info
 	nodes := []*graph.Node{}
 	for id, n := range uniqNodes {
-		e, ok := events[id]
+		nCopy, err := cloneNode(n)
+		if err != nil {
+			fmt.Errorf("processing nodes with Merge step: %v", err)
+		}
+
+		e, ok := elements[id]
 		if ok {
 			// Set the stored node with the merge of previous and current node
-			metadataSet := uniqNodes[id].Metadata.SetField(s.EventAggKey, e)
+			metadataSet := nCopy.Metadata.SetField(s.MergeAggKey, e)
 			if !metadataSet {
-				logging.GetLogger().Errorf("Unable to set events metadata for host %v", id)
+				return nil, fmt.Errorf("unable to set elements metadata for copied node %v", id)
 			}
 		}
 
-		nodes = append(nodes, n)
+		nodes = append(nodes, nCopy)
 	}
 
 	return traversal.NewGraphTraversalV(tv.GraphTraversal, nodes), nil
 }
 
-// mergeMetadata return the merge of node.Key events with the ones already stored in nodeMerge
+// mergeMetadata return the merge of node.Key elements with the ones already stored in nodeMerge
 // Eg.:
 //   node:       Metadata.key: {"a":{x}, "b":{y}}
 //   nodeMerge:                {"a":[{z}]}
@@ -208,7 +218,7 @@ func (s *MergeGremlinTraversalStep) InterfaceMerge(tv *traversal.GraphTraversalV
 //
 // Ignore if Metadata.key has an invalid format (not a map).
 // Reflect is used to be able to access map's defined in different types.
-// Event aggregation data type should be map[string]interface{} to be able to be encoded with JSON
+// Element aggregation data type should be map[string]interface{} to be able to be encoded with JSON
 func mergeMetadata(node *graph.Node, key string, nodeMerge map[string][]interface{}) map[string][]interface{} {
 	if nodeMerge == nil {
 		nodeMerge = map[string][]interface{}{}
@@ -227,20 +237,20 @@ func mergeMetadata(node *graph.Node, key string, nodeMerge map[string][]interfac
 
 		// Merge step only accepts a map as data origin
 		if n1MergeValue.Kind() != reflect.Map {
-			logging.GetLogger().Errorf("Invalid type for events, expecting a map, but it is %v", n1MergeValue.Kind())
+			logging.GetLogger().Errorf("Invalid type for elements, expecting a map, but it is %v", n1MergeValue.Kind())
 			return nodeMerge
 		}
 
 		iter := n1MergeValue.MapRange()
-	NODE_EVENTS:
+	NODE_MERGE:
 		for iter.Next() {
 			k := fmt.Sprintf("%v", iter.Key().Interface())
 			v := iter.Value().Interface()
 
-			// Do not append if the same event already exists
-			for _, storedEvent := range nodeMerge[k] {
-				if reflect.DeepEqual(storedEvent, v) {
-					continue NODE_EVENTS
+			// Do not append if the same element already exists
+			for _, storedElement := range nodeMerge[k] {
+				if reflect.DeepEqual(storedElement, v) {
+					continue NODE_MERGE
 				}
 			}
 
@@ -249,4 +259,18 @@ func mergeMetadata(node *graph.Node, key string, nodeMerge map[string][]interfac
 	}
 
 	return nodeMerge
+}
+
+// cloneNode create a node with the same values of n but no sharing any variable
+func cloneNode(n *graph.Node) (*graph.Node, error) {
+	copyMetadataIface := deepcopy.Copy(n.Metadata)
+	copyMetadata, ok := copyMetadataIface.(graph.Metadata)
+	if !ok {
+		return nil, fmt.Errorf("unable to clone node %+v", n)
+	}
+
+	dn := graph.CreateNode(n.ID, copyMetadata, n.CreatedAt, n.Host, n.Origin)
+	dn.UpdatedAt = n.UpdatedAt
+	dn.Revision = n.Revision
+	return dn, nil
 }
