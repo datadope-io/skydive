@@ -16,8 +16,6 @@ const (
 	RelationTypeOwnership = "ownership"
 	// RelationConnect edge type value for edges between iface-iface
 	RelationConnect = "connect"
-	// RelationTypeLogicalIfaceToPhyIface is the Metadata.RelationType value for logical interfaces linked to physical/aggregation interfaces
-	RelationTypeLogicalIfaceToPhyIface = "use"
 
 	// MetaKeyType metadata key to define the kind of node
 	MetaKeyType = "Type"
@@ -95,6 +93,7 @@ func (r *Resolver) netAddDevice(
 }
 
 // netAddLogicalToInterface create a logical interface linked to a physical or aggregation
+// The phyIface is linked to the logical interface using an ownership edge.
 // If defined, createdAt is used as the creation date of the node
 // If the logical interface did't exist and fails to link to the interface, remove it.
 func (r *Resolver) netAddLogicalToInterface(
@@ -118,7 +117,8 @@ func (r *Resolver) netAddLogicalToInterface(
 		return node, created, updated, fmt.Errorf("unable to create logical interface: %v", err)
 	}
 
-	_, _, _, err = r.createOrUpdateEdge(node, phyIface, graph.Metadata{MetaKeyRelationType: RelationTypeLogicalIfaceToPhyIface}, createdAt)
+	// Link the physical interface with the logical interface
+	_, _, _, err = r.createOrUpdateEdge(phyIface, node, graph.Metadata{MetaKeyRelationType: RelationTypeOwnership}, createdAt)
 	if err != nil {
 		// Remove newly created logical interface if we cannot link it to the interface
 		if created {

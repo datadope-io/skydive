@@ -223,7 +223,7 @@ mutation {
 
 We end up with:
 ```
-routerB────(ownership)────►eth0◄──(use)──eth0.300
+routerB────(ownership)────►eth0────(ownership)──►eth0.300
 ```
 
 Finally we use ``net_AddIf2IfLink`` to link ``routerA`` and ``routerB``:

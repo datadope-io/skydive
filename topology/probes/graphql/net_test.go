@@ -613,7 +613,7 @@ func TestNetAddLogicalToInterfaceDoNotDeleteAlreadyIfaceFailEdge(t *testing.T) {
 	deviceNode := createNode("device", graph.Metadata{"Name": "devA", "Type": "device"})
 	ifaceInput := model.NetInterfaceInput{Name: "foo"}
 	_, _, _, err = r.netAddLogicalToInterface(deviceNode, &ifaceInput, nil)
-	assert.EqualError(t, err, "link device with interface, interface node not created: unable to create edge type use, between '25ad6ba5-1905-5901-5d29-63f7928b2930' and 'device': Child node not found")
+	assert.EqualError(t, err, "link device with interface, interface node not created: unable to create edge type ownership, between 'device' and '25ad6ba5-1905-5901-5d29-63f7928b2930': Parent node not found")
 
 	// ifaceNode should be kept in the graph
 	graphNodes := g.GetNodes(nil)
@@ -638,7 +638,7 @@ func TestNetAddLogicalToInterfaceInitialChecks(t *testing.T) {
 
 	ifaceInput = model.NetInterfaceInput{Name: "foo"}
 	_, _, _, err = r.netAddLogicalToInterface(deviceNode, &ifaceInput, nil)
-	assert.EqualErrorf(t, err, "link device with interface, interface node not created: unable to create edge type use, between '25ad6ba5-1905-5901-5d29-63f7928b2930' and 'device': Child node not found", "empty subtype")
+	assert.EqualErrorf(t, err, "link device with interface, interface node not created: unable to create edge type ownership, between 'device' and '25ad6ba5-1905-5901-5d29-63f7928b2930': Parent node not found", "empty subtype")
 
 	// No nodes has been created in the graph
 	assert.Lenf(t, g.GetNodes(nil), 0, "no nodes in graph")
