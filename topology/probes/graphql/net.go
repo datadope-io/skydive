@@ -14,8 +14,8 @@ const (
 	MetaKeyRelationType = "RelationType"
 	// RelationTypeOwnership edge type value for edges between device-agg and agg-iface
 	RelationTypeOwnership = "ownership"
-	// RelationConnectsTo edge type value for edges between iface-iface
-	RelationConnectsTo = "ConnectsTo"
+	// RelationConnect edge type value for edges between iface-iface
+	RelationConnect = "connect"
 	// RelationTypeLogicalIfaceToPhyIface is the Metadata.RelationType value for logical interfaces linked to physical/aggregation interfaces
 	RelationTypeLogicalIfaceToPhyIface = "use"
 
@@ -137,7 +137,7 @@ func (r *Resolver) netAddLogicalToInterface(
 // it to the device node.
 // Subtype defines which kind of interface is.
 // If defined, createdAt is used as the creation date of the node
-// If the interface did't exist and fails to link to the device, remove it. TODO testear esto
+// If the interface did't exist and fails to link to the device, remove it.
 func (r *Resolver) netAddInterfaceToDevice(
 	device *graph.Node,
 	iface *model.NetInterfaceInput,

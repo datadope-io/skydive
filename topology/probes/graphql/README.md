@@ -248,7 +248,7 @@ mutation {
 
 Creating an edge between routers' physical interfaces:
 ```
-routerA────(ownership)────►gi0/0───(ConnectsTo)───►eth0◄───(ownership)───routerB
+routerA────(ownership)────►gi0/0───(connect)───►eth0◄───(ownership)───routerB
 ```
 
 
