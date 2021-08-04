@@ -602,36 +602,6 @@ func TestEventsParseStep(t *testing.T) {
 	}
 }
 
-func TestCopyNode(t *testing.T) {
-	origNode := CreateNode("A", graph.Metadata{"foo": "bar"}, graph.Time(time.Unix(100, 0)), 1)
-	cn, err := cloneNode(origNode)
-	assert.Nil(t, err)
-	assert.Equalf(t, origNode, cn, "cloned node same")
-
-	ok := cn.Metadata.SetField("new", "foobar")
-	assert.Truef(t, ok, "cloned node SetField")
-
-	assert.NotEqualf(t, origNode, cn, "cloned node has metadata modified")
-
-	cn.Revision = 99
-	assert.NotEqualf(t, origNode, cn, "cloned node has revision modified")
-
-	cn.Host = "modified"
-	assert.NotEqualf(t, origNode, cn, "cloned node has host modified")
-
-	cn.Origin = "modified"
-	assert.NotEqualf(t, origNode, cn, "cloned node has orig modified")
-
-	cn.CreatedAt = graph.Time(time.Unix(999, 999))
-	assert.NotEqualf(t, origNode, cn, "cloned node has CreatedAt modified")
-
-	cn.UpdatedAt = graph.Time(time.Unix(999, 999))
-	assert.NotEqualf(t, origNode, cn, "cloned node has UpdatedAt modified")
-
-	cn.DeletedAt = graph.Time(time.Unix(999, 999))
-	assert.NotEqualf(t, origNode, cn, "cloned node has DeletedAt modified")
-}
-
 // CreateNode func to create nodes with a specific node revision
 func CreateNode(id string, m graph.Metadata, t graph.Time, revision int64) *graph.Node {
 	n := graph.CreateNode(graph.Identifier(id), m, t, "host", "orig")

@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/mohae/deepcopy"
 	"github.com/pkg/errors"
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/graph/traversal"
@@ -190,10 +189,7 @@ func (s *MergeGremlinTraversalStep) InterfaceMerge(tv *traversal.GraphTraversalV
 	// to modify nodes with this step, just append some extra info
 	nodes := []*graph.Node{}
 	for id, n := range uniqNodes {
-		nCopy, err := cloneNode(n)
-		if err != nil {
-			fmt.Errorf("processing nodes with Merge step: %v", err)
-		}
+		nCopy := n.Copy()
 
 		e, ok := elements[id]
 		if ok {
@@ -259,18 +255,4 @@ func mergeMetadata(node *graph.Node, key string, nodeMerge map[string][]interfac
 	}
 
 	return nodeMerge
-}
-
-// cloneNode create a node with the same values of n but no sharing any variable
-func cloneNode(n *graph.Node) (*graph.Node, error) {
-	copyMetadataIface := deepcopy.Copy(n.Metadata)
-	copyMetadata, ok := copyMetadataIface.(graph.Metadata)
-	if !ok {
-		return nil, fmt.Errorf("unable to clone node %+v", n)
-	}
-
-	dn := graph.CreateNode(n.ID, copyMetadata, n.CreatedAt, n.Host, n.Origin)
-	dn.UpdatedAt = n.UpdatedAt
-	dn.Revision = n.Revision
-	return dn, nil
 }
