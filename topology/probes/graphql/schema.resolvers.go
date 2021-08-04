@@ -165,6 +165,9 @@ func (r *mutationResolver) NetAddIf2IfLink(ctx context.Context, input model.NetI
 	edge, created, updated, err := r.createOrUpdateEdge(srcIface, dstIface, graph.Metadata{
 		MetaKeyRelationType: RelationConnectsTo,
 	}, input.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("add link between interfaces, edge: %v", err)
+	}
 
 	payload := model.NetAddIf2IfLinkPayload{
 		InterfaceLink: &model.NetEdgePayload{
