@@ -43,6 +43,8 @@ import (
 	"github.com/skydive-project/skydive/topology/probes/ovnk8s"
 	"github.com/skydive-project/skydive/topology/probes/ovsdb"
 	"github.com/skydive-project/skydive/topology/probes/peering"
+	"github.com/skydive-project/skydive/topology/probes/proccon"
+	"github.com/skydive-project/skydive/topology/probes/procpeering"
 )
 
 func registerStaticProbes() {
@@ -57,6 +59,7 @@ func registerStaticProbes() {
 	libvirt.Register()
 	ovn.Register()
 	graphql.Register()
+	proccon.Register()
 }
 
 func registerPluginProbes() error {
@@ -131,6 +134,10 @@ func NewTopologyProbeBundleFromConfig(g *graph.Graph) (*probe.Bundle, error) {
 			handler, err = nsm.NewNsmProbe(g)
 		case "graphql":
 			handler, err = graphql.NewProbe(g)
+		case "proccon":
+			handler, err = proccon.NewProbe(g)
+		case "procpeering":
+			handler, err = procpeering.NewProbe(g)
 		default:
 			logging.GetLogger().Errorf("unknown probe type: %s", t)
 			continue
