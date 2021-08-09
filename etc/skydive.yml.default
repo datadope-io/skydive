@@ -117,6 +117,7 @@ analyzer:
       # - istio
       # - nsm
       # - ovn
+      # - graphql
 
     k8s:
       # kubeconfig resolution order:
@@ -178,6 +179,20 @@ analyzer:
       # cert: /myovnnbcert
       # key: /myovnkey
       # cacert: /myovncacert
+
+    # Probe to provide a GraphQL API with different functionalities
+    graphql:
+      # Where does this probe listen for queries
+      listen: 0.0.0.0:4001
+
+      events:
+        # Clean old Metadata.Events
+        # Events where UpdatedAt+TTL is smaller than "now" will be deleted
+        # How often garbage collector will run
+        # Format: https://golang.org/pkg/time/#ParseDuration
+        # Eg.: 1m, 2m, 20m, 3h45m
+        # It locks the graph while working, so it should not be executed too fast.
+        garbage_collector_interval: 2m
 
   replication:
     # debug: false
