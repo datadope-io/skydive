@@ -29,6 +29,7 @@ import (
 	"github.com/skydive-project/skydive/topology"
 	"github.com/skydive-project/skydive/topology/probes/blockdev"
 	"github.com/skydive-project/skydive/topology/probes/fabric"
+	"github.com/skydive-project/skydive/topology/probes/graphql"
 	"github.com/skydive-project/skydive/topology/probes/istio"
 	"github.com/skydive-project/skydive/topology/probes/k8s"
 	"github.com/skydive-project/skydive/topology/probes/libvirt"
@@ -55,6 +56,7 @@ func registerStaticProbes() {
 	ovsdb.Register()
 	libvirt.Register()
 	ovn.Register()
+	graphql.Register()
 }
 
 func registerPluginProbes() error {
@@ -127,6 +129,8 @@ func NewTopologyProbeBundleFromConfig(g *graph.Graph) (*probe.Bundle, error) {
 			handler, err = istio.NewIstioProbe(g)
 		case "nsm":
 			handler, err = nsm.NewNsmProbe(g)
+		case "graphql":
+			handler, err = graphql.NewProbe(g)
 		default:
 			logging.GetLogger().Errorf("unknown probe type: %s", t)
 			continue
