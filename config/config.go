@@ -142,6 +142,10 @@ func init() {
 	cfg.SetDefault("analyzer.topology.k8s.config_file", "/etc/skydive/kubeconfig")
 	cfg.SetDefault("analyzer.topology.ovn.address", "unix:///var/run/ovn/ovnnb_db.sock")
 	cfg.SetDefault("analyzer.topology.istio.config_file", "/etc/skydive/kubeconfig")
+	cfg.SetDefault("analyzer.topology.proccon.listen", "0.0.0.0:4000")
+	cfg.SetDefault("analyzer.topology.proccon.revision_flush", "48")
+	cfg.SetDefault("analyzer.topology.proccon.garbage_collector.interval", "1h")
+	cfg.SetDefault("analyzer.topology.proccon.garbage_collector.delete_duration", "3h")
 
 	cfg.SetDefault("auth.basic.type", "basic") // defined for backward compatibility
 	cfg.SetDefault("auth.keystone.tenant_name", "admin")
