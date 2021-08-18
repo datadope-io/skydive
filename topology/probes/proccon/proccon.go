@@ -209,7 +209,7 @@ func (p *Probe) processHostMetrics(serverNode *graph.Node, metrics []Metric) int
 			continue
 		} else if len(childNodes) > 1 {
 			// This should not happen
-			logging.GetLogger().Errorf("Found more than one Software node for Server node '%v' and cmdline '%s': %+v. Ignoring", nodeName(serverNode), metric.Tags["cmdline"], childNodes)
+			logging.GetLogger().Warningf("Found more than one Software node for Server node '%v' and cmdline '%s': %+v. Ignoring", nodeName(serverNode), metric.Tags["cmdline"], childNodes)
 			numberOfErrors++
 			continue
 		}
