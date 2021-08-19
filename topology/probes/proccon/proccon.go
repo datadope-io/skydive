@@ -375,6 +375,10 @@ func (p *Probe) removeFromOthers(otherNode *graph.Node, metricsToBeDeleted []Met
 
 		err := p.graph.UpdateMetadata(otherNode, MetadataTCPConnKey, removeTCPConn)
 		if err != nil {
+			if errors.Is(err, getter.ErrFieldNotFound) {
+				logging.GetLogger().Debugf("Unable to delete old network info because Metadata.%v does not exists", MetadataTCPConnKey)
+				return nil
+			}
 			return fmt.Errorf("unable to delete old TCP connections: %v", err)
 		}
 
@@ -385,6 +389,10 @@ func (p *Probe) removeFromOthers(otherNode *graph.Node, metricsToBeDeleted []Met
 
 		err = p.graph.UpdateMetadata(otherNode, MetadataListenEndpointKey, removeListenEndpoints)
 		if err != nil {
+			if errors.Is(err, getter.ErrFieldNotFound) {
+				logging.GetLogger().Debugf("Unable to delete old network info because Metadata.%v does not exists", MetadataListenEndpointKey)
+				return nil
+			}
 			return fmt.Errorf("unable to delete old listen endpoints: %v", err)
 		}
 	}
