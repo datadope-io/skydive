@@ -124,6 +124,35 @@ func (r *Resolver) closeEvent(event model.EventCloseInput) (node *graph.Node, er
 
 	var updateErr error
 
+	// Mark the event as deleted. This archives the node containing the event with the DeletedAt field unset.
+	// And index in the new node with the event with DeletedAt defined.
+	err = r.Graph.UpdateMetadata(node, MetaKeyEvents, func(field interface{}) bool {
+		nodeEvents, ok := field.(*Events)
+		if !ok {
+			logging.GetLogger().Warningf("Unable to convert Metadata.%s (type %T) to *Events", MetaKeyEvents, field)
+			updateErr = fmt.Errorf("invalid Metadata.%s format", MetaKeyEvents)
+			return false
+		}
+
+		if storedEvent, eventExists := (*nodeEvents)[event.ID]; !eventExists {
+			// event does not exists in the node
+			updateErr = fmt.Errorf("event ID '%s' does not exists in node %v", event.ID, node.ID)
+			return false
+		} else {
+			storedEvent.DeletedAt = graph.Time(time.Now())
+			(*nodeEvents)[event.ID] = storedEvent
+		}
+		return true
+	})
+	if err != nil {
+		return node, fmt.Errorf("unable to mark event as deleted: %v", err)
+	}
+	if updateErr != nil {
+		return node, fmt.Errorf("unable to mark event as deleted: %v", updateErr)
+	}
+
+	// Delete the event from the metadata.
+	// The node archived contains the event with DeletedAt set.
 	err = r.Graph.UpdateMetadata(node, MetaKeyEvents, func(field interface{}) bool {
 		nodeEvents, ok := field.(*Events)
 		if !ok {

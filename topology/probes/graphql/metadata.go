@@ -57,6 +57,7 @@ type Event struct {
 	Payload   []PayloadValues
 	CreatedAt graph.Time
 	UpdatedAt graph.Time
+	DeletedAt graph.Time
 }
 
 // PayloadValues extra metadata that could be added to the events
