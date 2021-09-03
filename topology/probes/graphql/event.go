@@ -237,6 +237,27 @@ func (p *Probe) deleteExpiredEvents(nodeID graph.Identifier, thresholdTime time.
 
 	tt := graph.Time(thresholdTime)
 
+	// Function to process Metadata.Events and mark expired events as deleted
+	markAsDeletedExpired := func(field interface{}) (ret bool) {
+		nodeEvents, ok := field.(*Events)
+		if !ok {
+			removeErr = fmt.Errorf("invalid Metadata.%s format", MetaKeyEvents)
+			return false
+		}
+
+		for k, v := range *nodeEvents {
+			if v.TTL > 0 {
+				if v.CreatedAt.UnixMilli()+v.TTL*SecondToMilli < tt.UnixMilli() {
+					logging.GetLogger().Debugf("Deleted expired event %s from node %s", k, nodeID)
+					v.DeletedAt = graph.Time(time.Now())
+					(*nodeEvents)[k] = v
+					ret = true
+				}
+			}
+		}
+		return ret
+	}
+
 	// Function to process Metadata.Events and delete expired events
 	removeExpired := func(field interface{}) (ret bool) {
 		nodeEvents, ok := field.(*Events)
@@ -262,7 +283,19 @@ func (p *Probe) deleteExpiredEvents(nodeID graph.Identifier, thresholdTime time.
 	defer p.graph.Unlock()
 	node := p.graph.GetNode(nodeID)
 
-	err := p.graph.UpdateMetadata(node, MetaKeyEvents, removeExpired)
+	err := p.graph.UpdateMetadata(node, MetaKeyEvents, markAsDeletedExpired)
+	if err != nil {
+		if errors.Is(err, getter.ErrFieldNotFound) {
+			// It is normal not to have defined that metadata key
+			return nil
+		}
+		return fmt.Errorf("unable to mark expired events: %v", err)
+	}
+	if removeErr != nil {
+		return fmt.Errorf("unable to mark expired events: %v", removeErr)
+	}
+
+	err = p.graph.UpdateMetadata(node, MetaKeyEvents, removeExpired)
 	if err != nil {
 		if errors.Is(err, getter.ErrFieldNotFound) {
 			// It is normal not to have defined that metadata key
