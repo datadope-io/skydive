@@ -272,7 +272,7 @@ func (b *ElasticSearchBackend) GetNodesFromIDs(identifiersList []Identifier, t C
 				SortBy: "Revision",
 			},
 			TimeFilter: getTimeFilter(t.TimeSlice),
-		})...)
+		}, false)...)
 	}
 
 	if len(nodes) > 1 && t.TimePoint {
@@ -613,7 +613,7 @@ func (b *ElasticSearchBackend) GetNodesEdges(nodeList []*Node, t Context, m Elem
 			SearchQuery:   searchQuery,
 			TimeFilter:    getTimeFilter(t.TimeSlice),
 			ElementFilter: filter,
-		})...)
+		}, false)...)
 
 	}
 
@@ -775,7 +775,6 @@ func batchNodes(items []*Node, batchSize int) [][]*Node {
 	batches = append(batches, items)
 
 	return batches
-
 }
 
 func batchIdentifiers(items []Identifier, batchSize int) [][]Identifier {
