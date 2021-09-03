@@ -591,6 +591,10 @@ func easyjsonBa0ee0e3DecodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql6(
 			if data := in.Raw(); in.Ok() {
 				in.AddError((out.UpdatedAt).UnmarshalJSON(data))
 			}
+		case "DeletedAt":
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.DeletedAt).UnmarshalJSON(data))
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -640,6 +644,11 @@ func easyjsonBa0ee0e3EncodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql6(
 		const prefix string = ",\"UpdatedAt\":"
 		out.RawString(prefix)
 		out.Raw((in.UpdatedAt).MarshalJSON())
+	}
+	{
+		const prefix string = ",\"DeletedAt\":"
+		out.RawString(prefix)
+		out.Raw((in.DeletedAt).MarshalJSON())
 	}
 	out.RawByte('}')
 }

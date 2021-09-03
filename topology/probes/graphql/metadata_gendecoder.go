@@ -123,6 +123,7 @@ func (obj *Event) GetFieldKeys() []string {
 		"Payload",
 		"CreatedAt",
 		"UpdatedAt",
+		"DeletedAt",
 	}
 }
 
