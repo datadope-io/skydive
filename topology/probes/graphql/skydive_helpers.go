@@ -98,7 +98,7 @@ func (r *Resolver) createOrUpdateNode(
 
 	// Node already exists. Update metadata
 	// Do not update device if we are supposed to update CreatedAt value
-	if createdAt != nil && node.CreatedAt != graph.Time(*createdAt) {
+	if createdAt != nil && !createdAt.Equal(time.Time(node.CreatedAt)) {
 		return node, created, updated, fmt.Errorf("forbidden to modify CreatedAt value of existing node")
 	}
 
@@ -164,7 +164,7 @@ func (r *Resolver) createOrUpdateEdge(
 		updated = true
 	}
 
-	if createdAt != nil && edge.CreatedAt != graph.Time(*createdAt) {
+	if createdAt != nil && !createdAt.Equal(time.Time(edge.CreatedAt)) {
 		return edge, created, updated, fmt.Errorf("forbidden to modify CreatedAt value of existing edge")
 	}
 	return edge, created, updated, nil
