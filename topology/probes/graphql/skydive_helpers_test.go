@@ -293,7 +293,8 @@ func TestGetNodeFromGremlinQuery(t *testing.T) {
 		t.Run(tC.desc, func(t *testing.T) {
 			g := newGraph(t)
 			for _, n := range tC.nodes {
-				g.AddNode(n)
+				err := g.AddNode(n)
+				assert.NoError(t, err)
 			}
 
 			r := Resolver{Graph: g}

@@ -13,6 +13,73 @@ import (
 	"github.com/skydive-project/skydive/topology/probes/graphql/model"
 )
 
+func (r *mutationResolver) NetAddRegion(ctx context.Context, input model.NetRegionInput) (*model.NetRegionPayload, error) {
+	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeRegion, input.Location)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.NetRegionPayload{
+		ID:          string(node.ID),
+		NodeCreated: created,
+		NodeUpdated: updated,
+	}, nil
+}
+
+func (r *mutationResolver) NetAddProvince(ctx context.Context, input model.NetProvinceInput) (*model.NetProvincePayload, error) {
+	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeProvince, input.Location)
+	if err != nil {
+		return nil, err
+	}
+
+	// Link the Province to the Region
+	Region := r.Graph.GetNodes(graph.Metadata{MetaKeyType: MetadataTypeRegion, MetaKeyName: *&input.Region})
+	if len(Region) == 0 {
+		return nil, fmt.Errorf("Region %s not found", input.Region)
+	} else if len(Region) > 1 {
+		return nil, fmt.Errorf("multiple Region %s found: %+v", input.Region, Region)
+	}
+
+	_, _, _, err = r.createOrUpdateEdge(Region[0], node, graph.Metadata{MetaKeyRelationType: RelationTypeOwnership}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("unable to link Region (%v) to province (%v): %v", Region[0], node, err)
+	}
+
+	return &model.NetProvincePayload{
+		ID:          string(node.ID),
+		NodeCreated: created,
+		NodeUpdated: updated,
+	}, nil
+}
+
+func (r *mutationResolver) NetAddBuilding(ctx context.Context, input model.NetBuildingInput) (*model.NetBuildingPayload, error) {
+	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeBuilding, input.Location)
+	if err != nil {
+		return nil, err
+	}
+
+	// Link the building to the province
+	province := r.Graph.GetNodes(graph.Metadata{MetaKeyType: MetadataTypeProvince, MetaKeyName: *&input.Province})
+	if len(province) == 0 {
+		return nil, fmt.Errorf("province %s not found", input.Province)
+	} else if len(province) > 1 {
+		return nil, fmt.Errorf("multiple province %s found: %+v", input.Province, province)
+	}
+
+	_, _, _, err = r.createOrUpdateEdge(province[0], node, graph.Metadata{MetaKeyRelationType: RelationTypeOwnership}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("unable to link province (%v) to building (%v): %v", province[0], node, err)
+	}
+
+	return &model.NetBuildingPayload{
+		Building: &model.NetNodePayload{
+			ID:          string(node.ID),
+			NodeCreated: created,
+			NodeUpdated: updated,
+		},
+	}, nil
+}
+
 func (r *mutationResolver) NetAddDevice(ctx context.Context, input model.NetDeviceInput) (*model.NetDevicePayload, error) {
 	r.Graph.Lock()
 	defer r.Graph.Unlock()
@@ -26,6 +93,28 @@ func (r *mutationResolver) NetAddDevice(ctx context.Context, input model.NetDevi
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	// If building is defined, link device to building and set the device coordinates to building coordinates
+	if input.Building != nil {
+		building := r.Graph.GetNodes(graph.Metadata{MetaKeyType: MetadataTypeBuilding, MetaKeyName: *input.Building})
+		if len(building) == 0 {
+			return nil, fmt.Errorf("building %s not found", *input.Building)
+		} else if len(building) > 1 {
+			return nil, fmt.Errorf("multiple building %s found: %+v", *input.Building, building)
+		}
+
+		// Link building to device
+		_, _, _, err = r.createOrUpdateEdge(building[0], node, graph.Metadata{MetaKeyRelationType: RelationTypeOwnership}, input.CreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("unable to link building (%v) to device (%v): %v", building[0], node, err)
+		}
+
+		/* Cargar coordenadas del edificio en el dispositivo e interfaces de red? TODO
+		node.Metadata.SetField(MetaKeyLatitude, building.Lat)
+		node.Metadata.SetField(MetaKeyLongitude, building.Lng)
+		r.Graph.NodeUpdated(node)
+		*/
 	}
 
 	payload := model.NetDevicePayload{
@@ -169,6 +258,25 @@ func (r *mutationResolver) NetAddIf2IfLink(ctx context.Context, input model.NetI
 		return nil, fmt.Errorf("add link between interfaces, edge: %v", err)
 	}
 
+	// Create links between interfaces all the way up to the regions, creating also links between the different levels.
+	// This is done to allow to have links between different levels without having to get all the data down to the interface.
+	// TODO: que tipo de edge le ponemos? Como gestionamos el borrado?
+	//   srcIface    -> dstIface, dstNode, dstBuilding, dstProvince, dstRegion
+	//   srcNode     -> dstIface, dstNode, dstBuilding, dstProvince, dstRegion
+	//   srcProvince -> dstIface, dstNode, dstBuilding, dstProvince, dstRegion
+	//   srcRegion   -> dstIface, dstNode, dstBuilding, dstProvince, dstRegion
+	for _, srcNode := range r.getHierarchyNodesFromNode(srcIface) {
+		for _, dstNode := range r.getHierarchyNodesFromNode(dstIface) {
+			_, _, _, err = r.createOrUpdateEdge(srcNode, dstNode, graph.Metadata{
+				MetaKeyRelationType: RelationConnect,
+				// TODO añadir un contador de cuantas conex soportan este edge, para poder borrarlo cuando llegue a 0
+			}, input.CreatedAt)
+			if err != nil {
+				return nil, fmt.Errorf("add link between interfaces, edge: %v", err)
+			}
+		}
+	}
+
 	payload := model.NetAddIf2IfLinkPayload{
 		InterfaceLink: &model.NetEdgePayload{
 			ID:          string(edge.ID),
@@ -180,6 +288,11 @@ func (r *mutationResolver) NetAddIf2IfLink(ctx context.Context, input model.NetI
 }
 
 func (r *mutationResolver) EventAdd(ctx context.Context, input model.EventAddInput) (*model.EventAddPayload, error) {
+	propagate := false
+	if input.Propagate != nil {
+		propagate = *input.Propagate
+	}
+
 	nodeID, err := r.createEvent(
 		input.ID,
 		input.GremlinQuery,
@@ -187,6 +300,9 @@ func (r *mutationResolver) EventAdd(ctx context.Context, input model.EventAddInp
 		input.TTL,
 		input.Payload,
 		time.Now(),
+		propagate,
+		[]string{},
+		graph.Identifier(""),
 	)
 	if err != nil {
 		return nil, err
@@ -201,6 +317,11 @@ func (r *mutationResolver) EventAddMultiple(ctx context.Context, input []*model.
 	var errors []string
 
 	for i, event := range input {
+		propagate := false
+		if event.Propagate != nil {
+			propagate = *event.Propagate
+		}
+
 		_, err := r.createEvent(
 			event.ID,
 			event.GremlinQuery,
@@ -208,6 +329,9 @@ func (r *mutationResolver) EventAddMultiple(ctx context.Context, input []*model.
 			event.TTL,
 			event.Payload,
 			time.Now(),
+			propagate,
+			[]string{},
+			graph.Identifier(""),
 		)
 		if err != nil {
 			errors = append(errors,
@@ -249,5 +373,7 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
+type (
+	mutationResolver struct{ *Resolver }
+	queryResolver    struct{ *Resolver }
+)

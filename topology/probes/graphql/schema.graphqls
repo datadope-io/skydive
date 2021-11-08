@@ -1,5 +1,23 @@
 type Mutation {
   """
+  Create, or update, a region (Comunidad Autónoma).
+  If the node already exists, new values will override existing values.
+  """
+  net_AddRegion(input: net_RegionInput!): net_RegionPayload!
+
+  """
+  Create, or update, a province.
+  If the node already exists, new values will override existing values.
+  """
+  net_AddProvince(input: net_ProvinceInput!): net_ProvincePayload!
+
+  """
+  Create, or update, a building.
+  If the node already exists, new values will override existing values.
+  """
+  net_AddBuilding(input: net_BuildingInput!): net_BuildingPayload!
+
+  """
   Create, or update, a network element.
   If the node already exists, new values will override existing values.
   Not defining device type, model or vendor will delete that value.

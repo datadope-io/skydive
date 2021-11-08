@@ -27,7 +27,7 @@ func TestDeleteExpiredEvents(t *testing.T) {
 				"Type":   "host",
 				"Events": map[string]string{},
 			})},
-			expectedError: "unable to delete expired events: invalid Metadata.Events format",
+			expectedError: "unable to mark expired events: invalid Metadata.Events format",
 		},
 		{
 			desc:          "events with TTL 0 should not be deleted",
@@ -135,7 +135,8 @@ func TestDeleteExpiredEvents(t *testing.T) {
 		t.Run(tC.desc, func(t *testing.T) {
 			g := newGraph(t)
 			for _, n := range tC.nodes {
-				g.AddNode(n)
+				err := g.AddNode(n)
+				assert.NoError(t, err)
 			}
 
 			p := Probe{graph: g}
@@ -148,7 +149,6 @@ func TestDeleteExpiredEvents(t *testing.T) {
 				modNode := g.GetNode(tC.nodeID)
 				assert.Equal(t, tC.expectedNodeMetadata, modNode.Metadata)
 			}
-
 		})
 	}
 }
@@ -159,7 +159,7 @@ func TestCleanNodesEvents(t *testing.T) {
 	g := newGraph(t)
 	p := Probe{graph: g}
 
-	g.AddNode(createNode("a", graph.Metadata{
+	err := g.AddNode(createNode("a", graph.Metadata{
 		"Name": "a",
 		"Type": "host",
 		"Events": &Events{
@@ -179,10 +179,12 @@ func TestCleanNodesEvents(t *testing.T) {
 			},
 		},
 	}))
-	g.AddNode(createNode("b", graph.Metadata{
+	assert.NoError(t, err)
+	err = g.AddNode(createNode("b", graph.Metadata{
 		"Name": "b",
 		"Type": "host",
 	}))
+	assert.NoError(t, err)
 
 	p.cleanNodesEvents(time.Unix(150, 0))
 
@@ -218,7 +220,7 @@ func TestCloseEvent(t *testing.T) {
 				ID:           "Prefix_someId",
 			},
 			nodes:         []*graph.Node{createNode("a", graph.Metadata{"Name": "a", "Type": "host"})},
-			expectedError: "unable to delete event: Field not found",
+			expectedError: "unable to mark event as deleted: Field not found",
 		},
 		{
 			desc: "trying to delete an event from a node with Metadata.Event empty produces an error",
@@ -231,7 +233,7 @@ func TestCloseEvent(t *testing.T) {
 				"Type":   "host",
 				"Events": &Events{},
 			})},
-			expectedError: "unable to delete event: event ID 'Prefix_someId' does not exists in node a",
+			expectedError: "unable to mark event as deleted: event ID 'Prefix_someId' does not exists in node a",
 		},
 		{
 			desc: "error if Metadata.Event does not have the proper type",
@@ -244,7 +246,7 @@ func TestCloseEvent(t *testing.T) {
 				"Type":   "host",
 				"Events": map[string]string{},
 			})},
-			expectedError: "unable to delete event: invalid Metadata.Events format",
+			expectedError: "unable to mark event as deleted: invalid Metadata.Events format",
 		},
 		{
 			desc: "trying to delete an event with empty ID produces an error",
@@ -337,7 +339,8 @@ func TestCloseEvent(t *testing.T) {
 		t.Run(tC.desc, func(t *testing.T) {
 			g := newGraph(t)
 			for _, n := range tC.nodes {
-				g.AddNode(n)
+				err := g.AddNode(n)
+				assert.NoError(t, err)
 			}
 
 			r := Resolver{Graph: g}
@@ -366,6 +369,8 @@ func TestCreateEvent(t *testing.T) {
 		nodes                []*graph.Node
 		expectedNodeMetadata graph.Metadata
 		expectedError        string
+		childChain           []string
+		childID              graph.Identifier
 	}{
 		{
 			desc: "adding an event with empty query produces an error",
@@ -608,7 +613,8 @@ func TestCreateEvent(t *testing.T) {
 		t.Run(tC.desc, func(t *testing.T) {
 			g := newGraph(t)
 			for _, n := range tC.nodes {
-				g.AddNode(n)
+				err := g.AddNode(n)
+				assert.NoError(t, err)
 			}
 
 			r := Resolver{Graph: g}
@@ -620,6 +626,9 @@ func TestCreateEvent(t *testing.T) {
 				tC.event.TTL,
 				tC.event.Payload,
 				createEventTime,
+				false,
+				[]string{},
+				"",
 			)
 			if tC.expectedError != "" {
 				assert.EqualError(t, err, tC.expectedError)
@@ -630,4 +639,116 @@ func TestCreateEvent(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateEventWithPropagation(t *testing.T) {
+	g := newGraph(t)
+
+	deviceNode := createNode("device1ID", graph.Metadata{
+		"Name": "device1",
+		"Type": "device",
+	})
+
+	buildingNode := createNode("building1ID", graph.Metadata{
+		"Name": "building1",
+		"Type": "Building",
+	})
+
+	provinceNode := createNode("province1ID", graph.Metadata{
+		"Name": "province1",
+		"Type": "Province",
+	})
+
+	err := g.AddNode(deviceNode)
+	assert.NoError(t, err)
+	err = g.AddNode(buildingNode)
+	assert.NoError(t, err)
+	err = g.AddNode(provinceNode)
+	assert.NoError(t, err)
+
+	// Building owns device
+	eBuildingNode := graph.CreateEdge(
+		graph.GenID(),
+		buildingNode,
+		deviceNode,
+		graph.Metadata{"RelationType": "ownership"},
+		graph.Time(time.Now()),
+		"host",
+		"origin",
+	)
+
+	// Province owns building
+	eProvinceBuilding := graph.CreateEdge(
+		graph.GenID(),
+		provinceNode,
+		buildingNode,
+		graph.Metadata{"RelationType": "ownership"},
+		graph.Time(time.Now()),
+		"host",
+		"origin",
+	)
+
+	err = g.AddEdge(eBuildingNode)
+	assert.NoError(t, err)
+	err = g.AddEdge(eProvinceBuilding)
+	assert.NoError(t, err)
+
+	r := Resolver{Graph: g}
+	_, err = r.createEvent(
+		"foobar",
+		"G.V().Has('Name', 'device1')",
+		model.EventLevelWarning,
+		nil,
+		[]*model.EventKeyValue{{Key: "new", Value: "value"}},
+		time.Unix(0, 0),
+		true,
+		[]string{},
+		"",
+	)
+	assert.NoError(t, err)
+
+	// Check the event has been created in the device node and propagated
+	// to the building and province node
+	expectedDeviceEvents := &Events{
+		"foobar": Event{
+			TTL:       0,
+			Level:     "WARNING",
+			Payload:   []PayloadValues{{Key: "new", Value: "value"}},
+			CreatedAt: graph.Time(time.Unix(0, 0)),
+			UpdatedAt: graph.Time(time.Unix(0, 0)),
+		},
+	}
+
+	expectedBuildingEvents := &Events{
+		"foobar": Event{
+			TTL:       0,
+			Level:     "WARNING",
+			Payload:   []PayloadValues{{Key: "new", Value: "value"}},
+			CreatedAt: graph.Time(time.Unix(0, 0)),
+			UpdatedAt: graph.Time(time.Unix(0, 0)),
+			ChildChain: []string{
+				"device1",
+			},
+			ChildID: "device1ID",
+		},
+	}
+
+	expectedProvinceEvents := &Events{
+		"foobar": Event{
+			TTL:       0,
+			Level:     "WARNING",
+			Payload:   []PayloadValues{{Key: "new", Value: "value"}},
+			CreatedAt: graph.Time(time.Unix(0, 0)),
+			UpdatedAt: graph.Time(time.Unix(0, 0)),
+			ChildChain: []string{
+				"device1",
+				"building1",
+			},
+			ChildID: "device1ID",
+		},
+	}
+
+	assert.Equal(t, expectedDeviceEvents, deviceNode.Metadata["Events"])
+	assert.Equal(t, expectedBuildingEvents, buildingNode.Metadata["Events"])
+	assert.Equal(t, expectedProvinceEvents, provinceNode.Metadata["Events"])
 }

@@ -85,6 +85,11 @@ input net_DeviceInput {
   produce an error.
   """
   CreatedAt: Time
+
+  """
+  Ubicación del dispositivo. Código del edificio.
+  """
+  Building: String
 }
 
 """
@@ -303,4 +308,121 @@ type net_AddIf2IfLinkPayload {
   Internal ID for the edge in Skydive.
   """
   InterfaceLink: net_EdgePayload!
+}
+
+"""
+Values to define a location in a map
+"""
+input net_LocationInput {
+  """
+  Latitude in decimal degrees.
+  """
+  Lat: Float!
+  """
+  Longitude in decimal degrees.
+  """
+  Lng: Float!
+}
+
+"""
+Values to create a new region (comunidad autónoma)
+"""
+input net_RegionInput {
+  """
+  Name of the region
+  """
+  Name: String!
+  """
+  Reference location for the region
+  """
+  Location: net_LocationInput!
+}
+
+"""
+Return value when creating a new region.
+"""
+type net_RegionPayload {
+  """
+  SKydive ID of the node created
+  """
+  ID: String!
+
+  """
+  Return true if a new node has been created
+  """
+  NodeCreated: Boolean!
+
+  """
+  Return true if a node with this name already exists and metadata values
+  have been updated.
+  """
+  NodeUpdated: Boolean!
+}
+
+"""
+Values to create a new province, linked to a region (that should already exist)
+"""
+input net_ProvinceInput {
+  """
+  Name of the region for this province
+  """
+  Region: String!
+  """
+  Name of the province
+  """
+  Name: String!
+  """
+  Reference location for the province
+  """
+  Location: net_LocationInput!
+}
+
+"""
+Return value when creating a new province.
+"""
+type net_ProvincePayload {
+  """
+  SKydive ID of the node created
+  """
+  ID: String!
+
+  """
+  Return true if a new node has been created
+  """
+  NodeCreated: Boolean!
+
+  """
+  Return true if a node with this name already exists and metadata values
+  have been updated.
+  """
+  NodeUpdated: Boolean!
+}
+
+
+"""
+Values to create a new building, linked to a province (that should already exist)
+"""
+input net_BuildingInput {
+  """
+  Name of the province for this building
+  """
+  Province: String!
+  """
+  Name of the building
+  """
+  Name: String!
+  """
+  Location for the building
+  """
+  Location: net_LocationInput!
+}
+
+"""
+Return value when creating a new building.
+"""
+type net_BuildingPayload {
+  """
+  Information about the building
+  """
+  Building: net_NodePayload!
 }

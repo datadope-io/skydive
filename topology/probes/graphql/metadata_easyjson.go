@@ -7,6 +7,7 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
+	graph "github.com/skydive-project/skydive/graffiti/graph"
 )
 
 // suppress unused package warning
@@ -595,6 +596,31 @@ func easyjsonBa0ee0e3DecodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql6(
 			if data := in.Raw(); in.Ok() {
 				in.AddError((out.DeletedAt).UnmarshalJSON(data))
 			}
+		case "ChildChain":
+			if in.IsNull() {
+				in.Skip()
+				out.ChildChain = nil
+			} else {
+				in.Delim('[')
+				if out.ChildChain == nil {
+					if !in.IsDelim(']') {
+						out.ChildChain = make([]string, 0, 4)
+					} else {
+						out.ChildChain = []string{}
+					}
+				} else {
+					out.ChildChain = (out.ChildChain)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v10 string
+					v10 = string(in.String())
+					out.ChildChain = append(out.ChildChain, v10)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
+		case "ChildID":
+			out.ChildID = graph.Identifier(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -626,11 +652,11 @@ func easyjsonBa0ee0e3EncodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql6(
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v10, v11 := range in.Payload {
-				if v10 > 0 {
+			for v11, v12 := range in.Payload {
+				if v11 > 0 {
 					out.RawByte(',')
 				}
-				(v11).MarshalEasyJSON(out)
+				(v12).MarshalEasyJSON(out)
 			}
 			out.RawByte(']')
 		}
@@ -649,6 +675,27 @@ func easyjsonBa0ee0e3EncodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql6(
 		const prefix string = ",\"DeletedAt\":"
 		out.RawString(prefix)
 		out.Raw((in.DeletedAt).MarshalJSON())
+	}
+	{
+		const prefix string = ",\"ChildChain\":"
+		out.RawString(prefix)
+		if in.ChildChain == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+			out.RawString("null")
+		} else {
+			out.RawByte('[')
+			for v13, v14 := range in.ChildChain {
+				if v13 > 0 {
+					out.RawByte(',')
+				}
+				out.String(string(v14))
+			}
+			out.RawByte(']')
+		}
+	}
+	{
+		const prefix string = ",\"ChildID\":"
+		out.RawString(prefix)
+		out.String(string(in.ChildID))
 	}
 	out.RawByte('}')
 }

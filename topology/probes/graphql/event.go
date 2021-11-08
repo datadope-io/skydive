@@ -27,6 +27,10 @@ const (
 // "level" is the criticity of the event.
 // "ttl" is the "time to live" of the event, when it should be automatically deleted, if defined.
 // "payload" is extra metadata added by the user to identify the event.
+// "propagate" is a boolean to indicate if the event should be copied to all node parents.
+// "childChain" contains the list of nodes names to reach the node originator of the event.
+// If it is empty, the event is original one.
+// "childID" is the identifier of the node originator of the event.
 func (r *Resolver) createEvent(
 	id string,
 	gremlinQuery string,
@@ -34,14 +38,15 @@ func (r *Resolver) createEvent(
 	ttl *int,
 	payload []*model.EventKeyValue,
 	t time.Time,
+	propagate bool,
+	childChain []string,
+	childID graph.Identifier,
 ) (gid graph.Identifier, err error) {
-	r.Graph.Lock()
-	defer r.Graph.Unlock()
-
 	if id == "" {
 		return gid, fmt.Errorf("ID should not be empty")
 	}
 
+	r.Graph.Lock()
 	node, err := r.getNodeFromGremlinQuery(gremlinQuery)
 	if err != nil {
 		return gid, err
@@ -69,6 +74,13 @@ func (r *Resolver) createEvent(
 		})
 	}
 	e.Payload = payloadValues
+
+	// If we are propagating the event and this node if one of its parents,
+	// add the child info.
+	if propagate && len(childChain) > 0 {
+		e.ChildChain = childChain
+		e.ChildID = childID
+	}
 
 	// Save errors produced inside of the updating function
 	var updateErr error
@@ -102,6 +114,34 @@ func (r *Resolver) createEvent(
 		return node.ID, fmt.Errorf("unable to add event: %v", err)
 	} else if updateErr != nil {
 		return node.ID, fmt.Errorf("unable to add event: %v", updateErr)
+	}
+	// Release lock before a new createEvent call could be done with propagation
+	r.Graph.Unlock()
+
+	// Propagate event to all parents
+	if propagate {
+		// Get the node parents
+		parents := r.Graph.LookupParents(node, nil, graph.Metadata{MetaKeyRelationType: RelationTypeOwnership})
+		for _, parent := range parents {
+			// Create the event in the parent node
+			nodeName, err := node.Metadata.GetFieldString(MetaKeyName)
+			if err != nil {
+				return node.ID, fmt.Errorf("unable to get node name: %v", err)
+			}
+
+			// Create the chain of nodes names to reach the node originator of the event
+			cc := append(childChain, nodeName)
+
+			// Set the originator node ID, if not already set
+			if childID == "" {
+				childID = node.ID
+			}
+
+			_, err = r.createEvent(id, fmt.Sprintf("G.V('%v')", string(parent.ID)), level, ttl, payload, t, true, cc, childID)
+			if err != nil {
+				return node.ID, fmt.Errorf("unable to create event in parent node: %v", err)
+			}
+		}
 	}
 
 	return node.ID, nil

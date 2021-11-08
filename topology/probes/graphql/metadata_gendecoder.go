@@ -112,6 +112,8 @@ func (obj *Event) GetFieldString(key string) (string, error) {
 	switch key {
 	case "Level":
 		return string(obj.Level), nil
+	case "ChildID":
+		return string(obj.ChildID), nil
 	}
 	return "", getter.ErrFieldNotFound
 }
@@ -124,6 +126,8 @@ func (obj *Event) GetFieldKeys() []string {
 		"CreatedAt",
 		"UpdatedAt",
 		"DeletedAt",
+		"ChildChain",
+		"ChildID",
 	}
 }
 
@@ -193,6 +197,14 @@ func (obj *Event) MatchString(key string, predicate getter.StringPredicate) bool
 				}
 			}
 		}
+	case "ChildChain":
+		if index == -1 {
+			for _, i := range obj.ChildChain {
+				if predicate(i) {
+					return true
+				}
+			}
+		}
 	}
 	return false
 }
@@ -226,6 +238,17 @@ func (obj *Event) GetField(key string) (interface{}, error) {
 			} else {
 				var results []interface{}
 				for _, obj := range obj.Payload {
+					results = append(results, obj)
+				}
+				return results, nil
+			}
+		}
+	case "ChildChain":
+		if obj.ChildChain != nil {
+			if index != -1 {
+			} else {
+				var results []interface{}
+				for _, obj := range obj.ChildChain {
 					results = append(results, obj)
 				}
 				return results, nil

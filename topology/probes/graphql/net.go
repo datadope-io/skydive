@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/skydive-project/skydive/graffiti/graph"
+	"github.com/skydive-project/skydive/graffiti/logging"
 	"github.com/skydive-project/skydive/topology/probes/graphql/model"
 )
 
@@ -30,6 +31,14 @@ const (
 	// MetaKeyModel extra data added to devices' metadata if defined
 	MetaKeyModel = "Model"
 
+	// MetaKeyLocation key to store the location of the node, as a map of latitude and longitude
+	MetaKeyLocation = "Location"
+
+	// MetaKeyLatitude metadata key to store the latitude of the node
+	MetaKeyLatitude = "Latitude"
+	// MetaKeyLongitude metadata key to store the longitude of the node
+	MetaKeyLongitude = "Longitude"
+
 	// MetadataKeyNetworkInfo metadata key where interface nodes store its ethernet and IP data
 	MetadataKeyNetworkInfo = "NetworkInfo"
 
@@ -44,7 +53,34 @@ const (
 	MetadataSubtypeAggregationInterface = "aggregation"
 	// MetadataSubtypeLogicalInterface value of Metadata.Subtype for logical network interfaces. This interfaces use one physical or aggregation interface and are connected to one particular VLAN
 	MetadataSubtypeLogicalInterface = "logical"
+
+	// MetadataTypeBuilding is the value of Metadata.Type for building nodes
+	MetadataTypeBuilding = "building"
+
+	// MetaTypeProvince is the value of Metadata.Type for province nodes
+	MetadataTypeProvince = "province"
+
+	// MetaTypeRegion is the value of Metadata.Type for region nodes
+	MetadataTypeRegion = "region"
 )
+
+// netAddLocation is a function to create nodes with location info.
+func (r *Resolver) netAddLocation(name string, metadataType string, location *model.NetLocationInput) (*graph.Node, bool, bool, error) {
+	// Create the building node
+	buildingNode, created, updated, err := r.createOrUpdateNode(
+		graph.GenID(fmt.Sprintf("%s_%s", name, metadataType)),
+		graph.Metadata{
+			MetaKeyName: name,
+			MetaKeyType: metadataType,
+			MetaKeyLocation: map[string]float64{
+				MetaKeyLatitude:  location.Lat,
+				MetaKeyLongitude: location.Lng,
+			},
+		},
+		nil,
+	)
+	return buildingNode, created, updated, err
+}
 
 // netAddDevice create, or update, a network device.
 // deviceType, model and vendor could be nil.
@@ -321,4 +357,22 @@ func getInterfaceID(device, iface string, subtype string) graph.Identifier {
 // Device type is not used because it could be unkown.
 func getDeviceID(device string) graph.Identifier {
 	return graph.GenID(device, MetadataTypeNetworkDevice)
+}
+
+// getHierarchyNodesFromNode TODO documentar
+func (r *mutationResolver) getHierarchyNodesFromNode(node *graph.Node) []*graph.Node {
+	nodes := []*graph.Node{node}
+	for {
+		parents := r.Graph.LookupParents(node, nil, graph.Metadata{MetaKeyRelationType: RelationTypeOwnership})
+		if len(parents) == 0 {
+			break
+		} else if len(parents) > 1 {
+			// TODO que hacer en este caso?
+			logging.GetLogger().Errorf("getHierarchyNodesFromNode: more than one parent for node %s", node.ID)
+		}
+
+		nodes = append(nodes, parents[0])
+		node = parents[0]
+	}
+	return nodes
 }

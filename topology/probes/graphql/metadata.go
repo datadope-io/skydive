@@ -58,6 +58,14 @@ type Event struct {
 	CreatedAt graph.Time
 	UpdatedAt graph.Time
 	DeletedAt graph.Time
+	// ChildChain contains the list of node names to reach the originator node of the event.
+	// This is used when an event is propagated to its parents.
+	// Helps users to identify the origin of the event.
+	ChildChain []string
+	// ChildID contains the originator node ID of the event.
+	// This is used when an event is propagated to its parents.
+	// Helps to delete the event when its original event is deleted.
+	ChildID graph.Identifier
 }
 
 // PayloadValues extra metadata that could be added to the events

@@ -30,6 +30,16 @@ input event_AddInput {
   Closing time will not be exact, it will depend on the garbage collector interval execution.
   """
   TTL: Int
+
+  """
+  If true, this event will be included in all the parent nodes (ownership edges only).
+  To differentiate between node own events and propagated events,
+  a new "ChildChain" field will be added to the event.
+  This new field is an array with the path from the parent to the node where the event was added.
+  Eg.: Metadata.ChildChain = ["Barcelona", "BX1234", "BX1234-LACX01", "Gi0/0"]
+  It will be also added a field "ChildID" to the event, with the ID of the node.
+  """
+  Propagate: Boolean = false
 }
 
 """

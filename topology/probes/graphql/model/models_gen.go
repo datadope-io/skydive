@@ -25,6 +25,13 @@ type EventAddInput struct {
 	// If defined, this event will be closed automatically after this number of seconds.
 	// Closing time will not be exact, it will depend on the garbage collector interval execution.
 	TTL *int `json:"TTL"`
+	// If true, this event will be included in all the parent nodes.
+	// To differentiate between node own events and propagated events,
+	// a new "Child" field will be added to the event.
+	// This new field is an array with the path from the parent to the node where the event was added.
+	// Eg.: Metadata.Child = ["Barcelona", "BX1234", "BX1234-LACX01", "Gi0/0"]
+	// It will be also added a field "ChildID" to the event, with the ID of the node.
+	Propagate *bool `json:"Propagate"`
 }
 
 // Return value when adding new events
@@ -109,6 +116,22 @@ type NetAggregationPayload struct {
 	Aggregation *NetNodePayload `json:"Aggregation"`
 }
 
+// Values to create a new building, linked to a province (that should already exist)
+type NetBuildingInput struct {
+	// Name of the province for this building
+	Province string `json:"Province"`
+	// Name of the building
+	Name string `json:"Name"`
+	// Location for the building
+	Location *NetLocationInput `json:"Location"`
+}
+
+// Return value when creating a new building.
+type NetBuildingPayload struct {
+	// Information about the building
+	Building *NetNodePayload `json:"Building"`
+}
+
 // Values to create a new network device.
 type NetDeviceInput struct {
 	// Device name. Used as the primary key.
@@ -124,6 +147,8 @@ type NetDeviceInput struct {
 	// If the node already exists and this value is different from the existing one, it will
 	// produce an error.
 	CreatedAt *time.Time `json:"CreatedAt"`
+	// Ubicación del dispositivo. Código del edificio.
+	Building *string `json:"Building"`
 }
 
 // Return value when creating a new network device.
@@ -182,6 +207,14 @@ type NetInterfacePayload struct {
 	Aggregation *NetNodePayload `json:"Aggregation"`
 }
 
+// Values to define a location in a map
+type NetLocationInput struct {
+	// Latitude in decimal degrees.
+	Lat float64 `json:"Lat"`
+	// Longitude in decimal degrees.
+	Lng float64 `json:"Lng"`
+}
+
 // Return value when creating a new logical interface interface.
 type NetLogicalInterfacePayload struct {
 	// Information about the logical interface.
@@ -191,6 +224,46 @@ type NetLogicalInterfacePayload struct {
 // Return information about the creation/update of an Skydive node
 type NetNodePayload struct {
 	// Internal ID for the node in Skydive.
+	ID string `json:"ID"`
+	// Return true if a new node has been created
+	NodeCreated bool `json:"NodeCreated"`
+	// Return true if a node with this name already exists and metadata values
+	// have been updated.
+	NodeUpdated bool `json:"NodeUpdated"`
+}
+
+// Values to create a new province, linked to a region (that should already exist)
+type NetProvinceInput struct {
+	// Name of the region for this province
+	Region string `json:"Region"`
+	// Name of the province
+	Name string `json:"Name"`
+	// Reference location for the province
+	Location *NetLocationInput `json:"Location"`
+}
+
+// Return value when creating a new province.
+type NetProvincePayload struct {
+	// SKydive ID of the node created
+	ID string `json:"ID"`
+	// Return true if a new node has been created
+	NodeCreated bool `json:"NodeCreated"`
+	// Return true if a node with this name already exists and metadata values
+	// have been updated.
+	NodeUpdated bool `json:"NodeUpdated"`
+}
+
+// Values to create a new region (comunidad autónoma)
+type NetRegionInput struct {
+	// Name of the region
+	Name string `json:"Name"`
+	// Reference location for the region
+	Location *NetLocationInput `json:"Location"`
+}
+
+// Return value when creating a new region.
+type NetRegionPayload struct {
+	// SKydive ID of the node created
 	ID string `json:"ID"`
 	// Return true if a new node has been created
 	NodeCreated bool `json:"NodeCreated"`
