@@ -13,8 +13,16 @@ import (
 // easyjson:json
 // gendecoder
 type NetworkInfo struct {
-	Ethernet *EthernetInfo `json:",omitempty"`
-	IP       []string      `json:",omitempty"`
+	Ethernet   *EthernetInfo   `json:",omitempty"`
+	IP         []string        `json:",omitempty"`
+	PseudoWire *PseudoWireInfo `json:",omitempty"`
+}
+
+// easyjson:json
+// gendecoder
+type PseudoWireInfo struct {
+	ID       string
+	Neighbor string
 }
 
 // easyjson:json

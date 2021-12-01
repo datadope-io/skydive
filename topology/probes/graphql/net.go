@@ -277,6 +277,13 @@ func (r *Resolver) netCreateInterface(
 		networkInfo.IP = ipinfo
 	}
 
+	if data.PseudoWire != nil {
+		networkInfo.PseudoWire = &PseudoWireInfo{
+			ID:       data.PseudoWire.ID,
+			Neighbor: data.PseudoWire.Neighbor,
+		}
+	}
+
 	ifaceMetadata := graph.Metadata{
 		MetaKeyName: data.Name,
 		// MetaKeyType is string, so it will be the same type when recovered from the ES backend

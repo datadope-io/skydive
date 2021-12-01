@@ -25,11 +25,11 @@ type EventAddInput struct {
 	// If defined, this event will be closed automatically after this number of seconds.
 	// Closing time will not be exact, it will depend on the garbage collector interval execution.
 	TTL *int `json:"TTL"`
-	// If true, this event will be included in all the parent nodes.
+	// If true, this event will be included in all the parent nodes (ownership edges only).
 	// To differentiate between node own events and propagated events,
-	// a new "Child" field will be added to the event.
+	// a new "ChildChain" field will be added to the event.
 	// This new field is an array with the path from the parent to the node where the event was added.
-	// Eg.: Metadata.Child = ["Barcelona", "BX1234", "BX1234-LACX01", "Gi0/0"]
+	// Eg.: Metadata.ChildChain = ["Barcelona", "BX1234", "BX1234-LACX01", "Gi0/0"]
 	// It will be also added a field "ChildID" to the event, with the ID of the node.
 	Propagate *bool `json:"Propagate"`
 }
@@ -196,6 +196,8 @@ type NetInterfaceInput struct {
 	// IPv4 format: 192.0.2.0/24
 	// IPv6 format: 2001:db8::/32
 	IP []string `json:"IP"`
+	// Pseudowire of the interface.
+	PseudoWire *NetPseudowireInput `json:"PseudoWire"`
 }
 
 // Return value when creating a new physical interface.
@@ -251,6 +253,14 @@ type NetProvincePayload struct {
 	// Return true if a node with this name already exists and metadata values
 	// have been updated.
 	NodeUpdated bool `json:"NodeUpdated"`
+}
+
+// Pseudowire data of a network interface
+type NetPseudowireInput struct {
+	// ID of the pseudowire
+	ID string `json:"ID"`
+	// IP of the neighbor connected to this pseudowire
+	Neighbor string `json:"Neighbor"`
 }
 
 // Values to create a new region (comunidad autónoma)

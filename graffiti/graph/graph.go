@@ -183,8 +183,7 @@ var (
 
 // DefaultGraphListener default implementation of a graph listener, can be used when not implementing
 // the whole set of callbacks
-type DefaultGraphListener struct {
-}
+type DefaultGraphListener struct{}
 
 // String return the name of a graphEventType
 func (g graphEventType) String() string {
@@ -1330,7 +1329,6 @@ func (g *Graph) delEdge(e *Edge, t Time) error {
 	e.DeletedAt = t
 	if err := g.backend.EdgeDeleted(e); err != nil {
 		return err
-
 	}
 
 	g.eventHandler.NotifyEvent(EdgeDeleted, e)

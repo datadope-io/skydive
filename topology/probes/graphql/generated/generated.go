@@ -563,11 +563,11 @@ input event_AddInput {
   TTL: Int
 
   """
-  If true, this event will be included in all the parent nodes.
+  If true, this event will be included in all the parent nodes (ownership edges only).
   To differentiate between node own events and propagated events,
-  a new "Child" field will be added to the event.
+  a new "ChildChain" field will be added to the event.
   This new field is an array with the path from the parent to the node where the event was added.
-  Eg.: Metadata.Child = ["Barcelona", "BX1234", "BX1234-LACX01", "Gi0/0"]
+  Eg.: Metadata.ChildChain = ["Barcelona", "BX1234", "BX1234-LACX01", "Gi0/0"]
   It will be also added a field "ChildID" to the event, with the ID of the node.
   """
   Propagate: Boolean = false
@@ -836,6 +836,24 @@ input net_InterfaceInput {
   IPv6 format: 2001:db8::/32
   """
   IP: [String!]
+  """
+  Pseudowire of the interface.
+  """
+  PseudoWire: net_PseudowireInput
+}
+
+"""
+Pseudowire data of a network interface
+"""
+input net_PseudowireInput {
+  """
+  ID of the pseudowire
+  """
+  ID: String!
+  """
+  IP of the neighbor connected to this pseudowire
+  """
+  Neighbor: String!
 }
 
 """
@@ -4345,6 +4363,14 @@ func (ec *executionContext) unmarshalInputnet_InterfaceInput(ctx context.Context
 			if err != nil {
 				return it, err
 			}
+		case "PseudoWire":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("PseudoWire"))
+			it.PseudoWire, err = ec.unmarshalOnet_PseudowireInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetPseudowireInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -4412,6 +4438,37 @@ func (ec *executionContext) unmarshalInputnet_ProvinceInput(ctx context.Context,
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Location"))
 			it.Location, err = ec.unmarshalNnet_LocationInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetLocationInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnet_PseudowireInput(ctx context.Context, obj interface{}) (model.NetPseudowireInput, error) {
+	var it model.NetPseudowireInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "ID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ID"))
+			it.ID, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Neighbor":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Neighbor"))
+			it.Neighbor, err = ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -6393,6 +6450,14 @@ func (ec *executionContext) unmarshalOnet_EthernetInput2ᚖgithubᚗcomᚋskydiv
 		return nil, nil
 	}
 	res, err := ec.unmarshalInputnet_EthernetInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOnet_PseudowireInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetPseudowireInput(ctx context.Context, v interface{}) (*model.NetPseudowireInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputnet_PseudowireInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 

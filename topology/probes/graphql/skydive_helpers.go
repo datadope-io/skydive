@@ -22,6 +22,7 @@ func (r *Resolver) newNode(id graph.Identifier, m graph.Metadata, createdAt *tim
 	} else {
 		timestamp = graph.TimeUTC()
 	}
+
 	n := graph.CreateNode(id, m, timestamp, r.Graph.GetHost(), PrefixOriginName+r.Graph.GetOrigin())
 
 	if err := r.Graph.AddNode(n); err != nil {

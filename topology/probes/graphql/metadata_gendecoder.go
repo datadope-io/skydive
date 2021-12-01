@@ -307,6 +307,7 @@ func (obj *NetworkInfo) GetFieldKeys() []string {
 	return []string{
 		"Ethernet",
 		"IP",
+		"PseudoWire",
 	}
 }
 
@@ -321,6 +322,10 @@ func (obj *NetworkInfo) MatchBool(key string, predicate getter.BoolPredicate) bo
 	case "Ethernet":
 		if index != -1 && obj.Ethernet != nil {
 			return obj.Ethernet.MatchBool(key[index+1:], predicate)
+		}
+	case "PseudoWire":
+		if index != -1 && obj.PseudoWire != nil {
+			return obj.PseudoWire.MatchBool(key[index+1:], predicate)
 		}
 	}
 	return false
@@ -338,6 +343,10 @@ func (obj *NetworkInfo) MatchInt64(key string, predicate getter.Int64Predicate) 
 	case "Ethernet":
 		if index != -1 && obj.Ethernet != nil {
 			return obj.Ethernet.MatchInt64(key[index+1:], predicate)
+		}
+	case "PseudoWire":
+		if index != -1 && obj.PseudoWire != nil {
+			return obj.PseudoWire.MatchInt64(key[index+1:], predicate)
 		}
 	}
 	return false
@@ -363,6 +372,10 @@ func (obj *NetworkInfo) MatchString(key string, predicate getter.StringPredicate
 					return true
 				}
 			}
+		}
+	case "PseudoWire":
+		if index != -1 && obj.PseudoWire != nil {
+			return obj.PseudoWire.MatchString(key[index+1:], predicate)
 		}
 	}
 	return false
@@ -393,6 +406,14 @@ func (obj *NetworkInfo) GetField(key string) (interface{}, error) {
 					results = append(results, obj)
 				}
 				return results, nil
+			}
+		}
+	case "PseudoWire":
+		if obj.PseudoWire != nil {
+			if index != -1 {
+				return obj.PseudoWire.GetField(key[index+1:])
+			} else {
+				return obj.PseudoWire, nil
 			}
 		}
 
@@ -441,6 +462,53 @@ func (obj *PayloadValues) MatchString(key string, predicate getter.StringPredica
 }
 
 func (obj *PayloadValues) GetField(key string) (interface{}, error) {
+	if s, err := obj.GetFieldString(key); err == nil {
+		return s, nil
+	}
+	return nil, getter.ErrFieldNotFound
+}
+
+func (obj *PseudoWireInfo) GetFieldBool(key string) (bool, error) {
+	return false, getter.ErrFieldNotFound
+}
+
+func (obj *PseudoWireInfo) GetFieldInt64(key string) (int64, error) {
+	return 0, getter.ErrFieldNotFound
+}
+
+func (obj *PseudoWireInfo) GetFieldString(key string) (string, error) {
+	switch key {
+	case "ID":
+		return string(obj.ID), nil
+	case "Neighbor":
+		return string(obj.Neighbor), nil
+	}
+	return "", getter.ErrFieldNotFound
+}
+
+func (obj *PseudoWireInfo) GetFieldKeys() []string {
+	return []string{
+		"ID",
+		"Neighbor",
+	}
+}
+
+func (obj *PseudoWireInfo) MatchBool(key string, predicate getter.BoolPredicate) bool {
+	return false
+}
+
+func (obj *PseudoWireInfo) MatchInt64(key string, predicate getter.Int64Predicate) bool {
+	return false
+}
+
+func (obj *PseudoWireInfo) MatchString(key string, predicate getter.StringPredicate) bool {
+	if b, err := obj.GetFieldString(key); err == nil {
+		return predicate(b)
+	}
+	return false
+}
+
+func (obj *PseudoWireInfo) GetField(key string) (interface{}, error) {
 	if s, err := obj.GetFieldString(key); err == nil {
 		return s, nil
 	}

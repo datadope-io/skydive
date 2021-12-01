@@ -197,6 +197,24 @@ input net_InterfaceInput {
   IPv6 format: 2001:db8::/32
   """
   IP: [String!]
+  """
+  Pseudowire of the interface.
+  """
+  PseudoWire: net_PseudowireInput
+}
+
+"""
+Pseudowire data of a network interface
+"""
+input net_PseudowireInput {
+  """
+  ID of the pseudowire
+  """
+  ID: String!
+  """
+  IP of the neighbor connected to this pseudowire
+  """
+  Neighbor: String!
 }
 
 """
