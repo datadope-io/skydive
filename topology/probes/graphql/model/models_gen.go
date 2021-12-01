@@ -54,6 +54,8 @@ type EventCloseInput struct {
 	GremlinQuery string `json:"GremlinQuery"`
 	// Identifier of each particular alarm.
 	ID string `json:"ID"`
+	// If true, delete the event in this node and all the parent nodes.
+	Propagate *bool `json:"Propagate"`
 }
 
 // Return value when closing an event
@@ -134,6 +136,13 @@ type NetBuildingPayload struct {
 
 // Values to create a new network device.
 type NetDeviceInput struct {
+	// Identifier used by routers.
+	// The value should be taken from this fields in the configurations files:
+	//   Huawei: router id
+	//   Cisco: router-id
+	//   Juniper: routing-options.router-id
+	//   Nokia: configure.router Base.interface "system".address
+	DeviceID *string `json:"DeviceID"`
 	// Device name. Used as the primary key.
 	Name string `json:"Name"`
 	// Device type: router, switch, etc.
@@ -189,15 +198,17 @@ type NetIf2IfLinkInput struct {
 type NetInterfaceInput struct {
 	// Name of the interface
 	Name string `json:"Name"`
+	// Interface description
+	Description []*NetKeyValue `json:"Description"`
 	// Ethernet data of the interface
 	Ethernet *NetEthernetInput `json:"Ethernet"`
 	// IP addresses of the interface, IPv4 or IPv6
 	// IP data of the interface.
 	// IPv4 format: 192.0.2.0/24
-	// IPv6 format: 2001:db8::/32
+	// IPv6 format: 2002:db8::/32
 	IP []string `json:"IP"`
 	// Pseudowire of the interface.
-	PseudoWire *NetPseudowireInput `json:"PseudoWire"`
+	PseudoWires []*NetPseudowireInput `json:"PseudoWires"`
 }
 
 // Return value when creating a new physical interface.
@@ -207,6 +218,12 @@ type NetInterfacePayload struct {
 	// Information about the aggregation interface.
 	// Define only if the input has an aggregation interface defined.
 	Aggregation *NetNodePayload `json:"Aggregation"`
+}
+
+// Simple input to add any extra data in a key-value fashion
+type NetKeyValue struct {
+	Key   string `json:"Key"`
+	Value string `json:"Value"`
 }
 
 // Values to define a location in a map
@@ -261,6 +278,9 @@ type NetPseudowireInput struct {
 	ID string `json:"ID"`
 	// IP of the neighbor connected to this pseudowire
 	Neighbor string `json:"Neighbor"`
+	// For Huawei PW, set to "secondary" if this is the secondary pseudowire
+	// For Nokia, set to "primary" if this is the primary pseudowire.
+	Status *string `json:"Status"`
 }
 
 // Values to create a new region (comunidad autónoma)
@@ -292,11 +312,8 @@ type NetSelector struct {
 
 // VLAN data for interfaces configured in access mode
 type NetVLANAccessInput struct {
-	// List of VLAN IDs to be accepted by the trunk port
-	AcceptedVIDs []int `json:"AcceptedVIDs"`
-	// Native VLAN ID.
-	// VLAN ID used for untagged packets
-	NativeVlanvid *int `json:"NativeVLANVID"`
+	// VLAN id
+	Vid int `json:"VID"`
 }
 
 // VLAN data for an interface
@@ -309,8 +326,11 @@ type NetVLANInput struct {
 
 // VLAN data for interfaces configured in trunk mode
 type NetVLANTrunkInput struct {
-	// VLAN id
-	Vid int `json:"VID"`
+	// List of VLAN IDs to be accepted by the trunk port
+	AcceptedVIDs []int `json:"AcceptedVIDs"`
+	// Native VLAN ID.
+	// VLAN ID used for untagged packets
+	NativeVlanvid *int `json:"NativeVLANVID"`
 }
 
 // Possible values to define an event criticity

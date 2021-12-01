@@ -59,6 +59,16 @@ Values to create a new network device.
 """
 input net_DeviceInput {
   """
+  Identifier used by routers.
+  The value should be taken from this fields in the configurations files:
+    Huawei: router id
+    Cisco: router-id
+    Juniper: routing-options.router-id
+    Nokia: configure.router Base.interface "system".address
+  """
+  DeviceID: String
+
+  """
   Device name. Used as the primary key.
   """
   Name: String!
@@ -187,6 +197,10 @@ input net_InterfaceInput {
   """
   Name: String!
   """
+  Interface description
+  """
+  Description: [net_KeyValue!]
+  """
   Ethernet data of the interface
   """
   Ethernet: net_EthernetInput
@@ -194,13 +208,13 @@ input net_InterfaceInput {
   IP addresses of the interface, IPv4 or IPv6
   IP data of the interface.
   IPv4 format: 192.0.2.0/24
-  IPv6 format: 2001:db8::/32
+  IPv6 format: 2002:db8::/32
   """
   IP: [String!]
   """
   Pseudowire of the interface.
   """
-  PseudoWire: net_PseudowireInput
+  PseudoWires: [net_PseudowireInput!]
 }
 
 """
@@ -215,6 +229,11 @@ input net_PseudowireInput {
   IP of the neighbor connected to this pseudowire
   """
   Neighbor: String!
+  """
+  For Huawei PW, set to "secondary" if this is the secondary pseudowire
+  For Nokia, set to "primary" if this is the primary pseudowire.
+  """
+  Status: String
 }
 
 """
@@ -246,6 +265,16 @@ VLAN data for interfaces configured in access mode
 """
 input net_VLANAccessInput {
   """
+  VLAN id
+  """
+  VID: Int!
+}
+
+"""
+VLAN data for interfaces configured in trunk mode
+"""
+input net_VLANTrunkInput {
+  """
   List of VLAN IDs to be accepted by the trunk port
   """
   AcceptedVIDs: [Int!]!
@@ -254,16 +283,6 @@ input net_VLANAccessInput {
   VLAN ID used for untagged packets
   """
   NativeVLANVID: Int
-}
-
-"""
-VLAN data for interfaces configured in trunk mode
-"""
-input net_VLANTrunkInput {
-  """
-  VLAN id
-  """
-  VID: Int!
 }
 
 """
@@ -444,3 +463,12 @@ type net_BuildingPayload {
   """
   Building: net_NodePayload!
 }
+
+"""
+Simple input to add any extra data in a key-value fashion
+"""
+input net_KeyValue {
+  Key: String!
+  Value: String!
+}
+

@@ -11,6 +11,13 @@ import (
 
 const GraphOrigin = "analyzer.testhost"
 
+// edgeTester lo usamos para definir vagamente un edge que esperamos
+type edgeTester struct {
+	parent   string
+	child    string
+	metadata graph.Metadata
+}
+
 func TestNewNodeWithTimeDefined(t *testing.T) {
 	g := newGraph(t)
 	r := Resolver{Graph: g}
@@ -321,4 +328,17 @@ func newGraph(t *testing.T) *graph.Graph {
 // createNode func to create nodes for testing
 func createNode(id string, m graph.Metadata) *graph.Node {
 	return graph.CreateNode(graph.Identifier(id), m, graph.Time(time.Unix(100, 100)), "host", "origin")
+}
+
+// createEdge func to create nodes for testing
+func createEdge(parent *graph.Node, child *graph.Node, m graph.Metadata) *graph.Edge {
+	return graph.CreateEdge(
+		graph.Identifier(parent.ID+child.ID),
+		parent,
+		child,
+		m,
+		graph.Time(time.Unix(100, 100)),
+		"host",
+		"origin",
+	)
 }

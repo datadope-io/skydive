@@ -20,6 +20,9 @@ const (
 	SecondToMilli = 1000
 )
 
+// ErrEventNotFound is returned when an event is not found
+var ErrEventNotFound = errors.New("event not found")
+
 // createEvent add, or update, an event to the node selected by the "gremlinQuery", using
 // the parameter "t" as the event CreatedAt and UpdatedAt values (except for updates, where
 // CreatedAt remains the original one).
@@ -150,9 +153,6 @@ func (r *Resolver) createEvent(
 // closeEvent remove an event from a node specified by a gremlin query.
 // Return node selected by the input gremlin query.
 func (r *Resolver) closeEvent(event model.EventCloseInput) (node *graph.Node, err error) {
-	r.Graph.Lock()
-	defer r.Graph.Unlock()
-
 	if event.ID == "" {
 		return node, fmt.Errorf("ID should not be empty")
 	}
@@ -176,7 +176,7 @@ func (r *Resolver) closeEvent(event model.EventCloseInput) (node *graph.Node, er
 
 		if storedEvent, eventExists := (*nodeEvents)[event.ID]; !eventExists {
 			// event does not exists in the node
-			updateErr = fmt.Errorf("event ID '%s' does not exists in node %v", event.ID, node.ID)
+			updateErr = fmt.Errorf("event ID '%s' in node %v: %w", event.ID, node.ID, ErrEventNotFound)
 			return false
 		} else {
 			storedEvent.DeletedAt = graph.Time(time.Now())
@@ -185,10 +185,10 @@ func (r *Resolver) closeEvent(event model.EventCloseInput) (node *graph.Node, er
 		return true
 	})
 	if err != nil {
-		return node, fmt.Errorf("unable to mark event as deleted: %v", err)
+		return node, fmt.Errorf("unable to mark event as deleted: %w", err)
 	}
 	if updateErr != nil {
-		return node, fmt.Errorf("unable to mark event as deleted: %v", updateErr)
+		return node, fmt.Errorf("unable to mark event as deleted: %w", updateErr)
 	}
 
 	// Delete the event from the metadata.
@@ -203,17 +203,33 @@ func (r *Resolver) closeEvent(event model.EventCloseInput) (node *graph.Node, er
 
 		if _, eventExists := (*nodeEvents)[event.ID]; !eventExists {
 			// event does not exists in the node
-			updateErr = fmt.Errorf("event ID '%s' does not exists in node %v", event.ID, node.ID)
+			updateErr = fmt.Errorf("event ID '%s' in node %v: %w", event.ID, node.ID, ErrEventNotFound)
 			return false
 		}
 		delete(*nodeEvents, event.ID)
 		return true
 	})
 	if err != nil {
-		return node, fmt.Errorf("unable to delete event: %v", err)
+		return node, fmt.Errorf("unable to delete event: %w", err)
 	}
 	if updateErr != nil {
-		return node, fmt.Errorf("unable to delete event: %v", updateErr)
+		return node, fmt.Errorf("unable to delete event: %w", updateErr)
+	}
+
+	// Propagate close event to all parents
+	// Will not be executed if there was an error processing the node (eg.: event does not exists)
+	if event.Propagate != nil && *event.Propagate {
+		// Get the node parents
+		parents := r.Graph.LookupParents(node, nil, graph.Metadata{MetaKeyRelationType: RelationTypeOwnership})
+		for _, parent := range parents {
+			// Close the event in the parent node
+			propagate := true
+			query := fmt.Sprintf("G.V('%v')", string(parent.ID))
+			_, err = r.closeEvent(model.EventCloseInput{ID: event.ID, GremlinQuery: query, Propagate: &propagate})
+			if err != nil {
+				return node, fmt.Errorf("unable to close event in parent node: %v", err)
+			}
+		}
 	}
 
 	return node, nil
@@ -311,6 +327,7 @@ func (p *Probe) deleteExpiredEvents(nodeID graph.Identifier, thresholdTime time.
 				if v.CreatedAt.UnixMilli()+v.TTL*SecondToMilli < tt.UnixMilli() {
 					logging.GetLogger().Debugf("Deleted expired event %s from node %s", k, nodeID)
 					delete(*nodeEvents, k)
+					// TODO en vez de ese delete llamar a la función que cierra eventos que tambien gestiona propagados
 					ret = true
 				}
 			}
@@ -345,6 +362,42 @@ func (p *Probe) deleteExpiredEvents(nodeID graph.Identifier, thresholdTime time.
 	}
 	if removeErr != nil {
 		return fmt.Errorf("unable to delete expired events: %v", removeErr)
+	}
+	return nil
+}
+
+// handleDeletedEdgeWithChildEvents given a removed edge and its child node, remove the events in the parent nodes
+func (p *Probe) handleDeletedEdgeWithChildEvents(childNode *graph.Node, edge *graph.Edge) error {
+	p.graph.Lock()
+	defer p.graph.Unlock()
+	propagate := true
+
+	// Iterate over all the events and delete them
+	eventsRaw, err := childNode.GetField(MetaKeyEvents)
+	if err != nil {
+		return err
+	}
+
+	nodeEvents, ok := eventsRaw.(*Events)
+	if !ok {
+		logging.GetLogger().Warningf("Unable to convert Metadata.%s (type %T) to *Events", MetaKeyEvents, eventsRaw)
+		return fmt.Errorf("invalid Metadata.%s format", MetaKeyEvents)
+	}
+
+	// For each child event, try to delete it in the parent node and its parents
+	for id := range *nodeEvents {
+		_, err := p.resolver.closeEvent(model.EventCloseInput{
+			ID:           id,
+			GremlinQuery: fmt.Sprintf("G.V('%s')", edge.Parent),
+			Propagate:    &propagate,
+		})
+		if errors.Is(err, ErrEventNotFound) {
+			// Ignore if event was not found in the parent node, could be an event not propagated
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("unable to close event %s: %v", id, err)
+		}
 	}
 	return nil
 }

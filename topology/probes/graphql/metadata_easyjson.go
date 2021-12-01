@@ -37,8 +37,31 @@ func easyjsonBa0ee0e3DecodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql(i
 			continue
 		}
 		switch key {
-		case "VID":
-			out.VID = int(in.Int())
+		case "AcceptedVIDs":
+			if in.IsNull() {
+				in.Skip()
+				out.AcceptedVIDs = nil
+			} else {
+				in.Delim('[')
+				if out.AcceptedVIDs == nil {
+					if !in.IsDelim(']') {
+						out.AcceptedVIDs = make([]int, 0, 8)
+					} else {
+						out.AcceptedVIDs = []int{}
+					}
+				} else {
+					out.AcceptedVIDs = (out.AcceptedVIDs)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v1 int
+					v1 = int(in.Int())
+					out.AcceptedVIDs = append(out.AcceptedVIDs, v1)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
+		case "NativeVLANVID":
+			out.NativeVLANVID = int64(in.Int64())
 		default:
 			in.SkipRecursive()
 		}
@@ -54,9 +77,25 @@ func easyjsonBa0ee0e3EncodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql(o
 	first := true
 	_ = first
 	{
-		const prefix string = ",\"VID\":"
+		const prefix string = ",\"AcceptedVIDs\":"
 		out.RawString(prefix[1:])
-		out.Int(int(in.VID))
+		if in.AcceptedVIDs == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+			out.RawString("null")
+		} else {
+			out.RawByte('[')
+			for v2, v3 := range in.AcceptedVIDs {
+				if v2 > 0 {
+					out.RawByte(',')
+				}
+				out.Int(int(v3))
+			}
+			out.RawByte(']')
+		}
+	}
+	if in.NativeVLANVID != 0 {
+		const prefix string = ",\"NativeVLANVID\":"
+		out.RawString(prefix)
+		out.Int64(int64(in.NativeVLANVID))
 	}
 	out.RawByte('}')
 }
@@ -198,31 +237,8 @@ func easyjsonBa0ee0e3DecodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql2(
 			continue
 		}
 		switch key {
-		case "AcceptedVIDs":
-			if in.IsNull() {
-				in.Skip()
-				out.AcceptedVIDs = nil
-			} else {
-				in.Delim('[')
-				if out.AcceptedVIDs == nil {
-					if !in.IsDelim(']') {
-						out.AcceptedVIDs = make([]int, 0, 8)
-					} else {
-						out.AcceptedVIDs = []int{}
-					}
-				} else {
-					out.AcceptedVIDs = (out.AcceptedVIDs)[:0]
-				}
-				for !in.IsDelim(']') {
-					var v1 int
-					v1 = int(in.Int())
-					out.AcceptedVIDs = append(out.AcceptedVIDs, v1)
-					in.WantComma()
-				}
-				in.Delim(']')
-			}
-		case "NativeVLANVID":
-			out.NativeVLANVID = int64(in.Int64())
+		case "VID":
+			out.VID = int(in.Int())
 		default:
 			in.SkipRecursive()
 		}
@@ -238,25 +254,9 @@ func easyjsonBa0ee0e3EncodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql2(
 	first := true
 	_ = first
 	{
-		const prefix string = ",\"AcceptedVIDs\":"
+		const prefix string = ",\"VID\":"
 		out.RawString(prefix[1:])
-		if in.AcceptedVIDs == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
-			out.RawString("null")
-		} else {
-			out.RawByte('[')
-			for v2, v3 := range in.AcceptedVIDs {
-				if v2 > 0 {
-					out.RawByte(',')
-				}
-				out.Int(int(v3))
-			}
-			out.RawByte(']')
-		}
-	}
-	if in.NativeVLANVID != 0 {
-		const prefix string = ",\"NativeVLANVID\":"
-		out.RawString(prefix)
-		out.Int64(int64(in.NativeVLANVID))
+		out.Int(int(in.VID))
 	}
 	out.RawByte('}')
 }
@@ -482,15 +482,28 @@ func easyjsonBa0ee0e3DecodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql5(
 				}
 				in.Delim(']')
 			}
-		case "PseudoWire":
+		case "PseudoWires":
 			if in.IsNull() {
 				in.Skip()
-				out.PseudoWire = nil
+				out.PseudoWires = nil
 			} else {
-				if out.PseudoWire == nil {
-					out.PseudoWire = new(PseudoWireInfo)
+				in.Delim('[')
+				if out.PseudoWires == nil {
+					if !in.IsDelim(']') {
+						out.PseudoWires = make([]PseudoWireInfo, 0, 2)
+					} else {
+						out.PseudoWires = []PseudoWireInfo{}
+					}
+				} else {
+					out.PseudoWires = (out.PseudoWires)[:0]
 				}
-				(*out.PseudoWire).UnmarshalEasyJSON(in)
+				for !in.IsDelim(']') {
+					var v5 PseudoWireInfo
+					(v5).UnmarshalEasyJSON(in)
+					out.PseudoWires = append(out.PseudoWires, v5)
+					in.WantComma()
+				}
+				in.Delim(']')
 			}
 		default:
 			in.SkipRecursive()
@@ -522,24 +535,33 @@ func easyjsonBa0ee0e3EncodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql5(
 		}
 		{
 			out.RawByte('[')
-			for v5, v6 := range in.IP {
-				if v5 > 0 {
+			for v6, v7 := range in.IP {
+				if v6 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v6))
+				out.String(string(v7))
 			}
 			out.RawByte(']')
 		}
 	}
-	if in.PseudoWire != nil {
-		const prefix string = ",\"PseudoWire\":"
+	if len(in.PseudoWires) != 0 {
+		const prefix string = ",\"PseudoWires\":"
 		if first {
 			first = false
 			out.RawString(prefix[1:])
 		} else {
 			out.RawString(prefix)
 		}
-		(*in.PseudoWire).MarshalEasyJSON(out)
+		{
+			out.RawByte('[')
+			for v8, v9 := range in.PseudoWires {
+				if v8 > 0 {
+					out.RawByte(',')
+				}
+				(v9).MarshalEasyJSON(out)
+			}
+			out.RawByte(']')
+		}
 	}
 	out.RawByte('}')
 }
@@ -577,9 +599,9 @@ func easyjsonBa0ee0e3DecodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql6(
 		for !in.IsDelim('}') {
 			key := string(in.String())
 			in.WantColon()
-			var v7 Event
-			(v7).UnmarshalEasyJSON(in)
-			(*out)[key] = v7
+			var v10 Event
+			(v10).UnmarshalEasyJSON(in)
+			(*out)[key] = v10
 			in.WantComma()
 		}
 		in.Delim('}')
@@ -593,16 +615,16 @@ func easyjsonBa0ee0e3EncodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql6(
 		out.RawString(`null`)
 	} else {
 		out.RawByte('{')
-		v8First := true
-		for v8Name, v8Value := range in {
-			if v8First {
-				v8First = false
+		v11First := true
+		for v11Name, v11Value := range in {
+			if v11First {
+				v11First = false
 			} else {
 				out.RawByte(',')
 			}
-			out.String(string(v8Name))
+			out.String(string(v11Name))
 			out.RawByte(':')
-			(v8Value).MarshalEasyJSON(out)
+			(v11Value).MarshalEasyJSON(out)
 		}
 		out.RawByte('}')
 	}
@@ -670,9 +692,9 @@ func easyjsonBa0ee0e3DecodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql7(
 					out.Payload = (out.Payload)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v9 PayloadValues
-					(v9).UnmarshalEasyJSON(in)
-					out.Payload = append(out.Payload, v9)
+					var v12 PayloadValues
+					(v12).UnmarshalEasyJSON(in)
+					out.Payload = append(out.Payload, v12)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -705,9 +727,9 @@ func easyjsonBa0ee0e3DecodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql7(
 					out.ChildChain = (out.ChildChain)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v10 string
-					v10 = string(in.String())
-					out.ChildChain = append(out.ChildChain, v10)
+					var v13 string
+					v13 = string(in.String())
+					out.ChildChain = append(out.ChildChain, v13)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -745,11 +767,11 @@ func easyjsonBa0ee0e3EncodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql7(
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v11, v12 := range in.Payload {
-				if v11 > 0 {
+			for v14, v15 := range in.Payload {
+				if v14 > 0 {
 					out.RawByte(',')
 				}
-				(v12).MarshalEasyJSON(out)
+				(v15).MarshalEasyJSON(out)
 			}
 			out.RawByte(']')
 		}
@@ -776,11 +798,11 @@ func easyjsonBa0ee0e3EncodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql7(
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v13, v14 := range in.ChildChain {
-				if v13 > 0 {
+			for v16, v17 := range in.ChildChain {
+				if v16 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v14))
+				out.String(string(v17))
 			}
 			out.RawByte(']')
 		}

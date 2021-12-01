@@ -233,7 +233,7 @@ func TestCloseEvent(t *testing.T) {
 				"Type":   "host",
 				"Events": &Events{},
 			})},
-			expectedError: "unable to mark event as deleted: event ID 'Prefix_someId' does not exists in node a",
+			expectedError: "unable to mark event as deleted: event ID 'Prefix_someId' in node a: event not found",
 		},
 		{
 			desc: "error if Metadata.Event does not have the proper type",
@@ -751,4 +751,174 @@ func TestCreateEventWithPropagation(t *testing.T) {
 	assert.Equal(t, expectedDeviceEvents, deviceNode.Metadata["Events"])
 	assert.Equal(t, expectedBuildingEvents, buildingNode.Metadata["Events"])
 	assert.Equal(t, expectedProvinceEvents, provinceNode.Metadata["Events"])
+}
+
+func TestDeleteEventWithPropagation(t *testing.T) {
+	g := newGraph(t)
+
+	deviceNode := createNode("device1ID", graph.Metadata{
+		"Name": "device1",
+		"Type": "device",
+	})
+
+	buildingNode := createNode("building1ID", graph.Metadata{
+		"Name": "building1",
+		"Type": "Building",
+	})
+
+	provinceNode := createNode("province1ID", graph.Metadata{
+		"Name": "province1",
+		"Type": "Province",
+	})
+
+	err := g.AddNode(deviceNode)
+	assert.NoError(t, err)
+	err = g.AddNode(buildingNode)
+	assert.NoError(t, err)
+	err = g.AddNode(provinceNode)
+	assert.NoError(t, err)
+
+	// Building owns device
+	eBuildingNode := graph.CreateEdge(
+		graph.GenID(),
+		buildingNode,
+		deviceNode,
+		graph.Metadata{"RelationType": "ownership"},
+		graph.Time(time.Now()),
+		"host",
+		"origin",
+	)
+
+	// Province owns building
+	eProvinceBuilding := graph.CreateEdge(
+		graph.GenID(),
+		provinceNode,
+		buildingNode,
+		graph.Metadata{"RelationType": "ownership"},
+		graph.Time(time.Now()),
+		"host",
+		"origin",
+	)
+
+	err = g.AddEdge(eBuildingNode)
+	assert.NoError(t, err)
+	err = g.AddEdge(eProvinceBuilding)
+	assert.NoError(t, err)
+
+	r := Resolver{Graph: g}
+	_, err = r.createEvent(
+		"foobar",
+		"G.V().Has('Name', 'device1')",
+		model.EventLevelWarning,
+		nil,
+		[]*model.EventKeyValue{{Key: "new", Value: "value"}},
+		time.Unix(0, 0),
+		true,
+		[]string{},
+		"",
+	)
+	assert.NoError(t, err)
+
+	// Tras propagar el evento a los parents, forzamos un cerrado del evento y comprobamos
+	// que los parents, ni el nodo, tienen el evento
+
+	propagate := true
+	r = Resolver{Graph: g}
+	_, err = r.closeEvent(model.EventCloseInput{
+		GremlinQuery: "G.V().Has('Name', 'device1')",
+		ID:           "foobar",
+		Propagate:    &propagate,
+	})
+	assert.NoError(t, err)
+
+	// Check the event has been deleted from parent nodes
+	assert.Equal(t, &Events{}, deviceNode.Metadata["Events"])
+	assert.Equal(t, &Events{}, buildingNode.Metadata["Events"])
+	assert.Equal(t, &Events{}, provinceNode.Metadata["Events"])
+}
+
+// TestDeleteEventWithPropagationWhenChildNodeIsDeleted comprobamos que si se borra el nodo que tiene un evento,
+// se borran todos sus eventos propagados
+func TestDeleteEventWithPropagationWhenChildNodeIsDeleted(t *testing.T) {
+	g := newGraph(t)
+
+	deviceNode := createNode("device1ID", graph.Metadata{
+		"Name": "device1",
+		"Type": "device",
+	})
+
+	buildingNode := createNode("building1ID", graph.Metadata{
+		"Name": "building1",
+		"Type": "Building",
+	})
+
+	provinceNode := createNode("province1ID", graph.Metadata{
+		"Name": "province1",
+		"Type": "Province",
+	})
+
+	err := g.AddNode(deviceNode)
+	assert.NoError(t, err)
+	err = g.AddNode(buildingNode)
+	assert.NoError(t, err)
+	err = g.AddNode(provinceNode)
+	assert.NoError(t, err)
+
+	// Building owns device
+	eBuildingNode := graph.CreateEdge(
+		graph.GenID(),
+		buildingNode,
+		deviceNode,
+		graph.Metadata{"RelationType": "ownership"},
+		graph.Time(time.Now()),
+		"host",
+		"origin",
+	)
+
+	// Province owns building
+	eProvinceBuilding := graph.CreateEdge(
+		graph.GenID(),
+		provinceNode,
+		buildingNode,
+		graph.Metadata{"RelationType": "ownership"},
+		graph.Time(time.Now()),
+		"host",
+		"origin",
+	)
+
+	err = g.AddEdge(eBuildingNode)
+	assert.NoError(t, err)
+	err = g.AddEdge(eProvinceBuilding)
+	assert.NoError(t, err)
+
+	grapgqlProbe, err := NewProbe(g)
+	assert.NoError(t, err)
+	grapgqlProbe.Start()
+
+	r := Resolver{Graph: g}
+	_, err = r.createEvent(
+		"foobar",
+		"G.V().Has('Name', 'device1')",
+		model.EventLevelWarning,
+		nil,
+		[]*model.EventKeyValue{{Key: "new", Value: "value"}},
+		time.Unix(0, 0),
+		true,
+		[]string{},
+		"",
+	)
+	assert.NoError(t, err)
+
+	// Tras propagar el evento a los parents, borramos el nodo que tenía el evento.
+	err = g.DelNode(deviceNode)
+	assert.NoError(t, err)
+
+	// Check the event has been deleted from parent nodes
+	events, ok := buildingNode.Metadata["Events"].(*Events)
+	assert.True(t, ok)
+	assert.Truef(t, len(*events) == 0, "building should have no events")
+
+	events, ok = provinceNode.Metadata["Events"].(*Events)
+	assert.True(t, ok)
+	assert.Truef(t, len(*events) == 0, "province should have no events")
 }

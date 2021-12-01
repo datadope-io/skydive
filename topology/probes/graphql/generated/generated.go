@@ -597,6 +597,11 @@ input event_CloseInput {
   Identifier of each particular alarm.
   """
   ID: String!
+
+  """
+  If true, delete the event in this node and all the parent nodes.
+  """
+  Propagate: Boolean = false
 }
 
 """
@@ -697,6 +702,16 @@ input net_Selector {
 Values to create a new network device.
 """
 input net_DeviceInput {
+  """
+  Identifier used by routers.
+  The value should be taken from this fields in the configurations files:
+    Huawei: router id
+    Cisco: router-id
+    Juniper: routing-options.router-id
+    Nokia: configure.router Base.interface "system".address
+  """
+  DeviceID: String
+
   """
   Device name. Used as the primary key.
   """
@@ -826,6 +841,10 @@ input net_InterfaceInput {
   """
   Name: String!
   """
+  Interface description
+  """
+  Description: [net_KeyValue!]
+  """
   Ethernet data of the interface
   """
   Ethernet: net_EthernetInput
@@ -833,13 +852,13 @@ input net_InterfaceInput {
   IP addresses of the interface, IPv4 or IPv6
   IP data of the interface.
   IPv4 format: 192.0.2.0/24
-  IPv6 format: 2001:db8::/32
+  IPv6 format: 2002:db8::/32
   """
   IP: [String!]
   """
   Pseudowire of the interface.
   """
-  PseudoWire: net_PseudowireInput
+  PseudoWires: [net_PseudowireInput!]
 }
 
 """
@@ -854,6 +873,11 @@ input net_PseudowireInput {
   IP of the neighbor connected to this pseudowire
   """
   Neighbor: String!
+  """
+  For Huawei PW, set to "secondary" if this is the secondary pseudowire
+  For Nokia, set to "primary" if this is the primary pseudowire.
+  """
+  Status: String
 }
 
 """
@@ -885,6 +909,16 @@ VLAN data for interfaces configured in access mode
 """
 input net_VLANAccessInput {
   """
+  VLAN id
+  """
+  VID: Int!
+}
+
+"""
+VLAN data for interfaces configured in trunk mode
+"""
+input net_VLANTrunkInput {
+  """
   List of VLAN IDs to be accepted by the trunk port
   """
   AcceptedVIDs: [Int!]!
@@ -893,16 +927,6 @@ input net_VLANAccessInput {
   VLAN ID used for untagged packets
   """
   NativeVLANVID: Int
-}
-
-"""
-VLAN data for interfaces configured in trunk mode
-"""
-input net_VLANTrunkInput {
-  """
-  VLAN id
-  """
-  VID: Int!
 }
 
 """
@@ -1083,6 +1107,15 @@ type net_BuildingPayload {
   """
   Building: net_NodePayload!
 }
+
+"""
+Simple input to add any extra data in a key-value fashion
+"""
+input net_KeyValue {
+  Key: String!
+  Value: String!
+}
+
 `, BuiltIn: false},
 	{Name: "schema.graphqls", Input: `type Mutation {
   """
@@ -4004,6 +4037,14 @@ func (ec *executionContext) unmarshalInputevent_CloseInput(ctx context.Context, 
 			if err != nil {
 				return it, err
 			}
+		case "Propagate":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Propagate"))
+			it.Propagate, err = ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -4214,6 +4255,14 @@ func (ec *executionContext) unmarshalInputnet_DeviceInput(ctx context.Context, o
 
 	for k, v := range asMap {
 		switch k {
+		case "DeviceID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("DeviceID"))
+			it.DeviceID, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		case "Name":
 			var err error
 
@@ -4347,6 +4396,14 @@ func (ec *executionContext) unmarshalInputnet_InterfaceInput(ctx context.Context
 			if err != nil {
 				return it, err
 			}
+		case "Description":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Description"))
+			it.Description, err = ec.unmarshalOnet_KeyValue2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetKeyValueᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		case "Ethernet":
 			var err error
 
@@ -4363,11 +4420,42 @@ func (ec *executionContext) unmarshalInputnet_InterfaceInput(ctx context.Context
 			if err != nil {
 				return it, err
 			}
-		case "PseudoWire":
+		case "PseudoWires":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("PseudoWire"))
-			it.PseudoWire, err = ec.unmarshalOnet_PseudowireInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetPseudowireInput(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("PseudoWires"))
+			it.PseudoWires, err = ec.unmarshalOnet_PseudowireInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetPseudowireInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnet_KeyValue(ctx context.Context, obj interface{}) (model.NetKeyValue, error) {
+	var it model.NetKeyValue
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "Key":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Key"))
+			it.Key, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Value":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Value"))
+			it.Value, err = ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -4472,6 +4560,14 @@ func (ec *executionContext) unmarshalInputnet_PseudowireInput(ctx context.Contex
 			if err != nil {
 				return it, err
 			}
+		case "Status":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Status"))
+			it.Status, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -4549,19 +4645,11 @@ func (ec *executionContext) unmarshalInputnet_VLANAccessInput(ctx context.Contex
 
 	for k, v := range asMap {
 		switch k {
-		case "AcceptedVIDs":
+		case "VID":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("AcceptedVIDs"))
-			it.AcceptedVIDs, err = ec.unmarshalNInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		case "NativeVLANVID":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("NativeVLANVID"))
-			it.NativeVlanvid, err = ec.unmarshalOInt2ᚖint(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("VID"))
+			it.Vid, err = ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -4611,11 +4699,19 @@ func (ec *executionContext) unmarshalInputnet_VLANTrunkInput(ctx context.Context
 
 	for k, v := range asMap {
 		switch k {
-		case "VID":
+		case "AcceptedVIDs":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("VID"))
-			it.Vid, err = ec.unmarshalNInt2int(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("AcceptedVIDs"))
+			it.AcceptedVIDs, err = ec.unmarshalNInt2ᚕintᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "NativeVLANVID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("NativeVLANVID"))
+			it.NativeVlanvid, err = ec.unmarshalOInt2ᚖint(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -6011,6 +6107,11 @@ func (ec *executionContext) marshalNnet_InterfacePayload2ᚖgithubᚗcomᚋskydi
 	return ec._net_InterfacePayload(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNnet_KeyValue2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetKeyValue(ctx context.Context, v interface{}) (*model.NetKeyValue, error) {
+	res, err := ec.unmarshalInputnet_KeyValue(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNnet_LocationInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetLocationInput(ctx context.Context, v interface{}) (*model.NetLocationInput, error) {
 	res, err := ec.unmarshalInputnet_LocationInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
@@ -6057,6 +6158,11 @@ func (ec *executionContext) marshalNnet_ProvincePayload2ᚖgithubᚗcomᚋskydiv
 		return graphql.Null
 	}
 	return ec._net_ProvincePayload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNnet_PseudowireInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetPseudowireInput(ctx context.Context, v interface{}) (*model.NetPseudowireInput, error) {
+	res, err := ec.unmarshalInputnet_PseudowireInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNnet_RegionInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetRegionInput(ctx context.Context, v interface{}) (model.NetRegionInput, error) {
@@ -6453,12 +6559,52 @@ func (ec *executionContext) unmarshalOnet_EthernetInput2ᚖgithubᚗcomᚋskydiv
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalOnet_PseudowireInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetPseudowireInput(ctx context.Context, v interface{}) (*model.NetPseudowireInput, error) {
+func (ec *executionContext) unmarshalOnet_KeyValue2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetKeyValueᚄ(ctx context.Context, v interface{}) ([]*model.NetKeyValue, error) {
 	if v == nil {
 		return nil, nil
 	}
-	res, err := ec.unmarshalInputnet_PseudowireInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]*model.NetKeyValue, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNnet_KeyValue2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetKeyValue(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalOnet_PseudowireInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetPseudowireInputᚄ(ctx context.Context, v interface{}) ([]*model.NetPseudowireInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]*model.NetPseudowireInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNnet_PseudowireInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetPseudowireInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) unmarshalOnet_VLANAccessInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetVLANAccessInput(ctx context.Context, v interface{}) (*model.NetVLANAccessInput, error) {

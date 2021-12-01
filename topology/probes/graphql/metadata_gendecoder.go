@@ -307,7 +307,7 @@ func (obj *NetworkInfo) GetFieldKeys() []string {
 	return []string{
 		"Ethernet",
 		"IP",
-		"PseudoWire",
+		"PseudoWires",
 	}
 }
 
@@ -323,9 +323,13 @@ func (obj *NetworkInfo) MatchBool(key string, predicate getter.BoolPredicate) bo
 		if index != -1 && obj.Ethernet != nil {
 			return obj.Ethernet.MatchBool(key[index+1:], predicate)
 		}
-	case "PseudoWire":
-		if index != -1 && obj.PseudoWire != nil {
-			return obj.PseudoWire.MatchBool(key[index+1:], predicate)
+	case "PseudoWires":
+		if index != -1 {
+			for _, obj := range obj.PseudoWires {
+				if obj.MatchBool(key[index+1:], predicate) {
+					return true
+				}
+			}
 		}
 	}
 	return false
@@ -344,9 +348,13 @@ func (obj *NetworkInfo) MatchInt64(key string, predicate getter.Int64Predicate) 
 		if index != -1 && obj.Ethernet != nil {
 			return obj.Ethernet.MatchInt64(key[index+1:], predicate)
 		}
-	case "PseudoWire":
-		if index != -1 && obj.PseudoWire != nil {
-			return obj.PseudoWire.MatchInt64(key[index+1:], predicate)
+	case "PseudoWires":
+		if index != -1 {
+			for _, obj := range obj.PseudoWires {
+				if obj.MatchInt64(key[index+1:], predicate) {
+					return true
+				}
+			}
 		}
 	}
 	return false
@@ -373,9 +381,13 @@ func (obj *NetworkInfo) MatchString(key string, predicate getter.StringPredicate
 				}
 			}
 		}
-	case "PseudoWire":
-		if index != -1 && obj.PseudoWire != nil {
-			return obj.PseudoWire.MatchString(key[index+1:], predicate)
+	case "PseudoWires":
+		if index != -1 {
+			for _, obj := range obj.PseudoWires {
+				if obj.MatchString(key[index+1:], predicate) {
+					return true
+				}
+			}
 		}
 	}
 	return false
@@ -408,12 +420,22 @@ func (obj *NetworkInfo) GetField(key string) (interface{}, error) {
 				return results, nil
 			}
 		}
-	case "PseudoWire":
-		if obj.PseudoWire != nil {
+	case "PseudoWires":
+		if obj.PseudoWires != nil {
 			if index != -1 {
-				return obj.PseudoWire.GetField(key[index+1:])
+				var results []interface{}
+				for _, obj := range obj.PseudoWires {
+					if field, err := obj.GetField(key[index+1:]); err == nil {
+						results = append(results, field)
+					}
+				}
+				return results, nil
 			} else {
-				return obj.PseudoWire, nil
+				var results []interface{}
+				for _, obj := range obj.PseudoWires {
+					results = append(results, obj)
+				}
+				return results, nil
 			}
 		}
 
@@ -521,8 +543,8 @@ func (obj *VLANAccessInfo) GetFieldBool(key string) (bool, error) {
 
 func (obj *VLANAccessInfo) GetFieldInt64(key string) (int64, error) {
 	switch key {
-	case "NativeVLANVID":
-		return int64(obj.NativeVLANVID), nil
+	case "VID":
+		return int64(obj.VID), nil
 	}
 	return 0, getter.ErrFieldNotFound
 }
@@ -533,8 +555,7 @@ func (obj *VLANAccessInfo) GetFieldString(key string) (string, error) {
 
 func (obj *VLANAccessInfo) GetFieldKeys() []string {
 	return []string{
-		"AcceptedVIDs",
-		"NativeVLANVID",
+		"VID",
 	}
 }
 
@@ -556,27 +577,6 @@ func (obj *VLANAccessInfo) MatchString(key string, predicate getter.StringPredic
 func (obj *VLANAccessInfo) GetField(key string) (interface{}, error) {
 	if i, err := obj.GetFieldInt64(key); err == nil {
 		return i, nil
-	}
-
-	first := key
-	index := strings.Index(key, ".")
-	if index != -1 {
-		first = key[:index]
-	}
-
-	switch first {
-	case "AcceptedVIDs":
-		if obj.AcceptedVIDs != nil {
-			if index != -1 {
-			} else {
-				var results []interface{}
-				for _, obj := range obj.AcceptedVIDs {
-					results = append(results, obj)
-				}
-				return results, nil
-			}
-		}
-
 	}
 	return nil, getter.ErrFieldNotFound
 }
@@ -697,8 +697,8 @@ func (obj *VLANTrunkInfo) GetFieldBool(key string) (bool, error) {
 
 func (obj *VLANTrunkInfo) GetFieldInt64(key string) (int64, error) {
 	switch key {
-	case "VID":
-		return int64(obj.VID), nil
+	case "NativeVLANVID":
+		return int64(obj.NativeVLANVID), nil
 	}
 	return 0, getter.ErrFieldNotFound
 }
@@ -709,7 +709,8 @@ func (obj *VLANTrunkInfo) GetFieldString(key string) (string, error) {
 
 func (obj *VLANTrunkInfo) GetFieldKeys() []string {
 	return []string{
-		"VID",
+		"AcceptedVIDs",
+		"NativeVLANVID",
 	}
 }
 
@@ -731,6 +732,27 @@ func (obj *VLANTrunkInfo) MatchString(key string, predicate getter.StringPredica
 func (obj *VLANTrunkInfo) GetField(key string) (interface{}, error) {
 	if i, err := obj.GetFieldInt64(key); err == nil {
 		return i, nil
+	}
+
+	first := key
+	index := strings.Index(key, ".")
+	if index != -1 {
+		first = key[:index]
+	}
+
+	switch first {
+	case "AcceptedVIDs":
+		if obj.AcceptedVIDs != nil {
+			if index != -1 {
+			} else {
+				var results []interface{}
+				for _, obj := range obj.AcceptedVIDs {
+					results = append(results, obj)
+				}
+				return results, nil
+			}
+		}
+
 	}
 	return nil, getter.ErrFieldNotFound
 }

@@ -66,6 +66,11 @@ input event_CloseInput {
   Identifier of each particular alarm.
   """
   ID: String!
+
+  """
+  If true, delete the event in this node and all the parent nodes.
+  """
+  Propagate: Boolean = true
 }
 
 """

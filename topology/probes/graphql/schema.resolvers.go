@@ -86,6 +86,7 @@ func (r *mutationResolver) NetAddDevice(ctx context.Context, input model.NetDevi
 
 	node, nodeCreated, nodeUpdated, err := r.netAddDevice(
 		input.Name,
+		input.DeviceID,
 		input.Type,
 		input.Model,
 		input.Vendor,
@@ -109,12 +110,6 @@ func (r *mutationResolver) NetAddDevice(ctx context.Context, input model.NetDevi
 		if err != nil {
 			return nil, fmt.Errorf("unable to link building (%v) to device (%v): %v", building[0], node, err)
 		}
-
-		/* Cargar coordenadas del edificio en el dispositivo e interfaces de red? TODO
-		node.Metadata.SetField(MetaKeyLatitude, building.Lat)
-		node.Metadata.SetField(MetaKeyLongitude, building.Lng)
-		r.Graph.NodeUpdated(node)
-		*/
 	}
 
 	payload := model.NetDevicePayload{
@@ -258,15 +253,41 @@ func (r *mutationResolver) NetAddIf2IfLink(ctx context.Context, input model.NetI
 		return nil, fmt.Errorf("add link between interfaces, edge: %v", err)
 	}
 
+	// Create the link between the interfaces
+	_, _, _, err = r.createOrUpdateEdge(srcIface, dstIface, graph.Metadata{
+		MetaKeyRelationType: RelationConnect,
+		// TODO añadir un contador de cuantas conex soportan este edge, para poder borrarlo cuando llegue a 0
+	}, input.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("add link between interfaces, edge: %v", err)
+	}
+
 	// Create links between interfaces all the way up to the regions, creating also links between the different levels.
 	// This is done to allow to have links between different levels without having to get all the data down to the interface.
 	// TODO: que tipo de edge le ponemos? Como gestionamos el borrado?
-	//   srcIface    -> dstIface, dstNode, dstBuilding, dstProvince, dstRegion
-	//   srcNode     -> dstIface, dstNode, dstBuilding, dstProvince, dstRegion
-	//   srcProvince -> dstIface, dstNode, dstBuilding, dstProvince, dstRegion
-	//   srcRegion   -> dstIface, dstNode, dstBuilding, dstProvince, dstRegion
+	// TODO: como la vista de mapa solo llega hasta building, y es en esta vista donde necesitamos todas estas conex duplicadas,
+	// no generar conex duplicadas entre devices
+	//   srcBuilding -> dstBuilding, dstProvince, dstRegion
+	//   srcProvince -> dstBuilding, dstProvince, dstRegion
+	//   srcRegion   -> dstBuilding, dstProvince, dstRegion
 	for _, srcNode := range r.getHierarchyNodesFromNode(srcIface) {
+		srcType, err := srcNode.GetFieldString(MetaKeyType)
+		if err != nil {
+			return nil, fmt.Errorf("missing Metadata.Type on node %+v: %v", srcNode, err)
+		}
+		if srcType == MetadataTypeNetworkInterface || srcType == MetadataTypeNetworkDevice {
+			continue
+		}
+
 		for _, dstNode := range r.getHierarchyNodesFromNode(dstIface) {
+			dstType, err := dstNode.GetFieldString(MetaKeyType)
+			if err != nil {
+				return nil, fmt.Errorf("missing Metadata.Type on node %+v: %v", dstNode, err)
+			}
+			if dstType == MetadataTypeNetworkInterface || dstType == MetadataTypeNetworkDevice {
+				continue
+			}
+
 			_, _, _, err = r.createOrUpdateEdge(srcNode, dstNode, graph.Metadata{
 				MetaKeyRelationType: RelationConnect,
 				// TODO añadir un contador de cuantas conex soportan este edge, para poder borrarlo cuando llegue a 0
@@ -352,6 +373,9 @@ func (r *mutationResolver) EventAddMultiple(ctx context.Context, input []*model.
 }
 
 func (r *mutationResolver) EventClose(ctx context.Context, input model.EventCloseInput) (*model.EventClosePayload, error) {
+	r.Graph.Lock()
+	defer r.Graph.Unlock()
+
 	node, err := r.closeEvent(input)
 	if err != nil {
 		return nil, err
@@ -373,5 +397,7 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
+type (
+	mutationResolver struct{ *Resolver }
+	queryResolver    struct{ *Resolver }
+)

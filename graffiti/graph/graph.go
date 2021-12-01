@@ -915,12 +915,15 @@ func (g *Graph) AddMetadata(i interface{}, k string, v interface{}) error {
 // UpdateMetadata retrieves a value and calls a callback that can modify it then notify listeners of the update
 func (g *Graph) UpdateMetadata(i interface{}, key string, mutator func(obj interface{}) bool) error {
 	var e *graphElement
+	var graphEventType graphEventType
 
 	switch i.(type) {
 	case *Node:
 		e = &i.(*Node).graphElement
+		graphEventType = NodeUpdated
 	case *Edge:
 		e = &i.(*Edge).graphElement
+		graphEventType = EdgeUpdated
 	}
 
 	field, err := e.GetField(key)
@@ -935,7 +938,7 @@ func (g *Graph) UpdateMetadata(i interface{}, key string, mutator func(obj inter
 		if err := g.backend.MetadataUpdated(i); err != nil {
 			return err
 		}
-		g.eventHandler.NotifyEvent(NodeUpdated, i)
+		g.eventHandler.NotifyEvent(graphEventType, i)
 	}
 
 	return nil

@@ -13,9 +13,9 @@ import (
 // easyjson:json
 // gendecoder
 type NetworkInfo struct {
-	Ethernet   *EthernetInfo   `json:",omitempty"`
-	IP         []string        `json:",omitempty"`
-	PseudoWire *PseudoWireInfo `json:",omitempty"`
+	Ethernet    *EthernetInfo    `json:",omitempty"`
+	IP          []string         `json:",omitempty"`
+	PseudoWires []PseudoWireInfo `json:",omitempty"`
 }
 
 // easyjson:json
@@ -41,15 +41,15 @@ type VLANInfo struct {
 // easyjson:json
 // gendecoder
 type VLANAccessInfo struct {
-	AcceptedVIDs []int
-	// VID=0 is not valid, so it's safe to omit this field if value is zero
-	NativeVLANVID int64 `json:",omitempty"`
+	VID int
 }
 
 // easyjson:json
 // gendecoder
 type VLANTrunkInfo struct {
-	VID int
+	AcceptedVIDs []int
+	// VID=0 is not valid, so it's safe to omit this field if value is zero
+	NativeVLANVID int64 `json:",omitempty"`
 }
 
 // easyjson:json
