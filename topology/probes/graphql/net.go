@@ -355,8 +355,6 @@ func (r *Resolver) netCreateInterface(
 	// Get the existant interface node or create it otherwise.
 	ifID := getInterfaceID(prefix, data.Name, subtype)
 
-	logging.GetLogger().Debugf("Crear interface, metadata: %+v", ifaceMetadata) // TODO
-
 	node, created, updated, err = r.createOrUpdateNode(ifID, ifaceMetadata, createdAt)
 	if err != nil {
 		err = fmt.Errorf("network interface: %v", err)
@@ -527,6 +525,7 @@ func (l *simpleLinker) GetABLinks(n *graph.Node) (edges []*graph.Edge) {
 		// Por cada PW id, consultamos el índice para obtener que otros nodos tienen configurado ese PW.
 		// Obtenemos los nodos y el contenido del índice, que son las IPs que ese nodo remoto tiene como neighbors del PW.
 		remoteNodes, remoteNodesNeighbors := l.probe.pseudoWireIndexer.Get(pw.ID)
+	REMOTENODES:
 		for i := 0; i < len(remoteNodes); i++ {
 			remoteNode := remoteNodes[i]
 			remoteNodeNeighbors, ok := remoteNodesNeighbors[i].(map[string]interface{})
@@ -592,6 +591,13 @@ func (l *simpleLinker) GetABLinks(n *graph.Node) (edges []*graph.Edge) {
 						continue
 					}
 
+					// No queremos generar edges entre el mismo nodo.
+					// Tampoco entre el building y su propia provincia o region.
+					// Si encontramos este match, dejamos de iterar por los parents y pasamos al siguiente nodo remoto.
+					if srcNode.ID == dstNode.ID {
+						continue REMOTENODES
+					}
+
 					edges = append(edges, l.generatePseudowireEdge(srcNode, dstNode, pw.ID))
 				}
 			}
@@ -600,6 +606,8 @@ func (l *simpleLinker) GetABLinks(n *graph.Node) (edges []*graph.Edge) {
 
 	return edges
 }
+
+// TODO deduplicar código entre GetABLinks y GetBALinks
 
 // GetBALinks devolvemos las conexiones entrandes al nodo "n" cuando el nodo n tiene un identificador mayor a los nodos remotos.
 // De esta manera conseguimos que coincida lo que genera el nodo "A" al ejecutar "AB" con lo que genera el nodo "B"
@@ -622,6 +630,7 @@ func (l *simpleLinker) GetBALinks(n *graph.Node) (edges []*graph.Edge) {
 		// Por cada PW id, consultamos el índice para obtener que otros nodos tienen configurado ese PW.
 		// Obtenemos los nodos y el contenido del índice, que son las IPs que ese nodo remoto tiene como neighbors del PW.
 		remoteNodes, remoteNodesNeighbors := l.probe.pseudoWireIndexer.Get(pw.ID)
+	REMOTENODES:
 		for i := 0; i < len(remoteNodes); i++ {
 			remoteNode := remoteNodes[i]
 			remoteNodeNeighbors, ok := remoteNodesNeighbors[i].(map[string]interface{})
@@ -688,6 +697,13 @@ func (l *simpleLinker) GetBALinks(n *graph.Node) (edges []*graph.Edge) {
 						continue
 					}
 
+					// No queremos generar edges entre el mismo nodo.
+					// Tampoco entre el building y su propia provincia o region.
+					// Si encontramos este match, dejamos de iterar por los parents y pasamos al siguiente nodo remoto.
+					if srcNode.ID == dstNode.ID {
+						continue REMOTENODES
+					}
+
 					edges = append(edges, l.generatePseudowireEdge(dstNode, srcNode, pw.ID))
 				}
 			}
@@ -737,9 +753,7 @@ func (p *Probe) getHierarchyNodesFromNode(node *graph.Node) []*graph.Node {
 // los que tengan en el parent o child alguno de los nodos padres del edge original.
 // parent are involved.
 func (p *Probe) handleDeletedPseudowire(edge *graph.Edge) error {
-	p.graph.Lock()
-	defer p.graph.Unlock()
-
+	// Do not use lock, could block the caller
 	pwid, err := edge.GetFieldString(MetaKeyPseudowireID)
 	if err != nil {
 		return fmt.Errorf("pseudowire edge without pwid: %+v", edge)

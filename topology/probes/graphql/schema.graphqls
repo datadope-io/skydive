@@ -33,6 +33,11 @@ type Mutation {
   net_AddInterface(input: net_AddInterfaceInput!): net_InterfacePayload!
 
   """
+  Delete an interface. It could be an interface of any type.
+  """
+  net_DelInterface(input: net_DelInterfaceInput!): net_InterfacePayload!
+
+  """
   Create, or update, an aggregation interface owned by a device.
   Device could be selected using its ID or a Gremlin query.
   A node is created to represent the aggregation and linked to the device node.
@@ -49,7 +54,12 @@ type Mutation {
   """
   Add an edge between two physical interfaces
   """
-  net_AddIf2IfLink(input: net_If2IfLinkInput!): net_AddIf2IfLinkPayload!
+  net_AddIf2IfLink(input: net_AddIf2IfLinkInput!): net_If2IfLinkPayload!
+
+  """
+  Delete an LLDP edge between two physical interfaces
+  """
+  net_DelIf2IfLink(input: net_DelIf2IfLinkInput!): net_If2IfLinkPayload!
 
   """
   Add event to node.

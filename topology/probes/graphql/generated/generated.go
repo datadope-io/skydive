@@ -51,11 +51,13 @@ type ComplexityRoot struct {
 		NetAddAggregation      func(childComplexity int, input model.NetAddAggregationInput) int
 		NetAddBuilding         func(childComplexity int, input model.NetBuildingInput) int
 		NetAddDevice           func(childComplexity int, input model.NetDeviceInput) int
-		NetAddIf2IfLink        func(childComplexity int, input model.NetIf2IfLinkInput) int
+		NetAddIf2IfLink        func(childComplexity int, input model.NetAddIf2IfLinkInput) int
 		NetAddInterface        func(childComplexity int, input model.NetAddInterfaceInput) int
 		NetAddLogicalInterface func(childComplexity int, input model.NetAddLogicalInterfaceInput) int
 		NetAddProvince         func(childComplexity int, input model.NetProvinceInput) int
 		NetAddRegion           func(childComplexity int, input model.NetRegionInput) int
+		NetDelIf2IfLink        func(childComplexity int, input model.NetDelIf2IfLinkInput) int
+		NetDelInterface        func(childComplexity int, input model.NetDelInterfaceInput) int
 	}
 
 	Query struct {
@@ -76,10 +78,6 @@ type ComplexityRoot struct {
 		ID func(childComplexity int) int
 	}
 
-	NetAddIf2IfLinkPayload struct {
-		InterfaceLink func(childComplexity int) int
-	}
-
 	NetAggregationPayload struct {
 		Aggregation func(childComplexity int) int
 	}
@@ -96,6 +94,10 @@ type ComplexityRoot struct {
 		EdgeCreated func(childComplexity int) int
 		EdgeUpdated func(childComplexity int) int
 		ID          func(childComplexity int) int
+	}
+
+	NetIf2IfLinkPayload struct {
+		InterfaceLink func(childComplexity int) int
 	}
 
 	NetInterfacePayload struct {
@@ -132,9 +134,11 @@ type MutationResolver interface {
 	NetAddBuilding(ctx context.Context, input model.NetBuildingInput) (*model.NetBuildingPayload, error)
 	NetAddDevice(ctx context.Context, input model.NetDeviceInput) (*model.NetDevicePayload, error)
 	NetAddInterface(ctx context.Context, input model.NetAddInterfaceInput) (*model.NetInterfacePayload, error)
+	NetDelInterface(ctx context.Context, input model.NetDelInterfaceInput) (*model.NetInterfacePayload, error)
 	NetAddAggregation(ctx context.Context, input model.NetAddAggregationInput) (*model.NetAggregationPayload, error)
 	NetAddLogicalInterface(ctx context.Context, input model.NetAddLogicalInterfaceInput) (*model.NetLogicalInterfacePayload, error)
-	NetAddIf2IfLink(ctx context.Context, input model.NetIf2IfLinkInput) (*model.NetAddIf2IfLinkPayload, error)
+	NetAddIf2IfLink(ctx context.Context, input model.NetAddIf2IfLinkInput) (*model.NetIf2IfLinkPayload, error)
+	NetDelIf2IfLink(ctx context.Context, input model.NetDelIf2IfLinkInput) (*model.NetIf2IfLinkPayload, error)
 	EventAdd(ctx context.Context, input model.EventAddInput) (*model.EventAddPayload, error)
 	EventAddMultiple(ctx context.Context, input []*model.EventAddInput) (*model.EventAddMultiplePayload, error)
 	EventClose(ctx context.Context, input model.EventCloseInput) (*model.EventClosePayload, error)
@@ -240,7 +244,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.NetAddIf2IfLink(childComplexity, args["input"].(model.NetIf2IfLinkInput)), true
+		return e.complexity.Mutation.NetAddIf2IfLink(childComplexity, args["input"].(model.NetAddIf2IfLinkInput)), true
 
 	case "Mutation.net_AddInterface":
 		if e.complexity.Mutation.NetAddInterface == nil {
@@ -290,6 +294,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.NetAddRegion(childComplexity, args["input"].(model.NetRegionInput)), true
 
+	case "Mutation.net_DelIf2IfLink":
+		if e.complexity.Mutation.NetDelIf2IfLink == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_net_DelIf2IfLink_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.NetDelIf2IfLink(childComplexity, args["input"].(model.NetDelIf2IfLinkInput)), true
+
+	case "Mutation.net_DelInterface":
+		if e.complexity.Mutation.NetDelInterface == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_net_DelInterface_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.NetDelInterface(childComplexity, args["input"].(model.NetDelInterfaceInput)), true
+
 	case "Query.version":
 		if e.complexity.Query.Version == nil {
 			break
@@ -332,13 +360,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.EventClosePayload.ID(childComplexity), true
 
-	case "net_AddIf2IfLinkPayload.InterfaceLink":
-		if e.complexity.NetAddIf2IfLinkPayload.InterfaceLink == nil {
-			break
-		}
-
-		return e.complexity.NetAddIf2IfLinkPayload.InterfaceLink(childComplexity), true
-
 	case "net_AggregationPayload.Aggregation":
 		if e.complexity.NetAggregationPayload.Aggregation == nil {
 			break
@@ -380,6 +401,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.NetEdgePayload.ID(childComplexity), true
+
+	case "net_If2IfLinkPayload.InterfaceLink":
+		if e.complexity.NetIf2IfLinkPayload.InterfaceLink == nil {
+			break
+		}
+
+		return e.complexity.NetIf2IfLinkPayload.InterfaceLink(childComplexity), true
 
 	case "net_InterfacePayload.Aggregation":
 		if e.complexity.NetInterfacePayload.Aggregation == nil {
@@ -601,7 +629,7 @@ input event_CloseInput {
   """
   If true, delete the event in this node and all the parent nodes.
   """
-  Propagate: Boolean = false
+  Propagate: Boolean = true
 }
 
 """
@@ -789,6 +817,16 @@ input net_AddInterfaceInput {
 }
 
 """
+Values to delete an interface from a network device.
+"""
+input net_DelInterfaceInput {
+  """
+  Select which interface to be deleted
+  """
+  InterfaceSelector: net_Selector!
+}
+
+"""
 Return value when creating a new physical interface.
 """
 type net_InterfacePayload {
@@ -960,9 +998,9 @@ type net_LogicalInterfacePayload {
 
 
 """
-Values to create a new link between nodes.
+Values to create a LLDP link between nodes.
 """
-input net_If2IfLinkInput {
+input net_AddIf2IfLinkInput {
   """
   Source interface.
   """
@@ -980,11 +1018,25 @@ input net_If2IfLinkInput {
   CreatedAt: Time
 }
 
+"""
+Values to delete a LLDP link between nodes.
+"""
+input net_DelIf2IfLinkInput {
+  """
+  Source interface.
+  """
+  SrcInterface: net_Selector!
+
+  """
+  Destination interface.
+  """
+  DstInterface: net_Selector!
+}
 
 """
-Return value when creating a new link between interfaces.
+Return value when creating or deleting a LLDP link between interfaces.
 """
-type net_AddIf2IfLinkPayload {
+type net_If2IfLinkPayload {
   """
   Internal ID for the edge in Skydive.
   """
@@ -1152,6 +1204,11 @@ input net_KeyValue {
   net_AddInterface(input: net_AddInterfaceInput!): net_InterfacePayload!
 
   """
+  Delete an interface. It could be an interface of any type.
+  """
+  net_DelInterface(input: net_DelInterfaceInput!): net_InterfacePayload!
+
+  """
   Create, or update, an aggregation interface owned by a device.
   Device could be selected using its ID or a Gremlin query.
   A node is created to represent the aggregation and linked to the device node.
@@ -1168,7 +1225,12 @@ input net_KeyValue {
   """
   Add an edge between two physical interfaces
   """
-  net_AddIf2IfLink(input: net_If2IfLinkInput!): net_AddIf2IfLinkPayload!
+  net_AddIf2IfLink(input: net_AddIf2IfLinkInput!): net_If2IfLinkPayload!
+
+  """
+  Delete an LLDP edge between two physical interfaces
+  """
+  net_DelIf2IfLink(input: net_DelIf2IfLinkInput!): net_If2IfLinkPayload!
 
   """
   Add event to node.
@@ -1294,10 +1356,10 @@ func (ec *executionContext) field_Mutation_net_AddDevice_args(ctx context.Contex
 func (ec *executionContext) field_Mutation_net_AddIf2IfLink_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 model.NetIf2IfLinkInput
+	var arg0 model.NetAddIf2IfLinkInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalNnet_If2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetIf2IfLinkInput(ctx, tmp)
+		arg0, err = ec.unmarshalNnet_AddIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetAddIf2IfLinkInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -1358,6 +1420,36 @@ func (ec *executionContext) field_Mutation_net_AddRegion_args(ctx context.Contex
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
 		arg0, err = ec.unmarshalNnet_RegionInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetRegionInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_net_DelIf2IfLink_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NetDelIf2IfLinkInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNnet_DelIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetDelIf2IfLinkInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_net_DelInterface_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NetDelInterfaceInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNnet_DelInterfaceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetDelInterfaceInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -1629,6 +1721,48 @@ func (ec *executionContext) _Mutation_net_AddInterface(ctx context.Context, fiel
 	return ec.marshalNnet_InterfacePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetInterfacePayload(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Mutation_net_DelInterface(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_net_DelInterface_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().NetDelInterface(rctx, args["input"].(model.NetDelInterfaceInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.NetInterfacePayload)
+	fc.Result = res
+	return ec.marshalNnet_InterfacePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetInterfacePayload(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Mutation_net_AddAggregation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1738,7 +1872,7 @@ func (ec *executionContext) _Mutation_net_AddIf2IfLink(ctx context.Context, fiel
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().NetAddIf2IfLink(rctx, args["input"].(model.NetIf2IfLinkInput))
+		return ec.resolvers.Mutation().NetAddIf2IfLink(rctx, args["input"].(model.NetAddIf2IfLinkInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1750,9 +1884,51 @@ func (ec *executionContext) _Mutation_net_AddIf2IfLink(ctx context.Context, fiel
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.NetAddIf2IfLinkPayload)
+	res := resTmp.(*model.NetIf2IfLinkPayload)
 	fc.Result = res
-	return ec.marshalNnet_AddIf2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetAddIf2IfLinkPayload(ctx, field.Selections, res)
+	return ec.marshalNnet_If2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetIf2IfLinkPayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_net_DelIf2IfLink(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_net_DelIf2IfLink_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().NetDelIf2IfLink(rctx, args["input"].(model.NetDelIf2IfLinkInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.NetIf2IfLinkPayload)
+	fc.Result = res
+	return ec.marshalNnet_If2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetIf2IfLinkPayload(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_event_Add(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -3280,41 +3456,6 @@ func (ec *executionContext) _event_ClosePayload_ID(ctx context.Context, field gr
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _net_AddIf2IfLinkPayload_InterfaceLink(ctx context.Context, field graphql.CollectedField, obj *model.NetAddIf2IfLinkPayload) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "net_AddIf2IfLinkPayload",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.InterfaceLink, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.NetEdgePayload)
-	fc.Result = res
-	return ec.marshalNnet_EdgePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetEdgePayload(ctx, field.Selections, res)
-}
-
 func (ec *executionContext) _net_AggregationPayload_Aggregation(ctx context.Context, field graphql.CollectedField, obj *model.NetAggregationPayload) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -3523,6 +3664,41 @@ func (ec *executionContext) _net_EdgePayload_EdgeUpdated(ctx context.Context, fi
 	res := resTmp.(bool)
 	fc.Result = res
 	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _net_If2IfLinkPayload_InterfaceLink(ctx context.Context, field graphql.CollectedField, obj *model.NetIf2IfLinkPayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "net_If2IfLinkPayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.InterfaceLink, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.NetEdgePayload)
+	fc.Result = res
+	return ec.marshalNnet_EdgePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetEdgePayload(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _net_InterfacePayload_Interface(ctx context.Context, field graphql.CollectedField, obj *model.NetInterfacePayload) (ret graphql.Marshaler) {
@@ -4019,6 +4195,10 @@ func (ec *executionContext) unmarshalInputevent_CloseInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
+	if _, present := asMap["Propagate"]; !present {
+		asMap["Propagate"] = true
+	}
+
 	for k, v := range asMap {
 		switch k {
 		case "GremlinQuery":
@@ -4104,6 +4284,45 @@ func (ec *executionContext) unmarshalInputnet_AddAggregationInput(ctx context.Co
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Aggregation"))
 			it.Aggregation, err = ec.unmarshalNnet_InterfaceInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetInterfaceInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "CreatedAt":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("CreatedAt"))
+			it.CreatedAt, err = ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnet_AddIf2IfLinkInput(ctx context.Context, obj interface{}) (model.NetAddIf2IfLinkInput, error) {
+	var it model.NetAddIf2IfLinkInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "SrcInterface":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("SrcInterface"))
+			it.SrcInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "DstInterface":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("DstInterface"))
+			it.DstInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -4246,6 +4465,60 @@ func (ec *executionContext) unmarshalInputnet_BuildingInput(ctx context.Context,
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputnet_DelIf2IfLinkInput(ctx context.Context, obj interface{}) (model.NetDelIf2IfLinkInput, error) {
+	var it model.NetDelIf2IfLinkInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "SrcInterface":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("SrcInterface"))
+			it.SrcInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "DstInterface":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("DstInterface"))
+			it.DstInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnet_DelInterfaceInput(ctx context.Context, obj interface{}) (model.NetDelInterfaceInput, error) {
+	var it model.NetDelInterfaceInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "InterfaceSelector":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("InterfaceSelector"))
+			it.InterfaceSelector, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputnet_DeviceInput(ctx context.Context, obj interface{}) (model.NetDeviceInput, error) {
 	var it model.NetDeviceInput
 	asMap := map[string]interface{}{}
@@ -4331,45 +4604,6 @@ func (ec *executionContext) unmarshalInputnet_EthernetInput(ctx context.Context,
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("VLAN"))
 			it.Vlan, err = ec.unmarshalOnet_VLANInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetVLANInput(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputnet_If2IfLinkInput(ctx context.Context, obj interface{}) (model.NetIf2IfLinkInput, error) {
-	var it model.NetIf2IfLinkInput
-	asMap := map[string]interface{}{}
-	for k, v := range obj.(map[string]interface{}) {
-		asMap[k] = v
-	}
-
-	for k, v := range asMap {
-		switch k {
-		case "SrcInterface":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("SrcInterface"))
-			it.SrcInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		case "DstInterface":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("DstInterface"))
-			it.DstInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		case "CreatedAt":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("CreatedAt"))
-			it.CreatedAt, err = ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -4769,6 +5003,11 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "net_DelInterface":
+			out.Values[i] = ec._Mutation_net_DelInterface(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "net_AddAggregation":
 			out.Values[i] = ec._Mutation_net_AddAggregation(ctx, field)
 			if out.Values[i] == graphql.Null {
@@ -4781,6 +5020,11 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			}
 		case "net_AddIf2IfLink":
 			out.Values[i] = ec._Mutation_net_AddIf2IfLink(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "net_DelIf2IfLink":
+			out.Values[i] = ec._Mutation_net_DelIf2IfLink(ctx, field)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5191,33 +5435,6 @@ func (ec *executionContext) _event_ClosePayload(ctx context.Context, sel ast.Sel
 	return out
 }
 
-var net_AddIf2IfLinkPayloadImplementors = []string{"net_AddIf2IfLinkPayload"}
-
-func (ec *executionContext) _net_AddIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetAddIf2IfLinkPayload) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, net_AddIf2IfLinkPayloadImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	var invalids uint32
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("net_AddIf2IfLinkPayload")
-		case "InterfaceLink":
-			out.Values[i] = ec._net_AddIf2IfLinkPayload_InterfaceLink(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalids > 0 {
-		return graphql.Null
-	}
-	return out
-}
-
 var net_AggregationPayloadImplementors = []string{"net_AggregationPayload"}
 
 func (ec *executionContext) _net_AggregationPayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetAggregationPayload) graphql.Marshaler {
@@ -5322,6 +5539,33 @@ func (ec *executionContext) _net_EdgePayload(ctx context.Context, sel ast.Select
 			}
 		case "EdgeUpdated":
 			out.Values[i] = ec._net_EdgePayload_EdgeUpdated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var net_If2IfLinkPayloadImplementors = []string{"net_If2IfLinkPayload"}
+
+func (ec *executionContext) _net_If2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetIf2IfLinkPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, net_If2IfLinkPayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("net_If2IfLinkPayload")
+		case "InterfaceLink":
+			out.Values[i] = ec._net_If2IfLinkPayload_InterfaceLink(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5997,18 +6241,9 @@ func (ec *executionContext) unmarshalNnet_AddAggregationInput2githubᚗcomᚋsky
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNnet_AddIf2IfLinkPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetAddIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v model.NetAddIf2IfLinkPayload) graphql.Marshaler {
-	return ec._net_AddIf2IfLinkPayload(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNnet_AddIf2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetAddIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v *model.NetAddIf2IfLinkPayload) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	return ec._net_AddIf2IfLinkPayload(ctx, sel, v)
+func (ec *executionContext) unmarshalNnet_AddIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetAddIf2IfLinkInput(ctx context.Context, v interface{}) (model.NetAddIf2IfLinkInput, error) {
+	res, err := ec.unmarshalInputnet_AddIf2IfLinkInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNnet_AddInterfaceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetAddInterfaceInput(ctx context.Context, v interface{}) (model.NetAddInterfaceInput, error) {
@@ -6054,6 +6289,16 @@ func (ec *executionContext) marshalNnet_BuildingPayload2ᚖgithubᚗcomᚋskydiv
 	return ec._net_BuildingPayload(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNnet_DelIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetDelIf2IfLinkInput(ctx context.Context, v interface{}) (model.NetDelIf2IfLinkInput, error) {
+	res, err := ec.unmarshalInputnet_DelIf2IfLinkInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNnet_DelInterfaceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetDelInterfaceInput(ctx context.Context, v interface{}) (model.NetDelInterfaceInput, error) {
+	res, err := ec.unmarshalInputnet_DelInterfaceInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNnet_DeviceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetDeviceInput(ctx context.Context, v interface{}) (model.NetDeviceInput, error) {
 	res, err := ec.unmarshalInputnet_DeviceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -6083,9 +6328,18 @@ func (ec *executionContext) marshalNnet_EdgePayload2ᚖgithubᚗcomᚋskydiveᚑ
 	return ec._net_EdgePayload(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNnet_If2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetIf2IfLinkInput(ctx context.Context, v interface{}) (model.NetIf2IfLinkInput, error) {
-	res, err := ec.unmarshalInputnet_If2IfLinkInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
+func (ec *executionContext) marshalNnet_If2IfLinkPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v model.NetIf2IfLinkPayload) graphql.Marshaler {
+	return ec._net_If2IfLinkPayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNnet_If2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v *model.NetIf2IfLinkPayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._net_If2IfLinkPayload(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNnet_InterfaceInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetInterfaceInput(ctx context.Context, v interface{}) (*model.NetInterfaceInput, error) {

@@ -173,6 +173,30 @@ func (r *mutationResolver) NetAddInterface(ctx context.Context, input model.NetA
 	return &payload, nil
 }
 
+func (r *mutationResolver) NetDelInterface(ctx context.Context, input model.NetDelInterfaceInput) (*model.NetInterfacePayload, error) {
+	r.Graph.Lock()
+	defer r.Graph.Unlock()
+
+	// Get device node where the interface should be added
+	iface, err := r.netGetNodeFromSelector(input.InterfaceSelector)
+	if err != nil {
+		return nil, fmt.Errorf("del interface selector: %v", err)
+	}
+
+	err = r.Graph.DelNode(iface)
+	if err != nil {
+		return nil, fmt.Errorf("del interface: %w", err)
+	}
+
+	payload := model.NetInterfacePayload{
+		Interface: &model.NetNodePayload{
+			ID: string(iface.ID),
+		},
+	}
+
+	return &payload, nil
+}
+
 func (r *mutationResolver) NetAddAggregation(ctx context.Context, input model.NetAddAggregationInput) (*model.NetAggregationPayload, error) {
 	r.Graph.Lock()
 	defer r.Graph.Unlock()
@@ -233,7 +257,7 @@ func (r *mutationResolver) NetAddLogicalInterface(ctx context.Context, input mod
 	return &payload, nil
 }
 
-func (r *mutationResolver) NetAddIf2IfLink(ctx context.Context, input model.NetIf2IfLinkInput) (*model.NetAddIf2IfLinkPayload, error) {
+func (r *mutationResolver) NetAddIf2IfLink(ctx context.Context, input model.NetAddIf2IfLinkInput) (*model.NetIf2IfLinkPayload, error) {
 	r.Graph.Lock()
 	defer r.Graph.Unlock()
 
@@ -298,7 +322,7 @@ func (r *mutationResolver) NetAddIf2IfLink(ctx context.Context, input model.NetI
 		}
 	}
 
-	payload := model.NetAddIf2IfLinkPayload{
+	payload := model.NetIf2IfLinkPayload{
 		InterfaceLink: &model.NetEdgePayload{
 			ID:          string(edge.ID),
 			EdgeCreated: created,
@@ -306,6 +330,40 @@ func (r *mutationResolver) NetAddIf2IfLink(ctx context.Context, input model.NetI
 		},
 	}
 	return &payload, nil
+}
+
+func (r *mutationResolver) NetDelIf2IfLink(ctx context.Context, input model.NetDelIf2IfLinkInput) (*model.NetIf2IfLinkPayload, error) {
+	r.Graph.Lock()
+	defer r.Graph.Unlock()
+
+	srcIface, err := r.netGetNodeFromSelector(input.SrcInterface)
+	if err != nil {
+		return nil, fmt.Errorf("del link between interfaces, source selector: %v", err)
+	}
+	dstIface, err := r.netGetNodeFromSelector(input.DstInterface)
+	if err != nil {
+		return nil, fmt.Errorf("del link between interfaces, destination selector: %v", err)
+	}
+
+	lldpEdge := r.Graph.GetFirstLink(srcIface, dstIface, graph.Metadata{
+		MetaKeyRelationType: RelationConnect,
+	})
+
+	if lldpEdge == nil {
+		return nil, fmt.Errorf("edge not found")
+	}
+
+	// Delete the edge
+	err = r.Graph.DelEdge(lldpEdge)
+	if err != nil {
+		return nil, fmt.Errorf("unable to delete edge (%+v): %w", lldpEdge, err)
+	}
+
+	return &model.NetIf2IfLinkPayload{
+		InterfaceLink: &model.NetEdgePayload{
+			ID: string(lldpEdge.ID),
+		},
+	}, nil
 }
 
 func (r *mutationResolver) EventAdd(ctx context.Context, input model.EventAddInput) (*model.EventAddPayload, error) {

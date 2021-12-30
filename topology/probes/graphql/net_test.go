@@ -2,7 +2,6 @@ package graphql
 
 import (
 	"context"
-	"reflect"
 	"testing"
 	"time"
 
@@ -931,25 +930,6 @@ func TestNetGetNodeFromSelectorInitialChecks(t *testing.T) {
 	assert.EqualError(t, err, "invalid graph output, expecting nodes")
 }
 
-// compareEdges check if the number of items in expectedEdges and edges is the same.
-// Also checks if the items in expectedEdges are in the edges, only checking the parent, child and metadata
-func compareEdges(t *testing.T, expectedEdges []edgeTester, edges []*graph.Edge) {
-	assert.Equal(t, len(expectedEdges), len(edges))
-
-	for _, expectedEdge := range expectedEdges {
-		found := false
-		for _, edge := range edges {
-			if edge.Parent == graph.Identifier(expectedEdge.parent) &&
-				edge.Child == graph.Identifier(expectedEdge.child) &&
-				reflect.DeepEqual(edge.Metadata, expectedEdge.metadata) {
-				found = true
-				break
-			}
-		}
-		assert.True(t, found, "edge %s not found", expectedEdge)
-	}
-}
-
 func TestPseudoWireHasherOnePW(t *testing.T) {
 	node := createNode("Dev2-Iface-eth0", graph.Metadata{
 		MetaKeyName: "Dev2-Iface-eth0",
@@ -1374,4 +1354,308 @@ func TestPseudoWireHigherIDTriggersFirst(t *testing.T) {
 	assert.Lenf(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 0, "after removing PW from iface")
 }
 
-// TODO test que muestre que nuevos PW crean también nuevos pw-edges entre los building-province-region
+// TestPseudoWireWithSameBuildingProvinceRegion comprobamos que no se duplican edges-pw al establecer PW dentro del
+// mismo building.
+func TestPseudoWireWithSameBuildingProvinceRegion(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Creamos las regiones, provincias y buildings
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionAProvinceA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionA",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:     "RegionAProvinceABuildingA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province: "RegionAProvinceA",
+	})
+	assert.NoError(t, err)
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	buildA := "RegionAProvinceABuildingA"
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+		Building: &buildA,
+	})
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: "1", Neighbor: "2.2.2.2"},
+			},
+		},
+	})
+
+	// Device 2
+	buildB := "RegionAProvinceABuildingA"
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+		Building: &buildB,
+	})
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eno0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: "1", Neighbor: "1.1.1.1"},
+			},
+		},
+	})
+
+	// Tiene que haber un solo edge-pw, entre las interfaces
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 1)
+}
+
+// TestPseudoWireDeletePrevious comprobamos que los PWs anteriormente definidos se borran al volver a declarar una interfaz
+func TestPseudoWireDeletePrevious(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+	})
+	assert.NoError(t, err)
+
+	payload, err := probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: "1", Neighbor: "1.1.1.1"},
+				{ID: "2", Neighbor: "2.2.2.2"},
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	ifaceNode := probe.graph.GetNode(graph.Identifier(payload.Interface.ID))
+	netinfoRaw, err := ifaceNode.GetField(MetadataKeyNetworkInfo)
+	assert.NoError(t, err)
+
+	netinfo := netinfoRaw.(*NetworkInfo)
+	assert.Len(t, netinfo.PseudoWires, 2)
+
+	// Modificamos la interfaz, quitando uno de los PW y creando otro
+	payload, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: "2", Neighbor: "2.2.2.2"},
+				{ID: "99", Neighbor: "9.9.9.9"},
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	ifaceNode = probe.graph.GetNode(graph.Identifier(payload.Interface.ID))
+	netinfoRaw, err = ifaceNode.GetField(MetadataKeyNetworkInfo)
+	assert.NoError(t, err)
+
+	netinfo = netinfoRaw.(*NetworkInfo)
+
+	expectedPWs := []PseudoWireInfo{
+		{ID: "2", Neighbor: "2.2.2.2"},
+		{ID: "99", Neighbor: "9.9.9.9"},
+	}
+	assert.Equal(t, expectedPWs, netinfo.PseudoWires)
+}
+
+// TestDeleteInterface comprueba que la mutation de borrado de interfaces funciona correctamente
+func TestDeleteInterface(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+	})
+	assert.NoError(t, err)
+
+	payload, err := probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: "1", Neighbor: "1.1.1.1"},
+				{ID: "2", Neighbor: "2.2.2.2"},
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	// Borramos la interfaz
+	payload, err = probe.resolver.Mutation().NetDelInterface(context.Background(), model.NetDelInterfaceInput{
+		InterfaceSelector: &model.NetSelector{
+			ID: &payload.Interface.ID,
+		},
+	})
+
+	// Comprobamos que solo tenemos el nodo del device en el grafo
+	assert.Len(t, probe.graph.GetNodes(nil), 1)
+}
+
+// TestDeleteInterfaceLinkedWithPWEdge comprueba que se puede borrar correctamente una interfaz que está linkada con un edge-pw.
+// Esta comprobación mezcla el borrado de interfaces con la gestión de borrado de PWs parents, para comprobar que no existe
+// problemas de bloqueos.
+func TestDeleteInterfaceLinkedWithPWEdge(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+	})
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: "1", Neighbor: "2.2.2.2"},
+			},
+		},
+	})
+
+	// Device 2
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+	})
+
+	payload, err := probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eno0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: "1", Neighbor: "1.1.1.1"},
+			},
+		},
+	})
+
+	// Tiene que haber un solo edge-pw, entre las interfaces
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 1)
+
+	// Borramos la interfaz
+	_, err = probe.resolver.Mutation().NetDelInterface(context.Background(), model.NetDelInterfaceInput{
+		InterfaceSelector: &model.NetSelector{
+			ID: &payload.Interface.ID,
+		},
+	})
+
+	// Comprobamos que solo tenemos tres nodos (dev1+iface y dev2)
+	assert.Len(t, probe.graph.GetNodes(nil), 3)
+
+	// El edge-pw tiene que haber sido borrado
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 0)
+}
+
+// TestDeleteLLDPLink comprueba que el borrado de edges LLDP funciona correctamente
+func TestDeleteLLDPLink(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface:      &model.NetInterfaceInput{Name: "eth0"},
+	})
+	assert.NoError(t, err)
+
+	// Device 2
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface:      &model.NetInterfaceInput{Name: "eno0"},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddIf2IfLink(context.Background(), model.NetAddIf2IfLinkInput{
+		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
+		DstInterface: &model.NetSelector{ID: &dev2.Device.ID},
+	})
+	assert.NoError(t, err)
+
+	// Comprobamos que se ha creado un edge tipo LLDP (connect)
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationConnect}), 1)
+
+	// Llama a la mutation de borrado de edges LLDP
+	_, err = probe.resolver.Mutation().NetDelIf2IfLink(context.Background(), model.NetDelIf2IfLinkInput{
+		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
+		DstInterface: &model.NetSelector{ID: &dev2.Device.ID},
+	})
+
+	// Comprobamos que no quedan edges tipo LLDP (connect)
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationConnect}), 0)
+}

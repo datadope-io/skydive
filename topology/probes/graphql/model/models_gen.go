@@ -81,10 +81,15 @@ type NetAddAggregationInput struct {
 	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
-// Return value when creating a new link between interfaces.
-type NetAddIf2IfLinkPayload struct {
-	// Internal ID for the edge in Skydive.
-	InterfaceLink *NetEdgePayload `json:"InterfaceLink"`
+// Values to create a LLDP link between nodes.
+type NetAddIf2IfLinkInput struct {
+	// Source interface.
+	SrcInterface *NetSelector `json:"SrcInterface"`
+	// Destination interface.
+	DstInterface *NetSelector `json:"DstInterface"`
+	// Optional field to establish the creation time of the skydive elements. If
+	// not set, defaults to the current time.
+	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
 // Values to add a physical interface to a network device.
@@ -132,6 +137,20 @@ type NetBuildingInput struct {
 type NetBuildingPayload struct {
 	// Information about the building
 	Building *NetNodePayload `json:"Building"`
+}
+
+// Values to delete a LLDP link between nodes.
+type NetDelIf2IfLinkInput struct {
+	// Source interface.
+	SrcInterface *NetSelector `json:"SrcInterface"`
+	// Destination interface.
+	DstInterface *NetSelector `json:"DstInterface"`
+}
+
+// Values to delete an interface from a network device.
+type NetDelInterfaceInput struct {
+	// Select which interface to be deleted
+	InterfaceSelector *NetSelector `json:"InterfaceSelector"`
 }
 
 // Values to create a new network device.
@@ -183,15 +202,10 @@ type NetEthernetInput struct {
 	Vlan *NetVLANInput `json:"VLAN"`
 }
 
-// Values to create a new link between nodes.
-type NetIf2IfLinkInput struct {
-	// Source interface.
-	SrcInterface *NetSelector `json:"SrcInterface"`
-	// Destination interface.
-	DstInterface *NetSelector `json:"DstInterface"`
-	// Optional field to establish the creation time of the skydive elements. If
-	// not set, defaults to the current time.
-	CreatedAt *time.Time `json:"CreatedAt"`
+// Return value when creating or deleting a LLDP link between interfaces.
+type NetIf2IfLinkPayload struct {
+	// Internal ID for the edge in Skydive.
+	InterfaceLink *NetEdgePayload `json:"InterfaceLink"`
 }
 
 // Data defining a network interface

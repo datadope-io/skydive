@@ -145,6 +145,16 @@ input net_AddInterfaceInput {
 }
 
 """
+Values to delete an interface from a network device.
+"""
+input net_DelInterfaceInput {
+  """
+  Select which interface to be deleted
+  """
+  InterfaceSelector: net_Selector!
+}
+
+"""
 Return value when creating a new physical interface.
 """
 type net_InterfacePayload {
@@ -316,9 +326,9 @@ type net_LogicalInterfacePayload {
 
 
 """
-Values to create a new link between nodes.
+Values to create a LLDP link between nodes.
 """
-input net_If2IfLinkInput {
+input net_AddIf2IfLinkInput {
   """
   Source interface.
   """
@@ -336,11 +346,25 @@ input net_If2IfLinkInput {
   CreatedAt: Time
 }
 
+"""
+Values to delete a LLDP link between nodes.
+"""
+input net_DelIf2IfLinkInput {
+  """
+  Source interface.
+  """
+  SrcInterface: net_Selector!
+
+  """
+  Destination interface.
+  """
+  DstInterface: net_Selector!
+}
 
 """
-Return value when creating a new link between interfaces.
+Return value when creating or deleting a LLDP link between interfaces.
 """
-type net_AddIf2IfLinkPayload {
+type net_If2IfLinkPayload {
   """
   Internal ID for the edge in Skydive.
   """
