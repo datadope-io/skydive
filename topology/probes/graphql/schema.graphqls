@@ -1,5 +1,23 @@
 type Mutation {
   """
+  Create, or update, a region (Comunidad Autónoma).
+  If the node already exists, new values will override existing values.
+  """
+  net_AddRegion(input: net_RegionInput!): net_RegionPayload!
+
+  """
+  Create, or update, a province.
+  If the node already exists, new values will override existing values.
+  """
+  net_AddProvince(input: net_ProvinceInput!): net_ProvincePayload!
+
+  """
+  Create, or update, a building.
+  If the node already exists, new values will override existing values.
+  """
+  net_AddBuilding(input: net_BuildingInput!): net_BuildingPayload!
+
+  """
   Create, or update, a network element.
   If the node already exists, new values will override existing values.
   Not defining device type, model or vendor will delete that value.
@@ -13,6 +31,11 @@ type Mutation {
   A node is created to represent the interface and linked to the device node.
   """
   net_AddInterface(input: net_AddInterfaceInput!): net_InterfacePayload!
+
+  """
+  Delete an interface. It could be an interface of any type.
+  """
+  net_DelInterface(input: net_DelInterfaceInput!): net_InterfacePayload!
 
   """
   Create, or update, an aggregation interface owned by a device.
@@ -31,7 +54,12 @@ type Mutation {
   """
   Add an edge between two physical interfaces
   """
-  net_AddIf2IfLink(input: net_If2IfLinkInput!): net_AddIf2IfLinkPayload!
+  net_AddIf2IfLink(input: net_AddIf2IfLinkInput!): net_If2IfLinkPayload!
+
+  """
+  Delete an LLDP edge between two physical interfaces
+  """
+  net_DelIf2IfLink(input: net_DelIf2IfLinkInput!): net_If2IfLinkPayload!
 
   """
   Add event to node.

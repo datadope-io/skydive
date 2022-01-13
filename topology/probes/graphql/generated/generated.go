@@ -49,10 +49,15 @@ type ComplexityRoot struct {
 		EventAddMultiple       func(childComplexity int, input []*model.EventAddInput) int
 		EventClose             func(childComplexity int, input model.EventCloseInput) int
 		NetAddAggregation      func(childComplexity int, input model.NetAddAggregationInput) int
+		NetAddBuilding         func(childComplexity int, input model.NetBuildingInput) int
 		NetAddDevice           func(childComplexity int, input model.NetDeviceInput) int
-		NetAddIf2IfLink        func(childComplexity int, input model.NetIf2IfLinkInput) int
+		NetAddIf2IfLink        func(childComplexity int, input model.NetAddIf2IfLinkInput) int
 		NetAddInterface        func(childComplexity int, input model.NetAddInterfaceInput) int
 		NetAddLogicalInterface func(childComplexity int, input model.NetAddLogicalInterfaceInput) int
+		NetAddProvince         func(childComplexity int, input model.NetProvinceInput) int
+		NetAddRegion           func(childComplexity int, input model.NetRegionInput) int
+		NetDelIf2IfLink        func(childComplexity int, input model.NetDelIf2IfLinkInput) int
+		NetDelInterface        func(childComplexity int, input model.NetDelInterfaceInput) int
 	}
 
 	Query struct {
@@ -73,12 +78,12 @@ type ComplexityRoot struct {
 		ID func(childComplexity int) int
 	}
 
-	NetAddIf2IfLinkPayload struct {
-		InterfaceLink func(childComplexity int) int
-	}
-
 	NetAggregationPayload struct {
 		Aggregation func(childComplexity int) int
+	}
+
+	NetBuildingPayload struct {
+		Building func(childComplexity int) int
 	}
 
 	NetDevicePayload struct {
@@ -89,6 +94,10 @@ type ComplexityRoot struct {
 		EdgeCreated func(childComplexity int) int
 		EdgeUpdated func(childComplexity int) int
 		ID          func(childComplexity int) int
+	}
+
+	NetIf2IfLinkPayload struct {
+		InterfaceLinks func(childComplexity int) int
 	}
 
 	NetInterfacePayload struct {
@@ -105,14 +114,31 @@ type ComplexityRoot struct {
 		NodeCreated func(childComplexity int) int
 		NodeUpdated func(childComplexity int) int
 	}
+
+	NetProvincePayload struct {
+		ID          func(childComplexity int) int
+		NodeCreated func(childComplexity int) int
+		NodeUpdated func(childComplexity int) int
+	}
+
+	NetRegionPayload struct {
+		ID          func(childComplexity int) int
+		NodeCreated func(childComplexity int) int
+		NodeUpdated func(childComplexity int) int
+	}
 }
 
 type MutationResolver interface {
+	NetAddRegion(ctx context.Context, input model.NetRegionInput) (*model.NetRegionPayload, error)
+	NetAddProvince(ctx context.Context, input model.NetProvinceInput) (*model.NetProvincePayload, error)
+	NetAddBuilding(ctx context.Context, input model.NetBuildingInput) (*model.NetBuildingPayload, error)
 	NetAddDevice(ctx context.Context, input model.NetDeviceInput) (*model.NetDevicePayload, error)
 	NetAddInterface(ctx context.Context, input model.NetAddInterfaceInput) (*model.NetInterfacePayload, error)
+	NetDelInterface(ctx context.Context, input model.NetDelInterfaceInput) (*model.NetInterfacePayload, error)
 	NetAddAggregation(ctx context.Context, input model.NetAddAggregationInput) (*model.NetAggregationPayload, error)
 	NetAddLogicalInterface(ctx context.Context, input model.NetAddLogicalInterfaceInput) (*model.NetLogicalInterfacePayload, error)
-	NetAddIf2IfLink(ctx context.Context, input model.NetIf2IfLinkInput) (*model.NetAddIf2IfLinkPayload, error)
+	NetAddIf2IfLink(ctx context.Context, input model.NetAddIf2IfLinkInput) (*model.NetIf2IfLinkPayload, error)
+	NetDelIf2IfLink(ctx context.Context, input model.NetDelIf2IfLinkInput) (*model.NetIf2IfLinkPayload, error)
 	EventAdd(ctx context.Context, input model.EventAddInput) (*model.EventAddPayload, error)
 	EventAddMultiple(ctx context.Context, input []*model.EventAddInput) (*model.EventAddMultiplePayload, error)
 	EventClose(ctx context.Context, input model.EventCloseInput) (*model.EventClosePayload, error)
@@ -184,6 +210,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.NetAddAggregation(childComplexity, args["input"].(model.NetAddAggregationInput)), true
 
+	case "Mutation.net_AddBuilding":
+		if e.complexity.Mutation.NetAddBuilding == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_net_AddBuilding_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.NetAddBuilding(childComplexity, args["input"].(model.NetBuildingInput)), true
+
 	case "Mutation.net_AddDevice":
 		if e.complexity.Mutation.NetAddDevice == nil {
 			break
@@ -206,7 +244,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.NetAddIf2IfLink(childComplexity, args["input"].(model.NetIf2IfLinkInput)), true
+		return e.complexity.Mutation.NetAddIf2IfLink(childComplexity, args["input"].(model.NetAddIf2IfLinkInput)), true
 
 	case "Mutation.net_AddInterface":
 		if e.complexity.Mutation.NetAddInterface == nil {
@@ -231,6 +269,54 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.NetAddLogicalInterface(childComplexity, args["input"].(model.NetAddLogicalInterfaceInput)), true
+
+	case "Mutation.net_AddProvince":
+		if e.complexity.Mutation.NetAddProvince == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_net_AddProvince_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.NetAddProvince(childComplexity, args["input"].(model.NetProvinceInput)), true
+
+	case "Mutation.net_AddRegion":
+		if e.complexity.Mutation.NetAddRegion == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_net_AddRegion_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.NetAddRegion(childComplexity, args["input"].(model.NetRegionInput)), true
+
+	case "Mutation.net_DelIf2IfLink":
+		if e.complexity.Mutation.NetDelIf2IfLink == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_net_DelIf2IfLink_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.NetDelIf2IfLink(childComplexity, args["input"].(model.NetDelIf2IfLinkInput)), true
+
+	case "Mutation.net_DelInterface":
+		if e.complexity.Mutation.NetDelInterface == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_net_DelInterface_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.NetDelInterface(childComplexity, args["input"].(model.NetDelInterfaceInput)), true
 
 	case "Query.version":
 		if e.complexity.Query.Version == nil {
@@ -274,19 +360,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.EventClosePayload.ID(childComplexity), true
 
-	case "net_AddIf2IfLinkPayload.InterfaceLink":
-		if e.complexity.NetAddIf2IfLinkPayload.InterfaceLink == nil {
-			break
-		}
-
-		return e.complexity.NetAddIf2IfLinkPayload.InterfaceLink(childComplexity), true
-
 	case "net_AggregationPayload.Aggregation":
 		if e.complexity.NetAggregationPayload.Aggregation == nil {
 			break
 		}
 
 		return e.complexity.NetAggregationPayload.Aggregation(childComplexity), true
+
+	case "net_BuildingPayload.Building":
+		if e.complexity.NetBuildingPayload.Building == nil {
+			break
+		}
+
+		return e.complexity.NetBuildingPayload.Building(childComplexity), true
 
 	case "net_DevicePayload.Device":
 		if e.complexity.NetDevicePayload.Device == nil {
@@ -315,6 +401,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.NetEdgePayload.ID(childComplexity), true
+
+	case "net_If2IfLinkPayload.InterfaceLinks":
+		if e.complexity.NetIf2IfLinkPayload.InterfaceLinks == nil {
+			break
+		}
+
+		return e.complexity.NetIf2IfLinkPayload.InterfaceLinks(childComplexity), true
 
 	case "net_InterfacePayload.Aggregation":
 		if e.complexity.NetInterfacePayload.Aggregation == nil {
@@ -357,6 +450,48 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.NetNodePayload.NodeUpdated(childComplexity), true
+
+	case "net_ProvincePayload.ID":
+		if e.complexity.NetProvincePayload.ID == nil {
+			break
+		}
+
+		return e.complexity.NetProvincePayload.ID(childComplexity), true
+
+	case "net_ProvincePayload.NodeCreated":
+		if e.complexity.NetProvincePayload.NodeCreated == nil {
+			break
+		}
+
+		return e.complexity.NetProvincePayload.NodeCreated(childComplexity), true
+
+	case "net_ProvincePayload.NodeUpdated":
+		if e.complexity.NetProvincePayload.NodeUpdated == nil {
+			break
+		}
+
+		return e.complexity.NetProvincePayload.NodeUpdated(childComplexity), true
+
+	case "net_RegionPayload.ID":
+		if e.complexity.NetRegionPayload.ID == nil {
+			break
+		}
+
+		return e.complexity.NetRegionPayload.ID(childComplexity), true
+
+	case "net_RegionPayload.NodeCreated":
+		if e.complexity.NetRegionPayload.NodeCreated == nil {
+			break
+		}
+
+		return e.complexity.NetRegionPayload.NodeCreated(childComplexity), true
+
+	case "net_RegionPayload.NodeUpdated":
+		if e.complexity.NetRegionPayload.NodeUpdated == nil {
+			break
+		}
+
+		return e.complexity.NetRegionPayload.NodeUpdated(childComplexity), true
 
 	}
 	return 0, false
@@ -454,6 +589,16 @@ input event_AddInput {
   Closing time will not be exact, it will depend on the garbage collector interval execution.
   """
   TTL: Int
+
+  """
+  If true, this event will be included in all the parent nodes (ownership edges only).
+  To differentiate between node own events and propagated events,
+  a new "ChildChain" field will be added to the event.
+  This new field is an array with the path from the parent to the node where the event was added.
+  Eg.: Metadata.ChildChain = ["Barcelona", "BX1234", "BX1234-LACX01", "Gi0/0"]
+  It will be also added a field "ChildID" to the event, with the ID of the node.
+  """
+  Propagate: Boolean = false
 }
 
 """
@@ -480,6 +625,11 @@ input event_CloseInput {
   Identifier of each particular alarm.
   """
   ID: String!
+
+  """
+  If true, delete the event in this node and all the parent nodes.
+  """
+  Propagate: Boolean = true
 }
 
 """
@@ -581,6 +731,16 @@ Values to create a new network device.
 """
 input net_DeviceInput {
   """
+  Identifier used by routers.
+  The value should be taken from this fields in the configurations files:
+    Huawei: router id
+    Cisco: router-id
+    Juniper: routing-options.router-id
+    Nokia: configure.router Base.interface "system".address
+  """
+  DeviceID: String
+
+  """
   Device name. Used as the primary key.
   """
   Name: String!
@@ -607,6 +767,11 @@ input net_DeviceInput {
   produce an error.
   """
   CreatedAt: Time
+
+  """
+  Ubicación del dispositivo. Código del edificio.
+  """
+  Building: String
 }
 
 """
@@ -649,6 +814,16 @@ input net_AddInterfaceInput {
   not set, defaults to the current time.
   """
   CreatedAt: Time
+}
+
+"""
+Values to delete an interface from a network device.
+"""
+input net_DelInterfaceInput {
+  """
+  Select which interface to be deleted
+  """
+  InterfaceSelector: net_Selector!
 }
 
 """
@@ -704,6 +879,10 @@ input net_InterfaceInput {
   """
   Name: String!
   """
+  Interface description
+  """
+  Description: [net_KeyValue!]
+  """
   Ethernet data of the interface
   """
   Ethernet: net_EthernetInput
@@ -711,9 +890,43 @@ input net_InterfaceInput {
   IP addresses of the interface, IPv4 or IPv6
   IP data of the interface.
   IPv4 format: 192.0.2.0/24
-  IPv6 format: 2001:db8::/32
+  IPv6 format: 2002:db8::/32
   """
   IP: [String!]
+  """
+  Pseudowire of the interface.
+  """
+  PseudoWires: [net_PseudowireInput!]
+}
+
+"""
+Pseudowire data of a network interface.
+There are two types of pseudowires:
+    - normal: should define ID and Neighbor
+    - EVPN-VPWS: should define LocalVPWS and RemoteVPWS
+"""
+input net_PseudowireInput {
+  """
+  ID of the pseudowire
+  """
+  ID: String
+  """
+  IP of the neighbor connected to this pseudowire
+  """
+  Neighbor: String
+  """
+  Local VPWS ID for EVPN-VPWS pseudowires
+  """
+  LocalVPWS: String
+  """
+  Remote VPWS ID for EVPN-VPWS pseudowires
+  """
+  RemoteVPWS: String
+  """
+  For Huawei PW, set to "secondary" if this is the secondary pseudowire
+  For Nokia, set to "primary" if this is the primary pseudowire.
+  """
+  Status: String
 }
 
 """
@@ -745,6 +958,16 @@ VLAN data for interfaces configured in access mode
 """
 input net_VLANAccessInput {
   """
+  VLAN id
+  """
+  VID: Int!
+}
+
+"""
+VLAN data for interfaces configured in trunk mode
+"""
+input net_VLANTrunkInput {
+  """
   List of VLAN IDs to be accepted by the trunk port
   """
   AcceptedVIDs: [Int!]!
@@ -753,16 +976,6 @@ input net_VLANAccessInput {
   VLAN ID used for untagged packets
   """
   NativeVLANVID: Int
-}
-
-"""
-VLAN data for interfaces configured in trunk mode
-"""
-input net_VLANTrunkInput {
-  """
-  VLAN id
-  """
-  VID: Int!
 }
 
 """
@@ -796,9 +1009,9 @@ type net_LogicalInterfacePayload {
 
 
 """
-Values to create a new link between nodes.
+Values to create a LLDP link between nodes.
 """
-input net_If2IfLinkInput {
+input net_AddIf2IfLinkInput {
   """
   Source interface.
   """
@@ -816,18 +1029,176 @@ input net_If2IfLinkInput {
   CreatedAt: Time
 }
 
+"""
+Values to delete a LLDP link between nodes.
+"""
+input net_DelIf2IfLinkInput {
+  """
+  Source interface.
+  """
+  SrcInterface: net_Selector!
+
+  """
+  Destination interface.
+  """
+  DstInterface: net_Selector!
+}
 
 """
-Return value when creating a new link between interfaces.
+Return value when creating or deleting a LLDP link between interfaces.
 """
-type net_AddIf2IfLinkPayload {
+type net_If2IfLinkPayload {
   """
   Internal ID for the edge in Skydive.
   """
-  InterfaceLink: net_EdgePayload!
+  InterfaceLinks: [net_EdgePayload!]!
 }
+
+"""
+Values to define a location in a map
+"""
+input net_LocationInput {
+  """
+  Latitude in decimal degrees.
+  """
+  Lat: Float!
+  """
+  Longitude in decimal degrees.
+  """
+  Lng: Float!
+}
+
+"""
+Values to create a new region (comunidad autónoma)
+"""
+input net_RegionInput {
+  """
+  Name of the region
+  """
+  Name: String!
+  """
+  Reference location for the region
+  """
+  Location: net_LocationInput!
+}
+
+"""
+Return value when creating a new region.
+"""
+type net_RegionPayload {
+  """
+  SKydive ID of the node created
+  """
+  ID: String!
+
+  """
+  Return true if a new node has been created
+  """
+  NodeCreated: Boolean!
+
+  """
+  Return true if a node with this name already exists and metadata values
+  have been updated.
+  """
+  NodeUpdated: Boolean!
+}
+
+"""
+Values to create a new province, linked to a region (that should already exist)
+"""
+input net_ProvinceInput {
+  """
+  Name of the region for this province
+  """
+  Region: String!
+  """
+  Name of the province
+  """
+  Name: String!
+  """
+  Reference location for the province
+  """
+  Location: net_LocationInput!
+}
+
+"""
+Return value when creating a new province.
+"""
+type net_ProvincePayload {
+  """
+  SKydive ID of the node created
+  """
+  ID: String!
+
+  """
+  Return true if a new node has been created
+  """
+  NodeCreated: Boolean!
+
+  """
+  Return true if a node with this name already exists and metadata values
+  have been updated.
+  """
+  NodeUpdated: Boolean!
+}
+
+
+"""
+Values to create a new building, linked to a province (that should already exist)
+"""
+input net_BuildingInput {
+  """
+  Name of the province for this building
+  """
+  Province: String!
+  """
+  Name of the building
+  """
+  Name: String!
+  """
+  Location for the building
+  """
+  Location: net_LocationInput!
+}
+
+"""
+Return value when creating a new building.
+"""
+type net_BuildingPayload {
+  """
+  Information about the building
+  """
+  Building: net_NodePayload!
+}
+
+"""
+Simple input to add any extra data in a key-value fashion
+"""
+input net_KeyValue {
+  Key: String!
+  Value: String!
+}
+
 `, BuiltIn: false},
 	{Name: "schema.graphqls", Input: `type Mutation {
+  """
+  Create, or update, a region (Comunidad Autónoma).
+  If the node already exists, new values will override existing values.
+  """
+  net_AddRegion(input: net_RegionInput!): net_RegionPayload!
+
+  """
+  Create, or update, a province.
+  If the node already exists, new values will override existing values.
+  """
+  net_AddProvince(input: net_ProvinceInput!): net_ProvincePayload!
+
+  """
+  Create, or update, a building.
+  If the node already exists, new values will override existing values.
+  """
+  net_AddBuilding(input: net_BuildingInput!): net_BuildingPayload!
+
   """
   Create, or update, a network element.
   If the node already exists, new values will override existing values.
@@ -842,6 +1213,11 @@ type net_AddIf2IfLinkPayload {
   A node is created to represent the interface and linked to the device node.
   """
   net_AddInterface(input: net_AddInterfaceInput!): net_InterfacePayload!
+
+  """
+  Delete an interface. It could be an interface of any type.
+  """
+  net_DelInterface(input: net_DelInterfaceInput!): net_InterfacePayload!
 
   """
   Create, or update, an aggregation interface owned by a device.
@@ -860,7 +1236,12 @@ type net_AddIf2IfLinkPayload {
   """
   Add an edge between two physical interfaces
   """
-  net_AddIf2IfLink(input: net_If2IfLinkInput!): net_AddIf2IfLinkPayload!
+  net_AddIf2IfLink(input: net_AddIf2IfLinkInput!): net_If2IfLinkPayload!
+
+  """
+  Delete an LLDP edge between two physical interfaces
+  """
+  net_DelIf2IfLink(input: net_DelIf2IfLinkInput!): net_If2IfLinkPayload!
 
   """
   Add event to node.
@@ -953,6 +1334,21 @@ func (ec *executionContext) field_Mutation_net_AddAggregation_args(ctx context.C
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_net_AddBuilding_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NetBuildingInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNnet_BuildingInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetBuildingInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_net_AddDevice_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -971,10 +1367,10 @@ func (ec *executionContext) field_Mutation_net_AddDevice_args(ctx context.Contex
 func (ec *executionContext) field_Mutation_net_AddIf2IfLink_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 model.NetIf2IfLinkInput
+	var arg0 model.NetAddIf2IfLinkInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalNnet_If2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetIf2IfLinkInput(ctx, tmp)
+		arg0, err = ec.unmarshalNnet_AddIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetAddIf2IfLinkInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -1005,6 +1401,66 @@ func (ec *executionContext) field_Mutation_net_AddLogicalInterface_args(ctx cont
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
 		arg0, err = ec.unmarshalNnet_AddLogicalInterfaceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetAddLogicalInterfaceInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_net_AddProvince_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NetProvinceInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNnet_ProvinceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetProvinceInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_net_AddRegion_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NetRegionInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNnet_RegionInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetRegionInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_net_DelIf2IfLink_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NetDelIf2IfLinkInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNnet_DelIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetDelIf2IfLinkInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_net_DelInterface_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.NetDelInterfaceInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNnet_DelInterfaceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetDelInterfaceInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -1065,6 +1521,132 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _Mutation_net_AddRegion(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_net_AddRegion_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().NetAddRegion(rctx, args["input"].(model.NetRegionInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.NetRegionPayload)
+	fc.Result = res
+	return ec.marshalNnet_RegionPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetRegionPayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_net_AddProvince(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_net_AddProvince_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().NetAddProvince(rctx, args["input"].(model.NetProvinceInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.NetProvincePayload)
+	fc.Result = res
+	return ec.marshalNnet_ProvincePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetProvincePayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_net_AddBuilding(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_net_AddBuilding_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().NetAddBuilding(rctx, args["input"].(model.NetBuildingInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.NetBuildingPayload)
+	fc.Result = res
+	return ec.marshalNnet_BuildingPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetBuildingPayload(ctx, field.Selections, res)
+}
 
 func (ec *executionContext) _Mutation_net_AddDevice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
@@ -1134,6 +1716,48 @@ func (ec *executionContext) _Mutation_net_AddInterface(ctx context.Context, fiel
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Mutation().NetAddInterface(rctx, args["input"].(model.NetAddInterfaceInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.NetInterfacePayload)
+	fc.Result = res
+	return ec.marshalNnet_InterfacePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetInterfacePayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_net_DelInterface(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_net_DelInterface_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().NetDelInterface(rctx, args["input"].(model.NetDelInterfaceInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1259,7 +1883,7 @@ func (ec *executionContext) _Mutation_net_AddIf2IfLink(ctx context.Context, fiel
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().NetAddIf2IfLink(rctx, args["input"].(model.NetIf2IfLinkInput))
+		return ec.resolvers.Mutation().NetAddIf2IfLink(rctx, args["input"].(model.NetAddIf2IfLinkInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1271,9 +1895,51 @@ func (ec *executionContext) _Mutation_net_AddIf2IfLink(ctx context.Context, fiel
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.NetAddIf2IfLinkPayload)
+	res := resTmp.(*model.NetIf2IfLinkPayload)
 	fc.Result = res
-	return ec.marshalNnet_AddIf2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetAddIf2IfLinkPayload(ctx, field.Selections, res)
+	return ec.marshalNnet_If2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetIf2IfLinkPayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_net_DelIf2IfLink(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_net_DelIf2IfLink_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().NetDelIf2IfLink(rctx, args["input"].(model.NetDelIf2IfLinkInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.NetIf2IfLinkPayload)
+	fc.Result = res
+	return ec.marshalNnet_If2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetIf2IfLinkPayload(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_event_Add(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1643,6 +2309,41 @@ func (ec *executionContext) ___Directive_args(ctx context.Context, field graphql
 	res := resTmp.([]introspection.InputValue)
 	fc.Result = res
 	return ec.marshalN__InputValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValueᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) ___Directive_isRepeatable(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "__Directive",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IsRepeatable, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___EnumValue_name(ctx context.Context, field graphql.CollectedField, obj *introspection.EnumValue) (ret graphql.Marshaler) {
@@ -2766,41 +3467,6 @@ func (ec *executionContext) _event_ClosePayload_ID(ctx context.Context, field gr
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _net_AddIf2IfLinkPayload_InterfaceLink(ctx context.Context, field graphql.CollectedField, obj *model.NetAddIf2IfLinkPayload) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "net_AddIf2IfLinkPayload",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.InterfaceLink, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.NetEdgePayload)
-	fc.Result = res
-	return ec.marshalNnet_EdgePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetEdgePayload(ctx, field.Selections, res)
-}
-
 func (ec *executionContext) _net_AggregationPayload_Aggregation(ctx context.Context, field graphql.CollectedField, obj *model.NetAggregationPayload) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2820,6 +3486,41 @@ func (ec *executionContext) _net_AggregationPayload_Aggregation(ctx context.Cont
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Aggregation, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.NetNodePayload)
+	fc.Result = res
+	return ec.marshalNnet_NodePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetNodePayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _net_BuildingPayload_Building(ctx context.Context, field graphql.CollectedField, obj *model.NetBuildingPayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "net_BuildingPayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Building, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2974,6 +3675,41 @@ func (ec *executionContext) _net_EdgePayload_EdgeUpdated(ctx context.Context, fi
 	res := resTmp.(bool)
 	fc.Result = res
 	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _net_If2IfLinkPayload_InterfaceLinks(ctx context.Context, field graphql.CollectedField, obj *model.NetIf2IfLinkPayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "net_If2IfLinkPayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.InterfaceLinks, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.NetEdgePayload)
+	fc.Result = res
+	return ec.marshalNnet_EdgePayload2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetEdgePayloadᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _net_InterfacePayload_Interface(ctx context.Context, field graphql.CollectedField, obj *model.NetInterfacePayload) (ret graphql.Marshaler) {
@@ -3186,13 +3922,226 @@ func (ec *executionContext) _net_NodePayload_NodeUpdated(ctx context.Context, fi
 	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _net_ProvincePayload_ID(ctx context.Context, field graphql.CollectedField, obj *model.NetProvincePayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "net_ProvincePayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _net_ProvincePayload_NodeCreated(ctx context.Context, field graphql.CollectedField, obj *model.NetProvincePayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "net_ProvincePayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NodeCreated, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _net_ProvincePayload_NodeUpdated(ctx context.Context, field graphql.CollectedField, obj *model.NetProvincePayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "net_ProvincePayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NodeUpdated, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _net_RegionPayload_ID(ctx context.Context, field graphql.CollectedField, obj *model.NetRegionPayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "net_RegionPayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _net_RegionPayload_NodeCreated(ctx context.Context, field graphql.CollectedField, obj *model.NetRegionPayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "net_RegionPayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NodeCreated, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _net_RegionPayload_NodeUpdated(ctx context.Context, field graphql.CollectedField, obj *model.NetRegionPayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "net_RegionPayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NodeUpdated, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
 // endregion **************************** field.gotpl *****************************
 
 // region    **************************** input.gotpl *****************************
 
 func (ec *executionContext) unmarshalInputevent_AddInput(ctx context.Context, obj interface{}) (model.EventAddInput, error) {
 	var it model.EventAddInput
-	var asMap = obj.(map[string]interface{})
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
 
 	for k, v := range asMap {
 		switch k {
@@ -3236,6 +4185,14 @@ func (ec *executionContext) unmarshalInputevent_AddInput(ctx context.Context, ob
 			if err != nil {
 				return it, err
 			}
+		case "Propagate":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Propagate"))
+			it.Propagate, err = ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -3244,7 +4201,14 @@ func (ec *executionContext) unmarshalInputevent_AddInput(ctx context.Context, ob
 
 func (ec *executionContext) unmarshalInputevent_CloseInput(ctx context.Context, obj interface{}) (model.EventCloseInput, error) {
 	var it model.EventCloseInput
-	var asMap = obj.(map[string]interface{})
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["Propagate"]; !present {
+		asMap["Propagate"] = true
+	}
 
 	for k, v := range asMap {
 		switch k {
@@ -3264,6 +4228,14 @@ func (ec *executionContext) unmarshalInputevent_CloseInput(ctx context.Context, 
 			if err != nil {
 				return it, err
 			}
+		case "Propagate":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Propagate"))
+			it.Propagate, err = ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -3272,7 +4244,10 @@ func (ec *executionContext) unmarshalInputevent_CloseInput(ctx context.Context, 
 
 func (ec *executionContext) unmarshalInputevent_KeyValue(ctx context.Context, obj interface{}) (model.EventKeyValue, error) {
 	var it model.EventKeyValue
-	var asMap = obj.(map[string]interface{})
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
 
 	for k, v := range asMap {
 		switch k {
@@ -3300,7 +4275,10 @@ func (ec *executionContext) unmarshalInputevent_KeyValue(ctx context.Context, ob
 
 func (ec *executionContext) unmarshalInputnet_AddAggregationInput(ctx context.Context, obj interface{}) (model.NetAddAggregationInput, error) {
 	var it model.NetAddAggregationInput
-	var asMap = obj.(map[string]interface{})
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
 
 	for k, v := range asMap {
 		switch k {
@@ -3334,9 +4312,51 @@ func (ec *executionContext) unmarshalInputnet_AddAggregationInput(ctx context.Co
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputnet_AddIf2IfLinkInput(ctx context.Context, obj interface{}) (model.NetAddIf2IfLinkInput, error) {
+	var it model.NetAddIf2IfLinkInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "SrcInterface":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("SrcInterface"))
+			it.SrcInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "DstInterface":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("DstInterface"))
+			it.DstInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "CreatedAt":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("CreatedAt"))
+			it.CreatedAt, err = ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputnet_AddInterfaceInput(ctx context.Context, obj interface{}) (model.NetAddInterfaceInput, error) {
 	var it model.NetAddInterfaceInput
-	var asMap = obj.(map[string]interface{})
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
 
 	for k, v := range asMap {
 		switch k {
@@ -3380,7 +4400,10 @@ func (ec *executionContext) unmarshalInputnet_AddInterfaceInput(ctx context.Cont
 
 func (ec *executionContext) unmarshalInputnet_AddLogicalInterfaceInput(ctx context.Context, obj interface{}) (model.NetAddLogicalInterfaceInput, error) {
 	var it model.NetAddLogicalInterfaceInput
-	var asMap = obj.(map[string]interface{})
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
 
 	for k, v := range asMap {
 		switch k {
@@ -3414,12 +4437,116 @@ func (ec *executionContext) unmarshalInputnet_AddLogicalInterfaceInput(ctx conte
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputnet_DeviceInput(ctx context.Context, obj interface{}) (model.NetDeviceInput, error) {
-	var it model.NetDeviceInput
-	var asMap = obj.(map[string]interface{})
+func (ec *executionContext) unmarshalInputnet_BuildingInput(ctx context.Context, obj interface{}) (model.NetBuildingInput, error) {
+	var it model.NetBuildingInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
 
 	for k, v := range asMap {
 		switch k {
+		case "Province":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Province"))
+			it.Province, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Name":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Name"))
+			it.Name, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Location":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Location"))
+			it.Location, err = ec.unmarshalNnet_LocationInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetLocationInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnet_DelIf2IfLinkInput(ctx context.Context, obj interface{}) (model.NetDelIf2IfLinkInput, error) {
+	var it model.NetDelIf2IfLinkInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "SrcInterface":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("SrcInterface"))
+			it.SrcInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "DstInterface":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("DstInterface"))
+			it.DstInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnet_DelInterfaceInput(ctx context.Context, obj interface{}) (model.NetDelInterfaceInput, error) {
+	var it model.NetDelInterfaceInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "InterfaceSelector":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("InterfaceSelector"))
+			it.InterfaceSelector, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnet_DeviceInput(ctx context.Context, obj interface{}) (model.NetDeviceInput, error) {
+	var it model.NetDeviceInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "DeviceID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("DeviceID"))
+			it.DeviceID, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		case "Name":
 			var err error
 
@@ -3460,6 +4587,14 @@ func (ec *executionContext) unmarshalInputnet_DeviceInput(ctx context.Context, o
 			if err != nil {
 				return it, err
 			}
+		case "Building":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Building"))
+			it.Building, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -3468,7 +4603,10 @@ func (ec *executionContext) unmarshalInputnet_DeviceInput(ctx context.Context, o
 
 func (ec *executionContext) unmarshalInputnet_EthernetInput(ctx context.Context, obj interface{}) (model.NetEthernetInput, error) {
 	var it model.NetEthernetInput
-	var asMap = obj.(map[string]interface{})
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
 
 	for k, v := range asMap {
 		switch k {
@@ -3486,45 +4624,12 @@ func (ec *executionContext) unmarshalInputnet_EthernetInput(ctx context.Context,
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputnet_If2IfLinkInput(ctx context.Context, obj interface{}) (model.NetIf2IfLinkInput, error) {
-	var it model.NetIf2IfLinkInput
-	var asMap = obj.(map[string]interface{})
-
-	for k, v := range asMap {
-		switch k {
-		case "SrcInterface":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("SrcInterface"))
-			it.SrcInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		case "DstInterface":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("DstInterface"))
-			it.DstInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		case "CreatedAt":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("CreatedAt"))
-			it.CreatedAt, err = ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputnet_InterfaceInput(ctx context.Context, obj interface{}) (model.NetInterfaceInput, error) {
 	var it model.NetInterfaceInput
-	var asMap = obj.(map[string]interface{})
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
 
 	for k, v := range asMap {
 		switch k {
@@ -3533,6 +4638,14 @@ func (ec *executionContext) unmarshalInputnet_InterfaceInput(ctx context.Context
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Name"))
 			it.Name, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Description":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Description"))
+			it.Description, err = ec.unmarshalOnet_KeyValue2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetKeyValueᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3552,6 +4665,201 @@ func (ec *executionContext) unmarshalInputnet_InterfaceInput(ctx context.Context
 			if err != nil {
 				return it, err
 			}
+		case "PseudoWires":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("PseudoWires"))
+			it.PseudoWires, err = ec.unmarshalOnet_PseudowireInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetPseudowireInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnet_KeyValue(ctx context.Context, obj interface{}) (model.NetKeyValue, error) {
+	var it model.NetKeyValue
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "Key":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Key"))
+			it.Key, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Value":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Value"))
+			it.Value, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnet_LocationInput(ctx context.Context, obj interface{}) (model.NetLocationInput, error) {
+	var it model.NetLocationInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "Lat":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Lat"))
+			it.Lat, err = ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Lng":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Lng"))
+			it.Lng, err = ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnet_ProvinceInput(ctx context.Context, obj interface{}) (model.NetProvinceInput, error) {
+	var it model.NetProvinceInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "Region":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Region"))
+			it.Region, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Name":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Name"))
+			it.Name, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Location":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Location"))
+			it.Location, err = ec.unmarshalNnet_LocationInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetLocationInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnet_PseudowireInput(ctx context.Context, obj interface{}) (model.NetPseudowireInput, error) {
+	var it model.NetPseudowireInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "ID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ID"))
+			it.ID, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Neighbor":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Neighbor"))
+			it.Neighbor, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "LocalVPWS":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("LocalVPWS"))
+			it.LocalVpws, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "RemoteVPWS":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("RemoteVPWS"))
+			it.RemoteVpws, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Status":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Status"))
+			it.Status, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputnet_RegionInput(ctx context.Context, obj interface{}) (model.NetRegionInput, error) {
+	var it model.NetRegionInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "Name":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Name"))
+			it.Name, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Location":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Location"))
+			it.Location, err = ec.unmarshalNnet_LocationInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetLocationInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -3560,7 +4868,10 @@ func (ec *executionContext) unmarshalInputnet_InterfaceInput(ctx context.Context
 
 func (ec *executionContext) unmarshalInputnet_Selector(ctx context.Context, obj interface{}) (model.NetSelector, error) {
 	var it model.NetSelector
-	var asMap = obj.(map[string]interface{})
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
 
 	for k, v := range asMap {
 		switch k {
@@ -3588,23 +4899,18 @@ func (ec *executionContext) unmarshalInputnet_Selector(ctx context.Context, obj 
 
 func (ec *executionContext) unmarshalInputnet_VLANAccessInput(ctx context.Context, obj interface{}) (model.NetVLANAccessInput, error) {
 	var it model.NetVLANAccessInput
-	var asMap = obj.(map[string]interface{})
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
 
 	for k, v := range asMap {
 		switch k {
-		case "AcceptedVIDs":
+		case "VID":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("AcceptedVIDs"))
-			it.AcceptedVIDs, err = ec.unmarshalNInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		case "NativeVLANVID":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("NativeVLANVID"))
-			it.NativeVlanvid, err = ec.unmarshalOInt2ᚖint(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("VID"))
+			it.Vid, err = ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3616,7 +4922,10 @@ func (ec *executionContext) unmarshalInputnet_VLANAccessInput(ctx context.Contex
 
 func (ec *executionContext) unmarshalInputnet_VLANInput(ctx context.Context, obj interface{}) (model.NetVLANInput, error) {
 	var it model.NetVLANInput
-	var asMap = obj.(map[string]interface{})
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
 
 	for k, v := range asMap {
 		switch k {
@@ -3644,15 +4953,26 @@ func (ec *executionContext) unmarshalInputnet_VLANInput(ctx context.Context, obj
 
 func (ec *executionContext) unmarshalInputnet_VLANTrunkInput(ctx context.Context, obj interface{}) (model.NetVLANTrunkInput, error) {
 	var it model.NetVLANTrunkInput
-	var asMap = obj.(map[string]interface{})
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
 
 	for k, v := range asMap {
 		switch k {
-		case "VID":
+		case "AcceptedVIDs":
 			var err error
 
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("VID"))
-			it.Vid, err = ec.unmarshalNInt2int(ctx, v)
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("AcceptedVIDs"))
+			it.AcceptedVIDs, err = ec.unmarshalNInt2ᚕintᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "NativeVLANVID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("NativeVLANVID"))
+			it.NativeVlanvid, err = ec.unmarshalOInt2ᚖint(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3685,6 +5005,21 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "net_AddRegion":
+			out.Values[i] = ec._Mutation_net_AddRegion(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "net_AddProvince":
+			out.Values[i] = ec._Mutation_net_AddProvince(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "net_AddBuilding":
+			out.Values[i] = ec._Mutation_net_AddBuilding(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "net_AddDevice":
 			out.Values[i] = ec._Mutation_net_AddDevice(ctx, field)
 			if out.Values[i] == graphql.Null {
@@ -3692,6 +5027,11 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			}
 		case "net_AddInterface":
 			out.Values[i] = ec._Mutation_net_AddInterface(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "net_DelInterface":
+			out.Values[i] = ec._Mutation_net_DelInterface(ctx, field)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -3707,6 +5047,11 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			}
 		case "net_AddIf2IfLink":
 			out.Values[i] = ec._Mutation_net_AddIf2IfLink(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "net_DelIf2IfLink":
+			out.Values[i] = ec._Mutation_net_DelIf2IfLink(ctx, field)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -3805,6 +5150,11 @@ func (ec *executionContext) ___Directive(ctx context.Context, sel ast.SelectionS
 			}
 		case "args":
 			out.Values[i] = ec.___Directive_args(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "isRepeatable":
+			out.Values[i] = ec.___Directive_isRepeatable(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -4112,19 +5462,19 @@ func (ec *executionContext) _event_ClosePayload(ctx context.Context, sel ast.Sel
 	return out
 }
 
-var net_AddIf2IfLinkPayloadImplementors = []string{"net_AddIf2IfLinkPayload"}
+var net_AggregationPayloadImplementors = []string{"net_AggregationPayload"}
 
-func (ec *executionContext) _net_AddIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetAddIf2IfLinkPayload) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, net_AddIf2IfLinkPayloadImplementors)
+func (ec *executionContext) _net_AggregationPayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetAggregationPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, net_AggregationPayloadImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("net_AddIf2IfLinkPayload")
-		case "InterfaceLink":
-			out.Values[i] = ec._net_AddIf2IfLinkPayload_InterfaceLink(ctx, field, obj)
+			out.Values[i] = graphql.MarshalString("net_AggregationPayload")
+		case "Aggregation":
+			out.Values[i] = ec._net_AggregationPayload_Aggregation(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -4139,19 +5489,19 @@ func (ec *executionContext) _net_AddIf2IfLinkPayload(ctx context.Context, sel as
 	return out
 }
 
-var net_AggregationPayloadImplementors = []string{"net_AggregationPayload"}
+var net_BuildingPayloadImplementors = []string{"net_BuildingPayload"}
 
-func (ec *executionContext) _net_AggregationPayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetAggregationPayload) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, net_AggregationPayloadImplementors)
+func (ec *executionContext) _net_BuildingPayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetBuildingPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, net_BuildingPayloadImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("net_AggregationPayload")
-		case "Aggregation":
-			out.Values[i] = ec._net_AggregationPayload_Aggregation(ctx, field, obj)
+			out.Values[i] = graphql.MarshalString("net_BuildingPayload")
+		case "Building":
+			out.Values[i] = ec._net_BuildingPayload_Building(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -4216,6 +5566,33 @@ func (ec *executionContext) _net_EdgePayload(ctx context.Context, sel ast.Select
 			}
 		case "EdgeUpdated":
 			out.Values[i] = ec._net_EdgePayload_EdgeUpdated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var net_If2IfLinkPayloadImplementors = []string{"net_If2IfLinkPayload"}
+
+func (ec *executionContext) _net_If2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetIf2IfLinkPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, net_If2IfLinkPayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("net_If2IfLinkPayload")
+		case "InterfaceLinks":
+			out.Values[i] = ec._net_If2IfLinkPayload_InterfaceLinks(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -4326,6 +5703,80 @@ func (ec *executionContext) _net_NodePayload(ctx context.Context, sel ast.Select
 	return out
 }
 
+var net_ProvincePayloadImplementors = []string{"net_ProvincePayload"}
+
+func (ec *executionContext) _net_ProvincePayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetProvincePayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, net_ProvincePayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("net_ProvincePayload")
+		case "ID":
+			out.Values[i] = ec._net_ProvincePayload_ID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "NodeCreated":
+			out.Values[i] = ec._net_ProvincePayload_NodeCreated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "NodeUpdated":
+			out.Values[i] = ec._net_ProvincePayload_NodeUpdated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var net_RegionPayloadImplementors = []string{"net_RegionPayload"}
+
+func (ec *executionContext) _net_RegionPayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetRegionPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, net_RegionPayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("net_RegionPayload")
+		case "ID":
+			out.Values[i] = ec._net_RegionPayload_ID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "NodeCreated":
+			out.Values[i] = ec._net_RegionPayload_NodeCreated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "NodeUpdated":
+			out.Values[i] = ec._net_RegionPayload_NodeUpdated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
@@ -4337,6 +5788,21 @@ func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v interf
 
 func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.SelectionSet, v bool) graphql.Marshaler {
 	res := graphql.MarshalBoolean(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v interface{}) (float64, error) {
+	res, err := graphql.UnmarshalFloat(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.SelectionSet, v float64) graphql.Marshaler {
+	res := graphql.MarshalFloat(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -4387,6 +5853,12 @@ func (ec *executionContext) marshalNInt2ᚕintᚄ(ctx context.Context, sel ast.S
 		ret[i] = ec.marshalNInt2int(ctx, sel, v[i])
 	}
 
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
 	return ret
 }
 
@@ -4432,6 +5904,12 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
 	}
 
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
 	return ret
 }
 
@@ -4473,6 +5951,13 @@ func (ec *executionContext) marshalN__Directive2ᚕgithubᚗcomᚋ99designsᚋgq
 
 	}
 	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
 	return ret
 }
 
@@ -4546,6 +6031,13 @@ func (ec *executionContext) marshalN__DirectiveLocation2ᚕstringᚄ(ctx context
 
 	}
 	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
 	return ret
 }
 
@@ -4595,6 +6087,13 @@ func (ec *executionContext) marshalN__InputValue2ᚕgithubᚗcomᚋ99designsᚋg
 
 	}
 	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
 	return ret
 }
 
@@ -4636,6 +6135,13 @@ func (ec *executionContext) marshalN__Type2ᚕgithubᚗcomᚋ99designsᚋgqlgen�
 
 	}
 	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
 	return ret
 }
 
@@ -4762,18 +6268,9 @@ func (ec *executionContext) unmarshalNnet_AddAggregationInput2githubᚗcomᚋsky
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNnet_AddIf2IfLinkPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetAddIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v model.NetAddIf2IfLinkPayload) graphql.Marshaler {
-	return ec._net_AddIf2IfLinkPayload(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNnet_AddIf2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetAddIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v *model.NetAddIf2IfLinkPayload) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	return ec._net_AddIf2IfLinkPayload(ctx, sel, v)
+func (ec *executionContext) unmarshalNnet_AddIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetAddIf2IfLinkInput(ctx context.Context, v interface{}) (model.NetAddIf2IfLinkInput, error) {
+	res, err := ec.unmarshalInputnet_AddIf2IfLinkInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNnet_AddInterfaceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetAddInterfaceInput(ctx context.Context, v interface{}) (model.NetAddInterfaceInput, error) {
@@ -4800,6 +6297,35 @@ func (ec *executionContext) marshalNnet_AggregationPayload2ᚖgithubᚗcomᚋsky
 	return ec._net_AggregationPayload(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNnet_BuildingInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetBuildingInput(ctx context.Context, v interface{}) (model.NetBuildingInput, error) {
+	res, err := ec.unmarshalInputnet_BuildingInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNnet_BuildingPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetBuildingPayload(ctx context.Context, sel ast.SelectionSet, v model.NetBuildingPayload) graphql.Marshaler {
+	return ec._net_BuildingPayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNnet_BuildingPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetBuildingPayload(ctx context.Context, sel ast.SelectionSet, v *model.NetBuildingPayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._net_BuildingPayload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNnet_DelIf2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetDelIf2IfLinkInput(ctx context.Context, v interface{}) (model.NetDelIf2IfLinkInput, error) {
+	res, err := ec.unmarshalInputnet_DelIf2IfLinkInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNnet_DelInterfaceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetDelInterfaceInput(ctx context.Context, v interface{}) (model.NetDelInterfaceInput, error) {
+	res, err := ec.unmarshalInputnet_DelInterfaceInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNnet_DeviceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetDeviceInput(ctx context.Context, v interface{}) (model.NetDeviceInput, error) {
 	res, err := ec.unmarshalInputnet_DeviceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -4819,6 +6345,50 @@ func (ec *executionContext) marshalNnet_DevicePayload2ᚖgithubᚗcomᚋskydive�
 	return ec._net_DevicePayload(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNnet_EdgePayload2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetEdgePayloadᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.NetEdgePayload) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNnet_EdgePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetEdgePayload(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) marshalNnet_EdgePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetEdgePayload(ctx context.Context, sel ast.SelectionSet, v *model.NetEdgePayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -4829,9 +6399,18 @@ func (ec *executionContext) marshalNnet_EdgePayload2ᚖgithubᚗcomᚋskydiveᚑ
 	return ec._net_EdgePayload(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNnet_If2IfLinkInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetIf2IfLinkInput(ctx context.Context, v interface{}) (model.NetIf2IfLinkInput, error) {
-	res, err := ec.unmarshalInputnet_If2IfLinkInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
+func (ec *executionContext) marshalNnet_If2IfLinkPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v model.NetIf2IfLinkPayload) graphql.Marshaler {
+	return ec._net_If2IfLinkPayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNnet_If2IfLinkPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetIf2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, v *model.NetIf2IfLinkPayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._net_If2IfLinkPayload(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNnet_InterfaceInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetInterfaceInput(ctx context.Context, v interface{}) (*model.NetInterfaceInput, error) {
@@ -4851,6 +6430,16 @@ func (ec *executionContext) marshalNnet_InterfacePayload2ᚖgithubᚗcomᚋskydi
 		return graphql.Null
 	}
 	return ec._net_InterfacePayload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNnet_KeyValue2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetKeyValue(ctx context.Context, v interface{}) (*model.NetKeyValue, error) {
+	res, err := ec.unmarshalInputnet_KeyValue(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNnet_LocationInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetLocationInput(ctx context.Context, v interface{}) (*model.NetLocationInput, error) {
+	res, err := ec.unmarshalInputnet_LocationInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNnet_LogicalInterfacePayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetLogicalInterfacePayload(ctx context.Context, sel ast.SelectionSet, v model.NetLogicalInterfacePayload) graphql.Marshaler {
@@ -4875,6 +6464,49 @@ func (ec *executionContext) marshalNnet_NodePayload2ᚖgithubᚗcomᚋskydiveᚑ
 		return graphql.Null
 	}
 	return ec._net_NodePayload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNnet_ProvinceInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetProvinceInput(ctx context.Context, v interface{}) (model.NetProvinceInput, error) {
+	res, err := ec.unmarshalInputnet_ProvinceInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNnet_ProvincePayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetProvincePayload(ctx context.Context, sel ast.SelectionSet, v model.NetProvincePayload) graphql.Marshaler {
+	return ec._net_ProvincePayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNnet_ProvincePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetProvincePayload(ctx context.Context, sel ast.SelectionSet, v *model.NetProvincePayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._net_ProvincePayload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNnet_PseudowireInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetPseudowireInput(ctx context.Context, v interface{}) (*model.NetPseudowireInput, error) {
+	res, err := ec.unmarshalInputnet_PseudowireInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNnet_RegionInput2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetRegionInput(ctx context.Context, v interface{}) (model.NetRegionInput, error) {
+	res, err := ec.unmarshalInputnet_RegionInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNnet_RegionPayload2githubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetRegionPayload(ctx context.Context, sel ast.SelectionSet, v model.NetRegionPayload) graphql.Marshaler {
+	return ec._net_RegionPayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNnet_RegionPayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetRegionPayload(ctx context.Context, sel ast.SelectionSet, v *model.NetRegionPayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._net_RegionPayload(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx context.Context, v interface{}) (*model.NetSelector, error) {
@@ -4963,6 +6595,12 @@ func (ec *executionContext) marshalOString2ᚕstringᚄ(ctx context.Context, sel
 		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
 	}
 
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
 	return ret
 }
 
@@ -5033,6 +6671,13 @@ func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgq
 
 	}
 	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
 	return ret
 }
 
@@ -5073,6 +6718,13 @@ func (ec *executionContext) marshalO__Field2ᚕgithubᚗcomᚋ99designsᚋgqlgen
 
 	}
 	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
 	return ret
 }
 
@@ -5113,6 +6765,13 @@ func (ec *executionContext) marshalO__InputValue2ᚕgithubᚗcomᚋ99designsᚋg
 
 	}
 	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
 	return ret
 }
 
@@ -5160,6 +6819,13 @@ func (ec *executionContext) marshalO__Type2ᚕgithubᚗcomᚋ99designsᚋgqlgen�
 
 	}
 	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
 	return ret
 }
 
@@ -5216,6 +6882,54 @@ func (ec *executionContext) unmarshalOnet_EthernetInput2ᚖgithubᚗcomᚋskydiv
 	}
 	res, err := ec.unmarshalInputnet_EthernetInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOnet_KeyValue2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetKeyValueᚄ(ctx context.Context, v interface{}) ([]*model.NetKeyValue, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]*model.NetKeyValue, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNnet_KeyValue2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetKeyValue(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalOnet_PseudowireInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetPseudowireInputᚄ(ctx context.Context, v interface{}) ([]*model.NetPseudowireInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]*model.NetPseudowireInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNnet_PseudowireInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetPseudowireInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) unmarshalOnet_VLANAccessInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetVLANAccessInput(ctx context.Context, v interface{}) (*model.NetVLANAccessInput, error) {

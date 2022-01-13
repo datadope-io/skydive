@@ -1,6 +1,7 @@
 package graphql
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -44,6 +45,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 	newCreatedAt := time.Unix(200, 0)
 	_, _, _, err = r.netAddDevice(
 		"deviceA",
+		nil, // TODO añadir tests con el DeviceID
 		&routerType,
 		nil,
 		strPointer("vendorNew"),
@@ -54,6 +56,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 	// It is valid to call with createdAt if it is the same as the origin node
 	node, created, updated, err := r.netAddDevice(
 		"deviceA",
+		nil, // TODO añadir tests con el DeviceID
 		&routerType,
 		nil,
 		strPointer("vendorNew"),
@@ -89,6 +92,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 	// We could also pass nil to createAt, to ignore creation date of the origin node
 	_, _, _, err = r.netAddDevice(
 		"deviceA",
+		nil, // TODO añadir tests con el DeviceID
 		&routerType,
 		nil,
 		strPointer("vendorNew"),
@@ -99,7 +103,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 
 func TestNetAddDevice(t *testing.T) {
 	routerType := model.NetDeviceTypeRouter
-	//switchType := model.NetDeviceTypeSwitch
+	// switchType := model.NetDeviceTypeSwitch
 	createdAt := time.Unix(100, 0)
 
 	tests := []struct {
@@ -167,6 +171,7 @@ func TestNetAddDevice(t *testing.T) {
 			r := Resolver{Graph: g}
 			node, created, updated, err := r.netAddDevice(
 				test.deviceName,
+				nil, // TODO añadir tests con el DeviceID
 				test.deviceType,
 				test.model,
 				test.vendor,
@@ -192,14 +197,14 @@ func TestNetCreateInterfacErrorCreateInterfaceNode(t *testing.T) {
 	prefix := "prefix"
 
 	createdAt := time.Unix(100, 0)
-	node, created, updated, err := r.netCreateInterface(data, subtype, prefix, &createdAt)
+	node, created, updated, err := r.netCreateInterface(data, subtype, prefix, "1.1.1.1", &createdAt, false)
 	assert.Nil(t, err)
 	assert.NotNil(t, node)
 	assert.Truef(t, created, "created")
 	assert.Falsef(t, updated, "updated")
 
 	newCreatedAt := time.Unix(200, 0)
-	_, _, _, err = r.netCreateInterface(data, subtype, prefix, &newCreatedAt)
+	_, _, _, err = r.netCreateInterface(data, subtype, prefix, "1.1.1.1", &newCreatedAt, false)
 	assert.EqualErrorf(t, err, "network interface: forbidden to modify CreatedAt value of existing node", "error mod date")
 }
 
@@ -215,6 +220,7 @@ func TestNetCreateInterface(t *testing.T) {
 		data            model.NetInterfaceInput
 		subtype         string
 		prefix          string
+		deviceid        string
 		createdAt       *time.Time
 		expectedNode    *graph.Node
 		expectedCreated bool
@@ -232,18 +238,81 @@ func TestNetCreateInterface(t *testing.T) {
 			expectedError: "interface name could not be empty",
 		},
 		{
-			desc:            "new interface with only name and empty prefix",
-			subtype:         "subA",
-			data:            model.NetInterfaceInput{Name: "eth0"},
+			desc:    "new interface with only name, empty prefix and description",
+			subtype: "subA",
+			data: model.NetInterfaceInput{
+				Name: "eth0",
+				Description: []*model.NetKeyValue{
+					{
+						Key:   "RE",
+						Value: "abc",
+					},
+					{
+						Key:   "XX",
+						Value: "foo",
+					},
+					{
+						Key:   "_raw",
+						Value: "<RE=abc><XX=foo>",
+					},
+				},
+			},
 			createdAt:       &createdAt,
 			expectedCreated: true,
 			expectedNode: createNodeWithTime(
 				getInterfaceID("", "eth0", "subA"),
 				graph.Metadata{
-					"Name":        "eth0",
-					"Type":        "interface",
-					"SubType":     "subA",
-					"NetworkInfo": NetworkInfo{},
+					"Name":     "eth0",
+					"Type":     "interface",
+					"SubType":  "subA",
+					"DeviceID": "",
+					"Description": map[string]string{
+						"RE":   "abc",
+						"XX":   "foo",
+						"_raw": "<RE=abc><XX=foo>",
+					},
+					"NetworkInfo": &NetworkInfo{},
+				},
+				createdAt,
+			),
+		},
+		{
+			// Si tiene un "." al comienzo o final el value el elastic falla con el error:
+			// field starting or ending with a [.] makes object resolution ambiguous
+			desc:    "interface description with starting dot is removed",
+			subtype: "subA",
+			data: model.NetInterfaceInput{
+				Name: "eth0",
+				Description: []*model.NetKeyValue{
+					{
+						Key:   ".RE.",
+						Value: ".abc.",
+					},
+					{
+						Key:   "XX",
+						Value: "foo",
+					},
+					{
+						Key:   "_raw",
+						Value: ".<.RE.=.abc.><XX=foo>.",
+					},
+				},
+			},
+			createdAt:       &createdAt,
+			expectedCreated: true,
+			expectedNode: createNodeWithTime(
+				getInterfaceID("", "eth0", "subA"),
+				graph.Metadata{
+					"Name":     "eth0",
+					"Type":     "interface",
+					"SubType":  "subA",
+					"DeviceID": "",
+					"Description": map[string]string{
+						"RE":   "abc",
+						"XX":   "foo",
+						"_raw": "<.RE.=.abc.><XX=foo>",
+					},
+					"NetworkInfo": &NetworkInfo{},
 				},
 				createdAt,
 			),
@@ -261,7 +330,9 @@ func TestNetCreateInterface(t *testing.T) {
 					"Name":        "eth0",
 					"Type":        "interface",
 					"SubType":     "subA",
-					"NetworkInfo": NetworkInfo{},
+					"DeviceID":    "",
+					"Description": map[string]string{},
+					"NetworkInfo": &NetworkInfo{},
 				},
 				createdAt,
 			),
@@ -291,10 +362,12 @@ func TestNetCreateInterface(t *testing.T) {
 			expectedNode: createNodeWithTime(
 				getInterfaceID("", "eth0", "subA"),
 				graph.Metadata{
-					"Name":    "eth0",
-					"Type":    "interface",
-					"SubType": "subA",
-					"NetworkInfo": NetworkInfo{
+					"Name":        "eth0",
+					"Type":        "interface",
+					"SubType":     "subA",
+					"DeviceID":    "",
+					"Description": map[string]string{},
+					"NetworkInfo": &NetworkInfo{
 						IP: []string{
 							"1.2.3.4/24",
 							"1aa1:30a:222:dead:bee:f851:f16a:fbef/64",
@@ -312,11 +385,11 @@ func TestNetCreateInterface(t *testing.T) {
 				Ethernet: &model.NetEthernetInput{
 					Vlan: &model.NetVLANInput{
 						Access: &model.NetVLANAccessInput{
-							AcceptedVIDs:  []int{1, 2, 3},
-							NativeVlanvid: &nativeVID,
+							Vid: 10,
 						},
 						Trunk: &model.NetVLANTrunkInput{
-							Vid: 10,
+							AcceptedVIDs:  []int{1, 2, 3},
+							NativeVlanvid: &nativeVID,
 						},
 					},
 				},
@@ -324,13 +397,13 @@ func TestNetCreateInterface(t *testing.T) {
 			expectedError: "interface VLAN could not be access and trunk at the same time",
 		},
 		{
-			desc:    "VLAN access with native",
+			desc:    "VLAN trunk with native",
 			subtype: "subA",
 			data: model.NetInterfaceInput{
 				Name: "eth0",
 				Ethernet: &model.NetEthernetInput{
 					Vlan: &model.NetVLANInput{
-						Access: &model.NetVLANAccessInput{
+						Trunk: &model.NetVLANTrunkInput{
 							AcceptedVIDs:  []int{1, 2, 3},
 							NativeVlanvid: &nativeVID,
 						},
@@ -342,13 +415,15 @@ func TestNetCreateInterface(t *testing.T) {
 			expectedNode: createNodeWithTime(
 				getInterfaceID("", "eth0", "subA"),
 				graph.Metadata{
-					"Name":    "eth0",
-					"Type":    "interface",
-					"SubType": "subA",
-					"NetworkInfo": NetworkInfo{
+					"Name":        "eth0",
+					"Type":        "interface",
+					"SubType":     "subA",
+					"DeviceID":    "",
+					"Description": map[string]string{},
+					"NetworkInfo": &NetworkInfo{
 						Ethernet: &EthernetInfo{
 							VLAN: &VLANInfo{
-								Access: &VLANAccessInfo{
+								Trunk: &VLANTrunkInfo{
 									AcceptedVIDs:  []int{1, 2, 3},
 									NativeVLANVID: int64(nativeVID),
 								},
@@ -360,13 +435,13 @@ func TestNetCreateInterface(t *testing.T) {
 			),
 		},
 		{
-			desc:    "VLAN access without native",
+			desc:    "VLAN trunk without native",
 			subtype: "subA",
 			data: model.NetInterfaceInput{
 				Name: "eth0",
 				Ethernet: &model.NetEthernetInput{
 					Vlan: &model.NetVLANInput{
-						Access: &model.NetVLANAccessInput{
+						Trunk: &model.NetVLANTrunkInput{
 							AcceptedVIDs: []int{1, 2, 3},
 						},
 					},
@@ -377,13 +452,15 @@ func TestNetCreateInterface(t *testing.T) {
 			expectedNode: createNodeWithTime(
 				getInterfaceID("", "eth0", "subA"),
 				graph.Metadata{
-					"Name":    "eth0",
-					"Type":    "interface",
-					"SubType": "subA",
-					"NetworkInfo": NetworkInfo{
+					"Name":        "eth0",
+					"Type":        "interface",
+					"SubType":     "subA",
+					"DeviceID":    "",
+					"Description": map[string]string{},
+					"NetworkInfo": &NetworkInfo{
 						Ethernet: &EthernetInfo{
 							VLAN: &VLANInfo{
-								Access: &VLANAccessInfo{
+								Trunk: &VLANTrunkInfo{
 									AcceptedVIDs: []int{1, 2, 3},
 								},
 							},
@@ -394,13 +471,13 @@ func TestNetCreateInterface(t *testing.T) {
 			),
 		},
 		{
-			desc:    "VLAN trunk",
+			desc:    "VLAN access",
 			subtype: "subA",
 			data: model.NetInterfaceInput{
 				Name: "eth0",
 				Ethernet: &model.NetEthernetInput{
 					Vlan: &model.NetVLANInput{
-						Trunk: &model.NetVLANTrunkInput{
+						Access: &model.NetVLANAccessInput{
 							Vid: 100,
 						},
 					},
@@ -411,13 +488,15 @@ func TestNetCreateInterface(t *testing.T) {
 			expectedNode: createNodeWithTime(
 				getInterfaceID("", "eth0", "subA"),
 				graph.Metadata{
-					"Name":    "eth0",
-					"Type":    "interface",
-					"SubType": "subA",
-					"NetworkInfo": NetworkInfo{
+					"Name":        "eth0",
+					"Type":        "interface",
+					"SubType":     "subA",
+					"DeviceID":    "",
+					"Description": map[string]string{},
+					"NetworkInfo": &NetworkInfo{
 						Ethernet: &EthernetInfo{
 							VLAN: &VLANInfo{
-								Trunk: &VLANTrunkInfo{
+								Access: &VLANAccessInfo{
 									VID: 100,
 								},
 							},
@@ -433,13 +512,15 @@ func TestNetCreateInterface(t *testing.T) {
 			originNode: createNodeWithTime(
 				getInterfaceID("", "eth0", "subA"),
 				graph.Metadata{
-					"Name":    "eth0",
-					"Type":    "interface",
-					"SubType": "subA",
-					"NetworkInfo": NetworkInfo{
+					"Name":        "eth0",
+					"Type":        "interface",
+					"SubType":     "subA",
+					"DeviceID":    "",
+					"Description": map[string]string{},
+					"NetworkInfo": &NetworkInfo{
 						Ethernet: &EthernetInfo{
 							VLAN: &VLANInfo{
-								Access: &VLANAccessInfo{
+								Trunk: &VLANTrunkInfo{
 									AcceptedVIDs:  []int{1, 2, 3},
 									NativeVLANVID: int64(nativeVID),
 								},
@@ -453,7 +534,7 @@ func TestNetCreateInterface(t *testing.T) {
 				Name: "eth0",
 				Ethernet: &model.NetEthernetInput{
 					Vlan: &model.NetVLANInput{
-						Access: &model.NetVLANAccessInput{
+						Trunk: &model.NetVLANTrunkInput{
 							AcceptedVIDs:  []int{1, 2, 3},
 							NativeVlanvid: &nativeVID,
 						},
@@ -464,13 +545,15 @@ func TestNetCreateInterface(t *testing.T) {
 			expectedNode: createNodeWithTime(
 				getInterfaceID("", "eth0", "subA"),
 				graph.Metadata{
-					"Name":    "eth0",
-					"Type":    "interface",
-					"SubType": "subA",
-					"NetworkInfo": NetworkInfo{
+					"Name":        "eth0",
+					"Type":        "interface",
+					"SubType":     "subA",
+					"DeviceID":    "",
+					"Description": map[string]string{},
+					"NetworkInfo": &NetworkInfo{
 						Ethernet: &EthernetInfo{
 							VLAN: &VLANInfo{
-								Access: &VLANAccessInfo{
+								Trunk: &VLANTrunkInfo{
 									AcceptedVIDs:  []int{1, 2, 3},
 									NativeVLANVID: int64(nativeVID),
 								},
@@ -487,13 +570,15 @@ func TestNetCreateInterface(t *testing.T) {
 			originNode: createNodeWithTime(
 				getInterfaceID("", "eth0", "subA"),
 				graph.Metadata{
-					"Name":    "eth0",
-					"Type":    "interface",
-					"SubType": "subA",
-					"NetworkInfo": NetworkInfo{
+					"Name":        "eth0",
+					"Type":        "interface",
+					"SubType":     "subA",
+					"DeviceID":    "",
+					"Description": map[string]string{},
+					"NetworkInfo": &NetworkInfo{
 						Ethernet: &EthernetInfo{
 							VLAN: &VLANInfo{
-								Access: &VLANAccessInfo{
+								Trunk: &VLANTrunkInfo{
 									AcceptedVIDs:  []int{1, 2, 3},
 									NativeVLANVID: int64(nativeVID),
 								},
@@ -507,7 +592,7 @@ func TestNetCreateInterface(t *testing.T) {
 				Name: "eth0",
 				Ethernet: &model.NetEthernetInput{
 					Vlan: &model.NetVLANInput{
-						Trunk: &model.NetVLANTrunkInput{
+						Access: &model.NetVLANAccessInput{
 							Vid: 100,
 						},
 					},
@@ -518,13 +603,15 @@ func TestNetCreateInterface(t *testing.T) {
 			expectedNode: createNodeWithTime(
 				getInterfaceID("", "eth0", "subA"),
 				graph.Metadata{
-					"Name":    "eth0",
-					"Type":    "interface",
-					"SubType": "subA",
-					"NetworkInfo": NetworkInfo{
+					"Name":        "eth0",
+					"Type":        "interface",
+					"SubType":     "subA",
+					"DeviceID":    "",
+					"Description": map[string]string{},
+					"NetworkInfo": &NetworkInfo{
 						Ethernet: &EthernetInfo{
 							VLAN: &VLANInfo{
-								Trunk: &VLANTrunkInfo{
+								Access: &VLANAccessInfo{
 									VID: 100,
 								},
 							},
@@ -550,7 +637,9 @@ func TestNetCreateInterface(t *testing.T) {
 				test.data,
 				test.subtype,
 				test.prefix,
+				test.deviceid,
 				test.createdAt,
+				false,
 			)
 			if test.expectedError != "" {
 				assert.EqualErrorf(t, err, test.expectedError, "error")
@@ -662,7 +751,9 @@ func TestNetGetOrCreateAggInterfaceNewNode(t *testing.T) {
 			"Name":        "aggA",
 			"Type":        "interface",
 			"SubType":     "aggregation",
-			"NetworkInfo": NetworkInfo{},
+			"Description": map[string]string{},
+			"NetworkInfo": &NetworkInfo{},
+			"DeviceID":    "",
 		},
 		createdAt,
 	)
@@ -788,7 +879,9 @@ func TestNetAddInterfaceToDevice(t *testing.T) {
 		"Name":        "eth0",
 		"Type":        "interface",
 		"SubType":     "foo",
-		"NetworkInfo": NetworkInfo{},
+		"Description": map[string]string{},
+		"NetworkInfo": &NetworkInfo{},
+		"DeviceID":    "",
 	}
 
 	assert.Equalf(t, expectedMetadata, node.Metadata, "expected metadata")
@@ -826,6 +919,7 @@ func TestNetGetNodeFromSelectorInitialChecks(t *testing.T) {
 		GremlinQuery: nil,
 	}
 	_, err = r.netGetNodeFromSelector(&selector)
+
 	assert.EqualError(t, err, "no node returned by selector ID")
 
 	query := "G.E()"
@@ -834,4 +928,911 @@ func TestNetGetNodeFromSelectorInitialChecks(t *testing.T) {
 	}
 	_, err = r.netGetNodeFromSelector(&selector)
 	assert.EqualError(t, err, "invalid graph output, expecting nodes")
+}
+
+func TestPseudoWireHasherOnePW(t *testing.T) {
+	node := createNode("Dev2-Iface-eth0", graph.Metadata{
+		MetaKeyName: "Dev2-Iface-eth0",
+		MetaKeyType: MetadataTypeNetworkInterface,
+		MetadataKeyNetworkInfo: &NetworkInfo{
+			PseudoWires: []PseudoWireInfo{
+				{ID: "1", Neighbor: "1.1.1.1"},
+			},
+		},
+	})
+
+	dict := pseudoWireHasher(node)
+
+	dictExpected := map[string]interface{}{
+		"1": map[string]interface{}{"1.1.1.1": nil},
+	}
+
+	assert.Equal(t, dictExpected, dict)
+}
+
+func TestPseudoWireHasherTwoPWDifferentID(t *testing.T) {
+	node := createNode("Dev2-Iface-eth0", graph.Metadata{
+		MetaKeyName: "Dev2-Iface-eth0",
+		MetaKeyType: MetadataTypeNetworkInterface,
+		MetadataKeyNetworkInfo: &NetworkInfo{
+			PseudoWires: []PseudoWireInfo{
+				{ID: "1", Neighbor: "1.1.1.1"},
+				{ID: "2", Neighbor: "1.1.1.2"},
+			},
+		},
+	})
+
+	dict := pseudoWireHasher(node)
+
+	dictExpected := map[string]interface{}{
+		"1": map[string]interface{}{"1.1.1.1": nil},
+		"2": map[string]interface{}{"1.1.1.2": nil},
+	}
+
+	assert.Equal(t, dictExpected, dict)
+}
+
+func TestPseudoWireHasherTwoPWSameID(t *testing.T) {
+	node := createNode("Dev2-Iface-eth0", graph.Metadata{
+		MetaKeyName: "Dev2-Iface-eth0",
+		MetaKeyType: MetadataTypeNetworkInterface,
+		MetadataKeyNetworkInfo: &NetworkInfo{
+			PseudoWires: []PseudoWireInfo{
+				{ID: "1", Neighbor: "1.1.1.1"},
+				{ID: "1", Neighbor: "1.1.1.2"},
+			},
+		},
+	})
+
+	dict := pseudoWireHasher(node)
+
+	dictExpected := map[string]interface{}{
+		"1": map[string]interface{}{
+			"1.1.1.1": nil,
+			"1.1.1.2": nil,
+		},
+	}
+
+	assert.Equal(t, dictExpected, dict)
+}
+
+func TestPseudoWireHasherEVPN(t *testing.T) {
+	node := createNode("Dev2-Iface-eth0", graph.Metadata{
+		MetaKeyName: "Dev2-Iface-eth0",
+		MetaKeyType: MetadataTypeNetworkInterface,
+		MetadataKeyNetworkInfo: &NetworkInfo{
+			PseudoWires: []PseudoWireInfo{
+				{LocalVpws: "1234", RemoteVpws: "4321"},
+			},
+		},
+	})
+
+	dict := pseudoWireHasher(node)
+
+	dictExpected := map[string]interface{}{
+		"4321": map[string]interface{}{
+			"1234": nil,
+		},
+	}
+
+	assert.Equal(t, dictExpected, dict)
+}
+
+func TestPseudoWireWithRegionsProvincesBuildingsAndTwoInterfacesPerDeviceWithTwoPW(t *testing.T) {
+	getProbeWithTwoDevicesLinkedByPseudowire(t)
+}
+
+// getProbeWithTwoDevicesLinkedByPseudowire genera un grafo, la probe Graphql e inyecta dos devices con sus
+// buildings, provinces y regions.
+// Cada device tiene una interfaz conectadas con un pseudowire.
+// Usamos esta función como punto de partida para otros tests
+func getProbeWithTwoDevicesLinkedByPseudowire(t *testing.T) *Probe {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Creamos las regiones, provincias y buildings
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionB",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionAProvinceA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionA",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionBProvinceB",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionB",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:     "RegionAProvinceABuildingA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province: "RegionAProvinceA",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:     "RegionBProvinceBBuildingB",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province: "RegionBProvinceB",
+	})
+	assert.NoError(t, err)
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	buildA := "RegionAProvinceABuildingA"
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+		Building: &buildA,
+	})
+
+	// Create interface eth0 in Dev1
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("1"), Neighbor: strPointer("2.2.2.2")},
+			},
+		},
+	})
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth1",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("2"), Neighbor: strPointer("2.2.2.2")},
+			},
+		},
+	})
+
+	// Device 2
+	buildB := "RegionBProvinceBBuildingB"
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+		Building: &buildB,
+	})
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eno0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
+			},
+		},
+	})
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eno1",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("2"), Neighbor: strPointer("1.1.1.1")},
+			},
+		},
+	})
+
+	// 10 edge ownership 2x(r--p--b--d-(2x)-iface)
+	assert.Lenf(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypeOwnership}), 10, "edge ownership")
+
+	// 20 edge pseudowires, por cada pw id:
+	//    - [r,p,b] <-> [r,p,b] (9)
+	//    - iface<->iface (1)
+	assert.Lenf(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 20, "edge pseudowire")
+
+	return probe
+}
+
+// TestPseudoWireDisconnectOnePW comprueba que al desconfigurar un pseudowire en una interfaz, se borra el edge tipo
+// pseudowire y se elimina su id de los edge pseudowire parent.
+func TestPseudoWireDisconnectOnePW(t *testing.T) {
+	p := getProbeWithTwoDevicesLinkedByPseudowire(t)
+
+	nodes := p.graph.GetNodes(graph.Metadata{"Name": "eth1"})
+	// nodes := p.graph.GetNodes(graph.Metadata{"Name": "eno1"}) // TODO poner tambien este test
+	assert.Len(t, nodes, 1)
+	dev2IfaceEno1 := nodes[0]
+
+	err := p.graph.UpdateMetadata(dev2IfaceEno1, MetadataKeyNetworkInfo, func(field interface{}) bool {
+		ni, ok := field.(*NetworkInfo)
+		assert.True(t, ok)
+		ni.PseudoWires = []PseudoWireInfo{}
+		return true
+	})
+	assert.NoError(t, err)
+
+	pws := p.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire})
+
+	// Debemos tener un PW menos, 10, tras eliminar el que conectaba eno1 con eth1
+	assert.Lenf(t, pws, 10, "after deleting pw config")
+
+	// Los edges pseudowire deben ser todos del pwid=1, el que no se ha borrado
+	for _, pw := range pws {
+		metaPW, err := pw.GetFieldString(MetaKeyPseudowireID)
+		assert.NoError(t, err)
+		assert.Equalf(t, "1", metaPW, "pw id should be 1")
+	}
+}
+
+// TODO gestionar que pasa cuando se borra un PW de una interfaz, quitar el enlace y los de sus padres
+// TODO gestionar que pasa cuando se borra un edge tipo pw, deben borrarse hacia arriba.
+// En realidad no deben borrarse los parents, solo debe quitarse el pwid de la lista y si la lista queda vacía
+// entonces borrar el edge.
+// Estoy creando links entre A y B y entre B y A. Depende cual se ejecute primero.
+// No debería crear los dos sentidos.
+
+// TODO Crear un test para el tema de AB vs BA
+
+// TestPseudoWireLowerIDTriggersFirst comprobar que se generan correctamente los pseudowires entre dos interfaces.
+// Se ejecutan actualizaciones en ambos nodos para comprobar que no se generan más edges de los esperados.
+// Luego se procede a quitar la configuración de PW de la primera interfaz y comprobar que se borran los edges-pw.
+// De los dos nodos creados, el segundo es el que dispara la creación.
+// Este segundo nodo tiene un ID menor que el primero.
+// Esto es importante por como se decide donde se generan los edges.
+// Resumen de las acciones del test:
+//  - create dev1 + iface1 (id mayor)
+//  - create dev2 + iface2 (id menor)
+//  - add metadata to iface1
+//  - add metadata to iface2
+//  - remove PW from iface1
+func TestPseudoWireLowerIDTriggersFirst(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+	})
+	assert.NoError(t, err)
+
+	dev1Iface, err := probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("1"), Neighbor: strPointer("2.2.2.2")},
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	// Device 2
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+	})
+	assert.NoError(t, err)
+
+	dev2Iface, err := probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eno0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	// Aseguramos que el id que dispara GetAB/BALinks es el menor
+	assert.Lessf(t, dev2Iface.Interface.ID, dev1Iface.Interface.ID, "invalid interface id order")
+
+	// Comprobamos que solo tenemos un pseudowire, lo esperado
+	assert.Lenf(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 1, "pw after second iface creation")
+
+	// Modificamos la interfaz del device 1 para forzar que se ejecute GetABLinks y GetBALinks
+	dev1IfaceNode := probe.graph.GetNode(graph.Identifier(dev1Iface.Interface.ID))
+	err = probe.graph.AddMetadata(dev1IfaceNode, "foo", "bar")
+	assert.NoError(t, err)
+
+	// No se deben haber generado nuevos edges PseudoWires
+	assert.Lenf(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 1, "after updating first iface")
+
+	// Modificamos la interfaz del device 2 para forzar que se ejecute GetABLinks y GetBALinks
+	dev2IfaceNode := probe.graph.GetNode(graph.Identifier(dev2Iface.Interface.ID))
+	err = probe.graph.AddMetadata(dev2IfaceNode, "foo", "bar")
+	assert.NoError(t, err)
+
+	// No se deben haber generado nuevos edges PseudoWires
+	assert.Lenf(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 1, "after updating second iface")
+
+	// Si borramos el PW de la definición de la interfaz 1, debe desaparecer el pw-edge entre las interfaces
+	err = probe.graph.UpdateMetadata(dev1IfaceNode, MetadataKeyNetworkInfo, func(field interface{}) bool {
+		ni, ok := field.(*NetworkInfo)
+		assert.True(t, ok)
+		ni.PseudoWires = []PseudoWireInfo{}
+		return true
+	})
+	assert.NoError(t, err)
+	assert.Lenf(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 0, "after removing PW from iface")
+}
+
+// TestPseudoWireHigherIDTriggersFirst como el test anterior, pero esta vez el identificador
+// con el mayor ID se crea después, por lo que es quien dispara la creación de edges
+// en un primer momento.
+//  - create dev2 + iface2 (id menor)
+//  - create dev1 + iface1 (id mayor)
+//  - add metadata to iface2
+//  - add metadata to iface1
+//  - remove PW from iface2
+func TestPseudoWireHigherIDTriggersFirst(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+	})
+	assert.NoError(t, err)
+
+	dev1Iface, err := probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("1"), Neighbor: strPointer("2.2.2.2")},
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	// Device 2
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+	})
+	assert.NoError(t, err)
+
+	dev2Iface, err := probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eno0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	// Aseguramos que el id que dispara GetAB/BALinks es el mayor
+	assert.Greaterf(t, dev2Iface.Interface.ID, dev1Iface.Interface.ID, "invalid interface id order")
+
+	// Comprobamos que solo tenemos un pseudowire, lo esperado
+	assert.Lenf(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 1, "pw after second iface creation")
+
+	// Modificamos la interfaz del device 1 para forzar que se ejecute GetABLinks y GetBALinks
+	dev1IfaceNode := probe.graph.GetNode(graph.Identifier(dev1Iface.Interface.ID))
+	err = probe.graph.AddMetadata(dev1IfaceNode, "foo", "bar")
+	assert.NoError(t, err)
+
+	// No se deben haber generado nuevos edges PseudoWires
+	assert.Lenf(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 1, "after updating first iface")
+
+	// Modificamos la interfaz del device 2 para forzar que se ejecute GetABLinks y GetBALinks
+	dev2IfaceNode := probe.graph.GetNode(graph.Identifier(dev2Iface.Interface.ID))
+	err = probe.graph.AddMetadata(dev2IfaceNode, "foo", "bar")
+	assert.NoError(t, err)
+
+	// No se deben haber generado nuevos edges PseudoWires
+	assert.Lenf(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 1, "after updating second iface")
+
+	// Si borramos el PW de la definición de la interfaz 1, debe desaparecer el pw-edge entre las interfaces
+	err = probe.graph.UpdateMetadata(dev1IfaceNode, MetadataKeyNetworkInfo, func(field interface{}) bool {
+		ni := field.(*NetworkInfo)
+		ni.PseudoWires = []PseudoWireInfo{}
+		return true
+	})
+	assert.NoError(t, err)
+	assert.Lenf(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 0, "after removing PW from iface")
+}
+
+// TestPseudoWireWithSameBuildingProvinceRegion comprobamos que no se duplican edges-pw al establecer PW dentro del
+// mismo building.
+func TestPseudoWireWithSameBuildingProvinceRegion(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Creamos las regiones, provincias y buildings
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionAProvinceA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionA",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:     "RegionAProvinceABuildingA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province: "RegionAProvinceA",
+	})
+	assert.NoError(t, err)
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	buildA := "RegionAProvinceABuildingA"
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+		Building: &buildA,
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("1"), Neighbor: strPointer("2.2.2.2")},
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	// Device 2
+	buildB := "RegionAProvinceABuildingA"
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+		Building: &buildB,
+	})
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eno0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
+			},
+		},
+	})
+
+	// Tiene que haber un solo edge-pw, entre las interfaces
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 1)
+}
+
+// TestPseudoWireDeletePrevious comprobamos que los PWs anteriormente definidos se borran al volver a declarar una interfaz
+func TestPseudoWireDeletePrevious(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+	})
+	assert.NoError(t, err)
+
+	payload, err := probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
+				{ID: strPointer("2"), Neighbor: strPointer("2.2.2.2")},
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	ifaceNode := probe.graph.GetNode(graph.Identifier(payload.Interface.ID))
+	netinfoRaw, err := ifaceNode.GetField(MetadataKeyNetworkInfo)
+	assert.NoError(t, err)
+
+	netinfo := netinfoRaw.(*NetworkInfo)
+	assert.Len(t, netinfo.PseudoWires, 2)
+
+	// Modificamos la interfaz, quitando uno de los PW y creando otro
+	payload, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("2"), Neighbor: strPointer("2.2.2.2")},
+				{ID: strPointer("99"), Neighbor: strPointer("9.9.9.9")},
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	ifaceNode = probe.graph.GetNode(graph.Identifier(payload.Interface.ID))
+	netinfoRaw, err = ifaceNode.GetField(MetadataKeyNetworkInfo)
+	assert.NoError(t, err)
+
+	netinfo = netinfoRaw.(*NetworkInfo)
+
+	expectedPWs := []PseudoWireInfo{
+		{ID: "2", Neighbor: "2.2.2.2"},
+		{ID: "99", Neighbor: "9.9.9.9"},
+	}
+	assert.Equal(t, expectedPWs, netinfo.PseudoWires)
+}
+
+// TestDeleteInterface comprueba que la mutation de borrado de interfaces funciona correctamente
+func TestDeleteInterface(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+	})
+	assert.NoError(t, err)
+
+	payload, err := probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
+				{ID: strPointer("2"), Neighbor: strPointer("2.2.2.2")},
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	// Borramos la interfaz
+	payload, err = probe.resolver.Mutation().NetDelInterface(context.Background(), model.NetDelInterfaceInput{
+		InterfaceSelector: &model.NetSelector{
+			ID: &payload.Interface.ID,
+		},
+	})
+
+	// Comprobamos que solo tenemos el nodo del device en el grafo
+	assert.Len(t, probe.graph.GetNodes(nil), 1)
+}
+
+// TestDeleteInterfaceLinkedWithPWEdge comprueba que se puede borrar correctamente una interfaz que está linkada con un edge-pw.
+// Esta comprobación mezcla el borrado de interfaces con la gestión de borrado de PWs parents, para comprobar que no existe
+// problemas de bloqueos.
+func TestDeleteInterfaceLinkedWithPWEdge(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+	})
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("1"), Neighbor: strPointer("2.2.2.2")},
+			},
+		},
+	})
+
+	// Device 2
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+	})
+
+	payload, err := probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eno0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
+			},
+		},
+	})
+
+	// Tiene que haber un solo edge-pw, entre las interfaces
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 1)
+
+	// Borramos la interfaz
+	_, err = probe.resolver.Mutation().NetDelInterface(context.Background(), model.NetDelInterfaceInput{
+		InterfaceSelector: &model.NetSelector{
+			ID: &payload.Interface.ID,
+		},
+	})
+
+	// Comprobamos que solo tenemos tres nodos (dev1+iface y dev2)
+	assert.Len(t, probe.graph.GetNodes(nil), 3)
+
+	// El edge-pw tiene que haber sido borrado
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 0)
+}
+
+// TestDeleteLLDPLink comprueba que el borrado de edges LLDP funciona correctamente
+func TestDeleteLLDPLink(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface:      &model.NetInterfaceInput{Name: "eth0"},
+	})
+	assert.NoError(t, err)
+
+	// Device 2
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface:      &model.NetInterfaceInput{Name: "eno0"},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddIf2IfLink(context.Background(), model.NetAddIf2IfLinkInput{
+		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
+		DstInterface: &model.NetSelector{ID: &dev2.Device.ID},
+	})
+	assert.NoError(t, err)
+
+	// Comprobamos que se ha creado un edge tipo LLDP (connect)
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationConnect}), 1)
+
+	// Llama a la mutation de borrado de edges LLDP
+	_, err = probe.resolver.Mutation().NetDelIf2IfLink(context.Background(), model.NetDelIf2IfLinkInput{
+		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
+		DstInterface: &model.NetSelector{ID: &dev2.Device.ID},
+	})
+
+	// Comprobamos que no quedan edges tipo LLDP (connect)
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationConnect}), 0)
+}
+
+func TestEVPNPseudoWiresWithoutBuildings(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+	})
+
+	// Create interface eth0 in Dev1
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{LocalVpws: strPointer("123456"), RemoteVpws: strPointer("654321")},
+			},
+		},
+	})
+
+	// Device 2
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+	})
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eno0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{LocalVpws: strPointer("654321"), RemoteVpws: strPointer("123456")},
+			},
+		},
+	})
+
+	edges := probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire})
+	assert.Len(t, edges, 1)
+	expectedEdgeMetadata := graph.Metadata{
+		MetaKeyRelationType: RelationTypePseudoWire,
+		MetaKeyPseudowireID: "654321-123456",
+	}
+	assert.Equal(t, expectedEdgeMetadata, edges[0].Metadata)
+}
+
+func TestEVPNPseudoWiresWithBuildings(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Creamos las regiones, provincias y buildings
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionB",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionAProvinceA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionA",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionBProvinceB",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionB",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:     "RegionAProvinceABuildingA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province: "RegionAProvinceA",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:     "RegionBProvinceBBuildingB",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province: "RegionBProvinceB",
+	})
+	assert.NoError(t, err)
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+		Building: strPointer("RegionAProvinceABuildingA"),
+	})
+
+	// Create interface eth0 in Dev1
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{LocalVpws: strPointer("123456"), RemoteVpws: strPointer("654321")},
+			},
+		},
+	})
+
+	// Device 2
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+		Building: strPointer("RegionBProvinceBBuildingB"),
+	})
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eno0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{LocalVpws: strPointer("654321"), RemoteVpws: strPointer("123456")},
+			},
+		},
+	})
+
+	edges := probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire})
+	// 10 edge pseudowires:
+	//    - [r,p,b] <-> [r,p,b] (9)
+	//    - iface<->iface (1)
+	assert.Len(t, edges, 10)
 }

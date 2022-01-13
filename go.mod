@@ -2,7 +2,7 @@ module github.com/skydive-project/skydive
 
 require (
 	git.fd.io/govpp.git v0.0.0-20190321220742-345201eedce4
-	github.com/99designs/gqlgen v0.13.0
+	github.com/99designs/gqlgen v0.14.0
 	github.com/VerizonDigital/vflow v0.0.0-20190111005900-eb30d936249e
 	github.com/abbot/go-http-auth v0.4.0
 	github.com/avast/retry-go v3.0.0+incompatible
@@ -48,7 +48,6 @@ require (
 	github.com/lunixbochs/struc v0.0.0-20180408203800-02e4c2afbb2a
 	github.com/lxc/lxd v0.0.0-20200330183600-518f06676866
 	github.com/mailru/easyjson v0.7.6
-	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/goveralls v0.0.2
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
@@ -72,7 +71,7 @@ require (
 	github.com/skydive-project/dede v0.0.0-20200217172954-b1b74a5bb856
 	github.com/skydive-project/go-debouncer v1.0.0
 	github.com/skydive-project/goloxi v0.0.0-20190117172159-db2324197a3e
-	github.com/skydive-project/skydive/graffiti v0.0.0-00010101000000-000000000000
+	github.com/skydive-project/skydive/graffiti v0.0.0-20211014130337-85217cc80571
 	github.com/socketplane/libovsdb v0.0.0-20160607151822-5113f8fb4d9d
 	github.com/spf13/cast v1.3.1
 	github.com/spf13/cobra v1.1.1

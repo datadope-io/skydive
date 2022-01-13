@@ -59,6 +59,16 @@ Values to create a new network device.
 """
 input net_DeviceInput {
   """
+  Identifier used by routers.
+  The value should be taken from this fields in the configurations files:
+    Huawei: router id
+    Cisco: router-id
+    Juniper: routing-options.router-id
+    Nokia: configure.router Base.interface "system".address
+  """
+  DeviceID: String
+
+  """
   Device name. Used as the primary key.
   """
   Name: String!
@@ -85,6 +95,11 @@ input net_DeviceInput {
   produce an error.
   """
   CreatedAt: Time
+
+  """
+  Ubicación del dispositivo. Código del edificio.
+  """
+  Building: String
 }
 
 """
@@ -127,6 +142,16 @@ input net_AddInterfaceInput {
   not set, defaults to the current time.
   """
   CreatedAt: Time
+}
+
+"""
+Values to delete an interface from a network device.
+"""
+input net_DelInterfaceInput {
+  """
+  Select which interface to be deleted
+  """
+  InterfaceSelector: net_Selector!
 }
 
 """
@@ -182,6 +207,10 @@ input net_InterfaceInput {
   """
   Name: String!
   """
+  Interface description
+  """
+  Description: [net_KeyValue!]
+  """
   Ethernet data of the interface
   """
   Ethernet: net_EthernetInput
@@ -189,9 +218,43 @@ input net_InterfaceInput {
   IP addresses of the interface, IPv4 or IPv6
   IP data of the interface.
   IPv4 format: 192.0.2.0/24
-  IPv6 format: 2001:db8::/32
+  IPv6 format: 2002:db8::/32
   """
   IP: [String!]
+  """
+  Pseudowire of the interface.
+  """
+  PseudoWires: [net_PseudowireInput!]
+}
+
+"""
+Pseudowire data of a network interface.
+There are two types of pseudowires:
+    - normal: should define ID and Neighbor
+    - EVPN-VPWS: should define LocalVPWS and RemoteVPWS
+"""
+input net_PseudowireInput {
+  """
+  ID of the pseudowire
+  """
+  ID: String
+  """
+  IP of the neighbor connected to this pseudowire
+  """
+  Neighbor: String
+  """
+  Local VPWS ID for EVPN-VPWS pseudowires
+  """
+  LocalVPWS: String
+  """
+  Remote VPWS ID for EVPN-VPWS pseudowires
+  """
+  RemoteVPWS: String
+  """
+  For Huawei PW, set to "secondary" if this is the secondary pseudowire
+  For Nokia, set to "primary" if this is the primary pseudowire.
+  """
+  Status: String
 }
 
 """
@@ -223,6 +286,16 @@ VLAN data for interfaces configured in access mode
 """
 input net_VLANAccessInput {
   """
+  VLAN id
+  """
+  VID: Int!
+}
+
+"""
+VLAN data for interfaces configured in trunk mode
+"""
+input net_VLANTrunkInput {
+  """
   List of VLAN IDs to be accepted by the trunk port
   """
   AcceptedVIDs: [Int!]!
@@ -231,16 +304,6 @@ input net_VLANAccessInput {
   VLAN ID used for untagged packets
   """
   NativeVLANVID: Int
-}
-
-"""
-VLAN data for interfaces configured in trunk mode
-"""
-input net_VLANTrunkInput {
-  """
-  VLAN id
-  """
-  VID: Int!
 }
 
 """
@@ -274,9 +337,9 @@ type net_LogicalInterfacePayload {
 
 
 """
-Values to create a new link between nodes.
+Values to create a LLDP link between nodes.
 """
-input net_If2IfLinkInput {
+input net_AddIf2IfLinkInput {
   """
   Source interface.
   """
@@ -294,13 +357,153 @@ input net_If2IfLinkInput {
   CreatedAt: Time
 }
 
+"""
+Values to delete a LLDP link between nodes.
+"""
+input net_DelIf2IfLinkInput {
+  """
+  Source interface.
+  """
+  SrcInterface: net_Selector!
+
+  """
+  Destination interface.
+  """
+  DstInterface: net_Selector!
+}
 
 """
-Return value when creating a new link between interfaces.
+Return value when creating or deleting a LLDP link between interfaces.
 """
-type net_AddIf2IfLinkPayload {
+type net_If2IfLinkPayload {
   """
   Internal ID for the edge in Skydive.
   """
-  InterfaceLink: net_EdgePayload!
+  InterfaceLinks: [net_EdgePayload!]!
 }
+
+"""
+Values to define a location in a map
+"""
+input net_LocationInput {
+  """
+  Latitude in decimal degrees.
+  """
+  Lat: Float!
+  """
+  Longitude in decimal degrees.
+  """
+  Lng: Float!
+}
+
+"""
+Values to create a new region (comunidad autónoma)
+"""
+input net_RegionInput {
+  """
+  Name of the region
+  """
+  Name: String!
+  """
+  Reference location for the region
+  """
+  Location: net_LocationInput!
+}
+
+"""
+Return value when creating a new region.
+"""
+type net_RegionPayload {
+  """
+  SKydive ID of the node created
+  """
+  ID: String!
+
+  """
+  Return true if a new node has been created
+  """
+  NodeCreated: Boolean!
+
+  """
+  Return true if a node with this name already exists and metadata values
+  have been updated.
+  """
+  NodeUpdated: Boolean!
+}
+
+"""
+Values to create a new province, linked to a region (that should already exist)
+"""
+input net_ProvinceInput {
+  """
+  Name of the region for this province
+  """
+  Region: String!
+  """
+  Name of the province
+  """
+  Name: String!
+  """
+  Reference location for the province
+  """
+  Location: net_LocationInput!
+}
+
+"""
+Return value when creating a new province.
+"""
+type net_ProvincePayload {
+  """
+  SKydive ID of the node created
+  """
+  ID: String!
+
+  """
+  Return true if a new node has been created
+  """
+  NodeCreated: Boolean!
+
+  """
+  Return true if a node with this name already exists and metadata values
+  have been updated.
+  """
+  NodeUpdated: Boolean!
+}
+
+
+"""
+Values to create a new building, linked to a province (that should already exist)
+"""
+input net_BuildingInput {
+  """
+  Name of the province for this building
+  """
+  Province: String!
+  """
+  Name of the building
+  """
+  Name: String!
+  """
+  Location for the building
+  """
+  Location: net_LocationInput!
+}
+
+"""
+Return value when creating a new building.
+"""
+type net_BuildingPayload {
+  """
+  Information about the building
+  """
+  Building: net_NodePayload!
+}
+
+"""
+Simple input to add any extra data in a key-value fashion
+"""
+input net_KeyValue {
+  Key: String!
+  Value: String!
+}
+

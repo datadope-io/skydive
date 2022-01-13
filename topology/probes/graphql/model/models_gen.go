@@ -25,6 +25,13 @@ type EventAddInput struct {
 	// If defined, this event will be closed automatically after this number of seconds.
 	// Closing time will not be exact, it will depend on the garbage collector interval execution.
 	TTL *int `json:"TTL"`
+	// If true, this event will be included in all the parent nodes (ownership edges only).
+	// To differentiate between node own events and propagated events,
+	// a new "ChildChain" field will be added to the event.
+	// This new field is an array with the path from the parent to the node where the event was added.
+	// Eg.: Metadata.ChildChain = ["Barcelona", "BX1234", "BX1234-LACX01", "Gi0/0"]
+	// It will be also added a field "ChildID" to the event, with the ID of the node.
+	Propagate *bool `json:"Propagate"`
 }
 
 // Return value when adding new events
@@ -47,6 +54,8 @@ type EventCloseInput struct {
 	GremlinQuery string `json:"GremlinQuery"`
 	// Identifier of each particular alarm.
 	ID string `json:"ID"`
+	// If true, delete the event in this node and all the parent nodes.
+	Propagate *bool `json:"Propagate"`
 }
 
 // Return value when closing an event
@@ -72,10 +81,15 @@ type NetAddAggregationInput struct {
 	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
-// Return value when creating a new link between interfaces.
-type NetAddIf2IfLinkPayload struct {
-	// Internal ID for the edge in Skydive.
-	InterfaceLink *NetEdgePayload `json:"InterfaceLink"`
+// Values to create a LLDP link between nodes.
+type NetAddIf2IfLinkInput struct {
+	// Source interface.
+	SrcInterface *NetSelector `json:"SrcInterface"`
+	// Destination interface.
+	DstInterface *NetSelector `json:"DstInterface"`
+	// Optional field to establish the creation time of the skydive elements. If
+	// not set, defaults to the current time.
+	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
 // Values to add a physical interface to a network device.
@@ -109,8 +123,45 @@ type NetAggregationPayload struct {
 	Aggregation *NetNodePayload `json:"Aggregation"`
 }
 
+// Values to create a new building, linked to a province (that should already exist)
+type NetBuildingInput struct {
+	// Name of the province for this building
+	Province string `json:"Province"`
+	// Name of the building
+	Name string `json:"Name"`
+	// Location for the building
+	Location *NetLocationInput `json:"Location"`
+}
+
+// Return value when creating a new building.
+type NetBuildingPayload struct {
+	// Information about the building
+	Building *NetNodePayload `json:"Building"`
+}
+
+// Values to delete a LLDP link between nodes.
+type NetDelIf2IfLinkInput struct {
+	// Source interface.
+	SrcInterface *NetSelector `json:"SrcInterface"`
+	// Destination interface.
+	DstInterface *NetSelector `json:"DstInterface"`
+}
+
+// Values to delete an interface from a network device.
+type NetDelInterfaceInput struct {
+	// Select which interface to be deleted
+	InterfaceSelector *NetSelector `json:"InterfaceSelector"`
+}
+
 // Values to create a new network device.
 type NetDeviceInput struct {
+	// Identifier used by routers.
+	// The value should be taken from this fields in the configurations files:
+	//   Huawei: router id
+	//   Cisco: router-id
+	//   Juniper: routing-options.router-id
+	//   Nokia: configure.router Base.interface "system".address
+	DeviceID *string `json:"DeviceID"`
 	// Device name. Used as the primary key.
 	Name string `json:"Name"`
 	// Device type: router, switch, etc.
@@ -124,6 +175,8 @@ type NetDeviceInput struct {
 	// If the node already exists and this value is different from the existing one, it will
 	// produce an error.
 	CreatedAt *time.Time `json:"CreatedAt"`
+	// Ubicación del dispositivo. Código del edificio.
+	Building *string `json:"Building"`
 }
 
 // Return value when creating a new network device.
@@ -149,28 +202,27 @@ type NetEthernetInput struct {
 	Vlan *NetVLANInput `json:"VLAN"`
 }
 
-// Values to create a new link between nodes.
-type NetIf2IfLinkInput struct {
-	// Source interface.
-	SrcInterface *NetSelector `json:"SrcInterface"`
-	// Destination interface.
-	DstInterface *NetSelector `json:"DstInterface"`
-	// Optional field to establish the creation time of the skydive elements. If
-	// not set, defaults to the current time.
-	CreatedAt *time.Time `json:"CreatedAt"`
+// Return value when creating or deleting a LLDP link between interfaces.
+type NetIf2IfLinkPayload struct {
+	// Internal ID for the edge in Skydive.
+	InterfaceLinks []*NetEdgePayload `json:"InterfaceLinks"`
 }
 
 // Data defining a network interface
 type NetInterfaceInput struct {
 	// Name of the interface
 	Name string `json:"Name"`
+	// Interface description
+	Description []*NetKeyValue `json:"Description"`
 	// Ethernet data of the interface
 	Ethernet *NetEthernetInput `json:"Ethernet"`
 	// IP addresses of the interface, IPv4 or IPv6
 	// IP data of the interface.
 	// IPv4 format: 192.0.2.0/24
-	// IPv6 format: 2001:db8::/32
+	// IPv6 format: 2002:db8::/32
 	IP []string `json:"IP"`
+	// Pseudowire of the interface.
+	PseudoWires []*NetPseudowireInput `json:"PseudoWires"`
 }
 
 // Return value when creating a new physical interface.
@@ -180,6 +232,20 @@ type NetInterfacePayload struct {
 	// Information about the aggregation interface.
 	// Define only if the input has an aggregation interface defined.
 	Aggregation *NetNodePayload `json:"Aggregation"`
+}
+
+// Simple input to add any extra data in a key-value fashion
+type NetKeyValue struct {
+	Key   string `json:"Key"`
+	Value string `json:"Value"`
+}
+
+// Values to define a location in a map
+type NetLocationInput struct {
+	// Latitude in decimal degrees.
+	Lat float64 `json:"Lat"`
+	// Longitude in decimal degrees.
+	Lng float64 `json:"Lng"`
 }
 
 // Return value when creating a new logical interface interface.
@@ -199,6 +265,64 @@ type NetNodePayload struct {
 	NodeUpdated bool `json:"NodeUpdated"`
 }
 
+// Values to create a new province, linked to a region (that should already exist)
+type NetProvinceInput struct {
+	// Name of the region for this province
+	Region string `json:"Region"`
+	// Name of the province
+	Name string `json:"Name"`
+	// Reference location for the province
+	Location *NetLocationInput `json:"Location"`
+}
+
+// Return value when creating a new province.
+type NetProvincePayload struct {
+	// SKydive ID of the node created
+	ID string `json:"ID"`
+	// Return true if a new node has been created
+	NodeCreated bool `json:"NodeCreated"`
+	// Return true if a node with this name already exists and metadata values
+	// have been updated.
+	NodeUpdated bool `json:"NodeUpdated"`
+}
+
+// Pseudowire data of a network interface.
+// There are two types of pseudowires:
+//     - normal: should define ID and Neighbor
+//     - EVPN-VPWS: should define LocalVPWS and RemoteVPWS
+type NetPseudowireInput struct {
+	// ID of the pseudowire
+	ID *string `json:"ID"`
+	// IP of the neighbor connected to this pseudowire
+	Neighbor *string `json:"Neighbor"`
+	// Local VPWS ID for EVPN-VPWS pseudowires
+	LocalVpws *string `json:"LocalVPWS"`
+	// Remote VPWS ID for EVPN-VPWS pseudowires
+	RemoteVpws *string `json:"RemoteVPWS"`
+	// For Huawei PW, set to "secondary" if this is the secondary pseudowire
+	// For Nokia, set to "primary" if this is the primary pseudowire.
+	Status *string `json:"Status"`
+}
+
+// Values to create a new region (comunidad autónoma)
+type NetRegionInput struct {
+	// Name of the region
+	Name string `json:"Name"`
+	// Reference location for the region
+	Location *NetLocationInput `json:"Location"`
+}
+
+// Return value when creating a new region.
+type NetRegionPayload struct {
+	// SKydive ID of the node created
+	ID string `json:"ID"`
+	// Return true if a new node has been created
+	NodeCreated bool `json:"NodeCreated"`
+	// Return true if a node with this name already exists and metadata values
+	// have been updated.
+	NodeUpdated bool `json:"NodeUpdated"`
+}
+
 // Use a Gremlin query or a Skydive ID to select a node in the Skydive graph.
 type NetSelector struct {
 	// Select device by using its Skydive internal ID
@@ -209,11 +333,8 @@ type NetSelector struct {
 
 // VLAN data for interfaces configured in access mode
 type NetVLANAccessInput struct {
-	// List of VLAN IDs to be accepted by the trunk port
-	AcceptedVIDs []int `json:"AcceptedVIDs"`
-	// Native VLAN ID.
-	// VLAN ID used for untagged packets
-	NativeVlanvid *int `json:"NativeVLANVID"`
+	// VLAN id
+	Vid int `json:"VID"`
 }
 
 // VLAN data for an interface
@@ -226,8 +347,11 @@ type NetVLANInput struct {
 
 // VLAN data for interfaces configured in trunk mode
 type NetVLANTrunkInput struct {
-	// VLAN id
-	Vid int `json:"VID"`
+	// List of VLAN IDs to be accepted by the trunk port
+	AcceptedVIDs []int `json:"AcceptedVIDs"`
+	// Native VLAN ID.
+	// VLAN ID used for untagged packets
+	NativeVlanvid *int `json:"NativeVLANVID"`
 }
 
 // Possible values to define an event criticity
