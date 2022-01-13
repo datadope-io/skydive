@@ -996,6 +996,28 @@ func TestPseudoWireHasherTwoPWSameID(t *testing.T) {
 	assert.Equal(t, dictExpected, dict)
 }
 
+func TestPseudoWireHasherEVPN(t *testing.T) {
+	node := createNode("Dev2-Iface-eth0", graph.Metadata{
+		MetaKeyName: "Dev2-Iface-eth0",
+		MetaKeyType: MetadataTypeNetworkInterface,
+		MetadataKeyNetworkInfo: &NetworkInfo{
+			PseudoWires: []PseudoWireInfo{
+				{LocalVpws: "1234", RemoteVpws: "4321"},
+			},
+		},
+	})
+
+	dict := pseudoWireHasher(node)
+
+	dictExpected := map[string]interface{}{
+		"4321": map[string]interface{}{
+			"1234": nil,
+		},
+	}
+
+	assert.Equal(t, dictExpected, dict)
+}
+
 func TestPseudoWireWithRegionsProvincesBuildingsAndTwoInterfacesPerDeviceWithTwoPW(t *testing.T) {
 	getProbeWithTwoDevicesLinkedByPseudowire(t)
 }
@@ -1070,7 +1092,7 @@ func getProbeWithTwoDevicesLinkedByPseudowire(t *testing.T) *Probe {
 			Name:        "eth0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "1", Neighbor: "2.2.2.2"},
+				{ID: strPointer("1"), Neighbor: strPointer("2.2.2.2")},
 			},
 		},
 	})
@@ -1081,7 +1103,7 @@ func getProbeWithTwoDevicesLinkedByPseudowire(t *testing.T) *Probe {
 			Name:        "eth1",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "2", Neighbor: "2.2.2.2"},
+				{ID: strPointer("2"), Neighbor: strPointer("2.2.2.2")},
 			},
 		},
 	})
@@ -1102,7 +1124,7 @@ func getProbeWithTwoDevicesLinkedByPseudowire(t *testing.T) *Probe {
 			Name:        "eno0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "1", Neighbor: "1.1.1.1"},
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
 			},
 		},
 	})
@@ -1113,18 +1135,18 @@ func getProbeWithTwoDevicesLinkedByPseudowire(t *testing.T) *Probe {
 			Name:        "eno1",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "2", Neighbor: "1.1.1.1"},
+				{ID: strPointer("2"), Neighbor: strPointer("1.1.1.1")},
 			},
 		},
 	})
 
 	// 10 edge ownership 2x(r--p--b--d-(2x)-iface)
-	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypeOwnership}), 10)
+	assert.Lenf(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypeOwnership}), 10, "edge ownership")
 
 	// 20 edge pseudowires, por cada pw id:
 	//    - [r,p,b] <-> [r,p,b] (9)
 	//    - iface<->iface (1)
-	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 20)
+	assert.Lenf(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire}), 20, "edge pseudowire")
 
 	return probe
 }
@@ -1204,7 +1226,7 @@ func TestPseudoWireLowerIDTriggersFirst(t *testing.T) {
 			Name:        "eth0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "1", Neighbor: "2.2.2.2"},
+				{ID: strPointer("1"), Neighbor: strPointer("2.2.2.2")},
 			},
 		},
 	})
@@ -1225,7 +1247,7 @@ func TestPseudoWireLowerIDTriggersFirst(t *testing.T) {
 			Name:        "eno0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "1", Neighbor: "1.1.1.1"},
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
 			},
 		},
 	})
@@ -1295,7 +1317,7 @@ func TestPseudoWireHigherIDTriggersFirst(t *testing.T) {
 			Name:        "eth0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "1", Neighbor: "2.2.2.2"},
+				{ID: strPointer("1"), Neighbor: strPointer("2.2.2.2")},
 			},
 		},
 	})
@@ -1316,7 +1338,7 @@ func TestPseudoWireHigherIDTriggersFirst(t *testing.T) {
 			Name:        "eno0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "1", Neighbor: "1.1.1.1"},
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
 			},
 		},
 	})
@@ -1394,6 +1416,7 @@ func TestPseudoWireWithSameBuildingProvinceRegion(t *testing.T) {
 		Type:     &routerType,
 		Building: &buildA,
 	})
+	assert.NoError(t, err)
 
 	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
 		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
@@ -1401,10 +1424,11 @@ func TestPseudoWireWithSameBuildingProvinceRegion(t *testing.T) {
 			Name:        "eth0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "1", Neighbor: "2.2.2.2"},
+				{ID: strPointer("1"), Neighbor: strPointer("2.2.2.2")},
 			},
 		},
 	})
+	assert.NoError(t, err)
 
 	// Device 2
 	buildB := "RegionAProvinceABuildingA"
@@ -1422,7 +1446,7 @@ func TestPseudoWireWithSameBuildingProvinceRegion(t *testing.T) {
 			Name:        "eno0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "1", Neighbor: "1.1.1.1"},
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
 			},
 		},
 	})
@@ -1454,8 +1478,8 @@ func TestPseudoWireDeletePrevious(t *testing.T) {
 			Name:        "eth0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "1", Neighbor: "1.1.1.1"},
-				{ID: "2", Neighbor: "2.2.2.2"},
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
+				{ID: strPointer("2"), Neighbor: strPointer("2.2.2.2")},
 			},
 		},
 	})
@@ -1475,8 +1499,8 @@ func TestPseudoWireDeletePrevious(t *testing.T) {
 			Name:        "eth0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "2", Neighbor: "2.2.2.2"},
-				{ID: "99", Neighbor: "9.9.9.9"},
+				{ID: strPointer("2"), Neighbor: strPointer("2.2.2.2")},
+				{ID: strPointer("99"), Neighbor: strPointer("9.9.9.9")},
 			},
 		},
 	})
@@ -1518,8 +1542,8 @@ func TestDeleteInterface(t *testing.T) {
 			Name:        "eth0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "1", Neighbor: "1.1.1.1"},
-				{ID: "2", Neighbor: "2.2.2.2"},
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
+				{ID: strPointer("2"), Neighbor: strPointer("2.2.2.2")},
 			},
 		},
 	})
@@ -1561,7 +1585,7 @@ func TestDeleteInterfaceLinkedWithPWEdge(t *testing.T) {
 			Name:        "eth0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "1", Neighbor: "2.2.2.2"},
+				{ID: strPointer("1"), Neighbor: strPointer("2.2.2.2")},
 			},
 		},
 	})
@@ -1580,7 +1604,7 @@ func TestDeleteInterfaceLinkedWithPWEdge(t *testing.T) {
 			Name:        "eno0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
-				{ID: "1", Neighbor: "1.1.1.1"},
+				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
 			},
 		},
 	})
@@ -1658,4 +1682,157 @@ func TestDeleteLLDPLink(t *testing.T) {
 
 	// Comprobamos que no quedan edges tipo LLDP (connect)
 	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationConnect}), 0)
+}
+
+func TestEVPNPseudoWiresWithoutBuildings(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+	})
+
+	// Create interface eth0 in Dev1
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{LocalVpws: strPointer("123456"), RemoteVpws: strPointer("654321")},
+			},
+		},
+	})
+
+	// Device 2
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+	})
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eno0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{LocalVpws: strPointer("654321"), RemoteVpws: strPointer("123456")},
+			},
+		},
+	})
+
+	edges := probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire})
+	assert.Len(t, edges, 1)
+	expectedEdgeMetadata := graph.Metadata{
+		MetaKeyRelationType: RelationTypePseudoWire,
+		MetaKeyPseudowireID: "654321-123456",
+	}
+	assert.Equal(t, expectedEdgeMetadata, edges[0].Metadata)
+}
+
+func TestEVPNPseudoWiresWithBuildings(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Creamos las regiones, provincias y buildings
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionB",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionAProvinceA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionA",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionBProvinceB",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionB",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:     "RegionAProvinceABuildingA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province: "RegionAProvinceA",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:     "RegionBProvinceBBuildingB",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province: "RegionBProvinceB",
+	})
+	assert.NoError(t, err)
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+		Building: strPointer("RegionAProvinceABuildingA"),
+	})
+
+	// Create interface eth0 in Dev1
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eth0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{LocalVpws: strPointer("123456"), RemoteVpws: strPointer("654321")},
+			},
+		},
+	})
+
+	// Device 2
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+		Building: strPointer("RegionBProvinceBBuildingB"),
+	})
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface: &model.NetInterfaceInput{
+			Name:        "eno0",
+			Description: []*model.NetKeyValue{},
+			PseudoWires: []*model.NetPseudowireInput{
+				{LocalVpws: strPointer("654321"), RemoteVpws: strPointer("123456")},
+			},
+		},
+	})
+
+	edges := probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationTypePseudoWire})
+	// 10 edge pseudowires:
+	//    - [r,p,b] <-> [r,p,b] (9)
+	//    - iface<->iface (1)
+	assert.Len(t, edges, 10)
 }

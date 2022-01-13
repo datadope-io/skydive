@@ -20,9 +20,14 @@ type NetworkInfo struct {
 
 // easyjson:json
 // gendecoder
+// PseudoWireInfo almacena la información de PWs normales o EVPN-VPWS
+// Para los PW normales solo se definrán el ID y Neighbor.
+// Para los PW EVPN-VPWS se definirán el LocalVPWS y RemoteVPWS.
 type PseudoWireInfo struct {
-	ID       string
-	Neighbor string
+	ID         string
+	Neighbor   string
+	LocalVpws  string
+	RemoteVpws string
 }
 
 // easyjson:json

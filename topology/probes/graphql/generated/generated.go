@@ -97,7 +97,7 @@ type ComplexityRoot struct {
 	}
 
 	NetIf2IfLinkPayload struct {
-		InterfaceLink func(childComplexity int) int
+		InterfaceLinks func(childComplexity int) int
 	}
 
 	NetInterfacePayload struct {
@@ -402,12 +402,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.NetEdgePayload.ID(childComplexity), true
 
-	case "net_If2IfLinkPayload.InterfaceLink":
-		if e.complexity.NetIf2IfLinkPayload.InterfaceLink == nil {
+	case "net_If2IfLinkPayload.InterfaceLinks":
+		if e.complexity.NetIf2IfLinkPayload.InterfaceLinks == nil {
 			break
 		}
 
-		return e.complexity.NetIf2IfLinkPayload.InterfaceLink(childComplexity), true
+		return e.complexity.NetIf2IfLinkPayload.InterfaceLinks(childComplexity), true
 
 	case "net_InterfacePayload.Aggregation":
 		if e.complexity.NetInterfacePayload.Aggregation == nil {
@@ -900,17 +900,28 @@ input net_InterfaceInput {
 }
 
 """
-Pseudowire data of a network interface
+Pseudowire data of a network interface.
+There are two types of pseudowires:
+    - normal: should define ID and Neighbor
+    - EVPN-VPWS: should define LocalVPWS and RemoteVPWS
 """
 input net_PseudowireInput {
   """
   ID of the pseudowire
   """
-  ID: String!
+  ID: String
   """
   IP of the neighbor connected to this pseudowire
   """
-  Neighbor: String!
+  Neighbor: String
+  """
+  Local VPWS ID for EVPN-VPWS pseudowires
+  """
+  LocalVPWS: String
+  """
+  Remote VPWS ID for EVPN-VPWS pseudowires
+  """
+  RemoteVPWS: String
   """
   For Huawei PW, set to "secondary" if this is the secondary pseudowire
   For Nokia, set to "primary" if this is the primary pseudowire.
@@ -1040,7 +1051,7 @@ type net_If2IfLinkPayload {
   """
   Internal ID for the edge in Skydive.
   """
-  InterfaceLink: net_EdgePayload!
+  InterfaceLinks: [net_EdgePayload!]!
 }
 
 """
@@ -3666,7 +3677,7 @@ func (ec *executionContext) _net_EdgePayload_EdgeUpdated(ctx context.Context, fi
 	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _net_If2IfLinkPayload_InterfaceLink(ctx context.Context, field graphql.CollectedField, obj *model.NetIf2IfLinkPayload) (ret graphql.Marshaler) {
+func (ec *executionContext) _net_If2IfLinkPayload_InterfaceLinks(ctx context.Context, field graphql.CollectedField, obj *model.NetIf2IfLinkPayload) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -3684,7 +3695,7 @@ func (ec *executionContext) _net_If2IfLinkPayload_InterfaceLink(ctx context.Cont
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.InterfaceLink, nil
+		return obj.InterfaceLinks, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3696,9 +3707,9 @@ func (ec *executionContext) _net_If2IfLinkPayload_InterfaceLink(ctx context.Cont
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.NetEdgePayload)
+	res := resTmp.([]*model.NetEdgePayload)
 	fc.Result = res
-	return ec.marshalNnet_EdgePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetEdgePayload(ctx, field.Selections, res)
+	return ec.marshalNnet_EdgePayload2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetEdgePayloadᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _net_InterfacePayload_Interface(ctx context.Context, field graphql.CollectedField, obj *model.NetInterfacePayload) (ret graphql.Marshaler) {
@@ -4782,7 +4793,7 @@ func (ec *executionContext) unmarshalInputnet_PseudowireInput(ctx context.Contex
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ID"))
-			it.ID, err = ec.unmarshalNString2string(ctx, v)
+			it.ID, err = ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -4790,7 +4801,23 @@ func (ec *executionContext) unmarshalInputnet_PseudowireInput(ctx context.Contex
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Neighbor"))
-			it.Neighbor, err = ec.unmarshalNString2string(ctx, v)
+			it.Neighbor, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "LocalVPWS":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("LocalVPWS"))
+			it.LocalVpws, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "RemoteVPWS":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("RemoteVPWS"))
+			it.RemoteVpws, err = ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -5564,8 +5591,8 @@ func (ec *executionContext) _net_If2IfLinkPayload(ctx context.Context, sel ast.S
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("net_If2IfLinkPayload")
-		case "InterfaceLink":
-			out.Values[i] = ec._net_If2IfLinkPayload_InterfaceLink(ctx, field, obj)
+		case "InterfaceLinks":
+			out.Values[i] = ec._net_If2IfLinkPayload_InterfaceLinks(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -6316,6 +6343,50 @@ func (ec *executionContext) marshalNnet_DevicePayload2ᚖgithubᚗcomᚋskydive�
 		return graphql.Null
 	}
 	return ec._net_DevicePayload(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNnet_EdgePayload2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetEdgePayloadᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.NetEdgePayload) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNnet_EdgePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetEdgePayload(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalNnet_EdgePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetEdgePayload(ctx context.Context, sel ast.SelectionSet, v *model.NetEdgePayload) graphql.Marshaler {

@@ -205,7 +205,7 @@ type NetEthernetInput struct {
 // Return value when creating or deleting a LLDP link between interfaces.
 type NetIf2IfLinkPayload struct {
 	// Internal ID for the edge in Skydive.
-	InterfaceLink *NetEdgePayload `json:"InterfaceLink"`
+	InterfaceLinks []*NetEdgePayload `json:"InterfaceLinks"`
 }
 
 // Data defining a network interface
@@ -286,12 +286,19 @@ type NetProvincePayload struct {
 	NodeUpdated bool `json:"NodeUpdated"`
 }
 
-// Pseudowire data of a network interface
+// Pseudowire data of a network interface.
+// There are two types of pseudowires:
+//     - normal: should define ID and Neighbor
+//     - EVPN-VPWS: should define LocalVPWS and RemoteVPWS
 type NetPseudowireInput struct {
 	// ID of the pseudowire
-	ID string `json:"ID"`
+	ID *string `json:"ID"`
 	// IP of the neighbor connected to this pseudowire
-	Neighbor string `json:"Neighbor"`
+	Neighbor *string `json:"Neighbor"`
+	// Local VPWS ID for EVPN-VPWS pseudowires
+	LocalVpws *string `json:"LocalVPWS"`
+	// Remote VPWS ID for EVPN-VPWS pseudowires
+	RemoteVpws *string `json:"RemoteVPWS"`
 	// For Huawei PW, set to "secondary" if this is the secondary pseudowire
 	// For Nokia, set to "primary" if this is the primary pseudowire.
 	Status *string `json:"Status"`

@@ -228,17 +228,28 @@ input net_InterfaceInput {
 }
 
 """
-Pseudowire data of a network interface
+Pseudowire data of a network interface.
+There are two types of pseudowires:
+    - normal: should define ID and Neighbor
+    - EVPN-VPWS: should define LocalVPWS and RemoteVPWS
 """
 input net_PseudowireInput {
   """
   ID of the pseudowire
   """
-  ID: String!
+  ID: String
   """
   IP of the neighbor connected to this pseudowire
   """
-  Neighbor: String!
+  Neighbor: String
+  """
+  Local VPWS ID for EVPN-VPWS pseudowires
+  """
+  LocalVPWS: String
+  """
+  Remote VPWS ID for EVPN-VPWS pseudowires
+  """
+  RemoteVPWS: String
   """
   For Huawei PW, set to "secondary" if this is the secondary pseudowire
   For Nokia, set to "primary" if this is the primary pseudowire.
@@ -368,7 +379,7 @@ type net_If2IfLinkPayload {
   """
   Internal ID for the edge in Skydive.
   """
-  InterfaceLink: net_EdgePayload!
+  InterfaceLinks: [net_EdgePayload!]!
 }
 
 """

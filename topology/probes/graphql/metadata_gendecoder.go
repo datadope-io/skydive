@@ -504,6 +504,10 @@ func (obj *PseudoWireInfo) GetFieldString(key string) (string, error) {
 		return string(obj.ID), nil
 	case "Neighbor":
 		return string(obj.Neighbor), nil
+	case "LocalVpws":
+		return string(obj.LocalVpws), nil
+	case "RemoteVpws":
+		return string(obj.RemoteVpws), nil
 	}
 	return "", getter.ErrFieldNotFound
 }
@@ -512,6 +516,8 @@ func (obj *PseudoWireInfo) GetFieldKeys() []string {
 	return []string{
 		"ID",
 		"Neighbor",
+		"LocalVpws",
+		"RemoteVpws",
 	}
 }
 

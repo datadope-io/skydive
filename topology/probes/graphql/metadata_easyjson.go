@@ -307,6 +307,10 @@ func easyjsonBa0ee0e3DecodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql3(
 			out.ID = string(in.String())
 		case "Neighbor":
 			out.Neighbor = string(in.String())
+		case "LocalVpws":
+			out.LocalVpws = string(in.String())
+		case "RemoteVpws":
+			out.RemoteVpws = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -330,6 +334,16 @@ func easyjsonBa0ee0e3EncodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql3(
 		const prefix string = ",\"Neighbor\":"
 		out.RawString(prefix)
 		out.String(string(in.Neighbor))
+	}
+	{
+		const prefix string = ",\"LocalVpws\":"
+		out.RawString(prefix)
+		out.String(string(in.LocalVpws))
+	}
+	{
+		const prefix string = ",\"RemoteVpws\":"
+		out.RawString(prefix)
+		out.String(string(in.RemoteVpws))
 	}
 	out.RawByte('}')
 }
@@ -490,7 +504,7 @@ func easyjsonBa0ee0e3DecodeGithubComSkydiveProjectSkydiveTopologyProbesGraphql5(
 				in.Delim('[')
 				if out.PseudoWires == nil {
 					if !in.IsDelim(']') {
-						out.PseudoWires = make([]PseudoWireInfo, 0, 2)
+						out.PseudoWires = make([]PseudoWireInfo, 0, 1)
 					} else {
 						out.PseudoWires = []PseudoWireInfo{}
 					}

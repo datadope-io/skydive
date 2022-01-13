@@ -233,14 +233,14 @@ func (r *mutationResolver) NetAddLogicalInterface(ctx context.Context, input mod
 	defer r.Graph.Unlock()
 
 	// Get interface node where the logical interface should be linked
-	physicalInterface, err := r.netGetNodeFromSelector(input.InterfaceSelector)
+	baseInterface, err := r.netGetNodeFromSelector(input.InterfaceSelector)
 	if err != nil {
 		return nil, fmt.Errorf("add logical interface selector: %v", err)
 	}
 
 	// Create and link the logical interface node to the interface/aggregation
 	logicalNode, nodeCreated, nodeUpdated, err := r.netAddLogicalToInterface(
-		physicalInterface,
+		baseInterface,
 		input.Interface,
 		input.CreatedAt,
 	)
@@ -270,6 +270,10 @@ func (r *mutationResolver) NetAddIf2IfLink(ctx context.Context, input model.NetA
 		return nil, fmt.Errorf("add link between interfaces, destination selector: %v", err)
 	}
 
+	// Store all the edges created in this array to return them in the payload
+	interfaceLinks := []*model.NetEdgePayload{}
+
+	// Create the link between the interfaces
 	edge, created, updated, err := r.createOrUpdateEdge(srcIface, dstIface, graph.Metadata{
 		MetaKeyRelationType: RelationConnect,
 	}, input.CreatedAt)
@@ -277,14 +281,11 @@ func (r *mutationResolver) NetAddIf2IfLink(ctx context.Context, input model.NetA
 		return nil, fmt.Errorf("add link between interfaces, edge: %v", err)
 	}
 
-	// Create the link between the interfaces
-	_, _, _, err = r.createOrUpdateEdge(srcIface, dstIface, graph.Metadata{
-		MetaKeyRelationType: RelationConnect,
-		// TODO añadir un contador de cuantas conex soportan este edge, para poder borrarlo cuando llegue a 0
-	}, input.CreatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("add link between interfaces, edge: %v", err)
-	}
+	interfaceLinks = append(interfaceLinks, &model.NetEdgePayload{
+		ID:          string(edge.ID),
+		EdgeCreated: created,
+		EdgeUpdated: updated,
+	})
 
 	// Create links between interfaces all the way up to the regions, creating also links between the different levels.
 	// This is done to allow to have links between different levels without having to get all the data down to the interface.
@@ -312,23 +313,22 @@ func (r *mutationResolver) NetAddIf2IfLink(ctx context.Context, input model.NetA
 				continue
 			}
 
-			_, _, _, err = r.createOrUpdateEdge(srcNode, dstNode, graph.Metadata{
+			edge, created, updated, err = r.createOrUpdateEdge(srcNode, dstNode, graph.Metadata{
 				MetaKeyRelationType: RelationConnect,
-				// TODO añadir un contador de cuantas conex soportan este edge, para poder borrarlo cuando llegue a 0
 			}, input.CreatedAt)
 			if err != nil {
 				return nil, fmt.Errorf("add link between interfaces, edge: %v", err)
 			}
+
+			interfaceLinks = append(interfaceLinks, &model.NetEdgePayload{
+				ID:          string(edge.ID),
+				EdgeCreated: created,
+				EdgeUpdated: updated,
+			})
 		}
 	}
 
-	payload := model.NetIf2IfLinkPayload{
-		InterfaceLink: &model.NetEdgePayload{
-			ID:          string(edge.ID),
-			EdgeCreated: created,
-			EdgeUpdated: updated,
-		},
-	}
+	payload := model.NetIf2IfLinkPayload{InterfaceLinks: interfaceLinks}
 	return &payload, nil
 }
 
@@ -360,9 +360,9 @@ func (r *mutationResolver) NetDelIf2IfLink(ctx context.Context, input model.NetD
 	}
 
 	return &model.NetIf2IfLinkPayload{
-		InterfaceLink: &model.NetEdgePayload{
+		InterfaceLinks: []*model.NetEdgePayload{{
 			ID: string(lldpEdge.ID),
-		},
+		}},
 	}, nil
 }
 
