@@ -337,6 +337,7 @@ func NewServerFromConfig() (*Server, error) {
 	tr.AddTraversalExtension(ge.NewNextHopTraversalExtension())
 	tr.AddTraversalExtension(ge.NewGroupTraversalExtension())
 	tr.AddTraversalExtension(ge.NewMergeTraversalExtension())
+	tr.AddTraversalExtension(ge.NewBuildingTraversalExtension())
 
 	// new flow subscriber endpoints
 	flowSubscriberWSServer := ws.NewStructServer(config.NewWSServer(hub.HTTPServer(), "/ws/subscriber/flow", apiAuthBackend))

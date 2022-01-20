@@ -36,4 +36,5 @@ const (
 	traversalAscendantsToken  traversal.Token = 1014
 	traversalNeighborsToken   traversal.Token = 1015
 	traversalMergeToken       traversal.Token = 1016
+	traversalBuildingToken    traversal.Token = 1017
 )
