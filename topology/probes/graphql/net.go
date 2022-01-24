@@ -1,7 +1,8 @@
 package graphql
 
 import (
-	"fmt" // TODO borrar
+	"crypto/sha256"
+	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -361,8 +362,8 @@ func (r *Resolver) netCreateInterface(
 	}
 
 	// Generate a uniq identifier for device and interface name
-	// Get the existant interface node or create it otherwise.
-	ifID := getInterfaceID(prefix, data.Name, subtype)
+	// Get the existent interface node or create it otherwise.
+	ifID := getInterfaceID(prefix, data.Name)
 
 	node, created, updated, err = r.createOrUpdateNode(ifID, ifaceMetadata, createdAt)
 	if err != nil {
@@ -424,8 +425,12 @@ func (r *Resolver) netGetOrCreateAggInterface(
 
 // getInterfaceID return a graph identifier for network interfaces.
 // This function will always return the same id if the pair of values are the same.
-func getInterfaceID(device, iface string, subtype string) graph.Identifier {
-	return graph.GenID(device, iface, MetadataTypeNetworkInterface, subtype)
+// We do not use here graph.GenID because that funcion uses a non estandar UUID generator,
+// not compatible with the uuid lib from python
+func getInterfaceID(device, iface string) graph.Identifier {
+	id := fmt.Sprintf("%s__%s", device, iface)
+	sha := sha256.Sum256([]byte(id))
+	return graph.Identifier(fmt.Sprintf("%x", sha))
 }
 
 // getDeviceID return a graph identifier for network device.

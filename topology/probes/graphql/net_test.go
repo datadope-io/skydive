@@ -15,9 +15,17 @@ func strPointer(s string) *string {
 	return &s
 }
 
-// createNodeWithTime helper function to create nodes for testing
+// createNodeWithTime helper function to create nodes for testing.
 func createNodeWithTime(i graph.Identifier, m graph.Metadata, t time.Time) *graph.Node {
 	return graph.CreateNode(i, m, graph.Time(t), "testhost", "graphql.analyzer.testhost")
+}
+
+// TestGetInterfaceID aseguramos que la generación del ID para interfaces este fijada.
+// Se usa para obtener los nodos en el importador de eventos de ElasticSearch-ML.
+// El ID debe ser sha256(device + "__" + interface)
+func TestGetInterfaceID(t *testing.T) {
+	expectedID := graph.Identifier("c83736f7543e7ee6f2f956f9f2fc88673c770e78c0654517bbecc162bbe25b4b")
+	assert.Equal(t, expectedID, getInterfaceID("DEVICENAME", "INTERFACENAME"))
 }
 
 func TestNetAddDeviceUpdateNode(t *testing.T) {
@@ -260,7 +268,7 @@ func TestNetCreateInterface(t *testing.T) {
 			createdAt:       &createdAt,
 			expectedCreated: true,
 			expectedNode: createNodeWithTime(
-				getInterfaceID("", "eth0", "subA"),
+				getInterfaceID("", "eth0"),
 				graph.Metadata{
 					"Name":     "eth0",
 					"Type":     "interface",
@@ -301,7 +309,7 @@ func TestNetCreateInterface(t *testing.T) {
 			createdAt:       &createdAt,
 			expectedCreated: true,
 			expectedNode: createNodeWithTime(
-				getInterfaceID("", "eth0", "subA"),
+				getInterfaceID("", "eth0"),
 				graph.Metadata{
 					"Name":     "eth0",
 					"Type":     "interface",
@@ -325,7 +333,7 @@ func TestNetCreateInterface(t *testing.T) {
 			createdAt:       &createdAt,
 			expectedCreated: true,
 			expectedNode: createNodeWithTime(
-				getInterfaceID("foo", "eth0", "subA"),
+				getInterfaceID("foo", "eth0"),
 				graph.Metadata{
 					"Name":        "eth0",
 					"Type":        "interface",
@@ -360,7 +368,7 @@ func TestNetCreateInterface(t *testing.T) {
 			createdAt:       &createdAt,
 			expectedCreated: true,
 			expectedNode: createNodeWithTime(
-				getInterfaceID("", "eth0", "subA"),
+				getInterfaceID("", "eth0"),
 				graph.Metadata{
 					"Name":        "eth0",
 					"Type":        "interface",
@@ -413,7 +421,7 @@ func TestNetCreateInterface(t *testing.T) {
 			createdAt:       &createdAt,
 			expectedCreated: true,
 			expectedNode: createNodeWithTime(
-				getInterfaceID("", "eth0", "subA"),
+				getInterfaceID("", "eth0"),
 				graph.Metadata{
 					"Name":        "eth0",
 					"Type":        "interface",
@@ -450,7 +458,7 @@ func TestNetCreateInterface(t *testing.T) {
 			createdAt:       &createdAt,
 			expectedCreated: true,
 			expectedNode: createNodeWithTime(
-				getInterfaceID("", "eth0", "subA"),
+				getInterfaceID("", "eth0"),
 				graph.Metadata{
 					"Name":        "eth0",
 					"Type":        "interface",
@@ -486,7 +494,7 @@ func TestNetCreateInterface(t *testing.T) {
 			createdAt:       &createdAt,
 			expectedCreated: true,
 			expectedNode: createNodeWithTime(
-				getInterfaceID("", "eth0", "subA"),
+				getInterfaceID("", "eth0"),
 				graph.Metadata{
 					"Name":        "eth0",
 					"Type":        "interface",
@@ -510,7 +518,7 @@ func TestNetCreateInterface(t *testing.T) {
 			desc:    "update node with same info does nothing",
 			subtype: "subA",
 			originNode: createNodeWithTime(
-				getInterfaceID("", "eth0", "subA"),
+				getInterfaceID("", "eth0"),
 				graph.Metadata{
 					"Name":        "eth0",
 					"Type":        "interface",
@@ -543,7 +551,7 @@ func TestNetCreateInterface(t *testing.T) {
 			},
 			createdAt: &createdAt,
 			expectedNode: createNodeWithTime(
-				getInterfaceID("", "eth0", "subA"),
+				getInterfaceID("", "eth0"),
 				graph.Metadata{
 					"Name":        "eth0",
 					"Type":        "interface",
@@ -568,7 +576,7 @@ func TestNetCreateInterface(t *testing.T) {
 			desc:    "update VLAN access node with trunk info",
 			subtype: "subA",
 			originNode: createNodeWithTime(
-				getInterfaceID("", "eth0", "subA"),
+				getInterfaceID("", "eth0"),
 				graph.Metadata{
 					"Name":        "eth0",
 					"Type":        "interface",
@@ -601,7 +609,7 @@ func TestNetCreateInterface(t *testing.T) {
 			createdAt:       &createdAt,
 			expectedUpdated: true,
 			expectedNode: createNodeWithTime(
-				getInterfaceID("", "eth0", "subA"),
+				getInterfaceID("", "eth0"),
 				graph.Metadata{
 					"Name":        "eth0",
 					"Type":        "interface",
@@ -687,7 +695,7 @@ func TestNetAddLogicalToInterfaceDoNotDeleteAlreadyIfaceFailEdge(t *testing.T) {
 	r := Resolver{Graph: g}
 
 	ifaceNode := createNodeWithTime(
-		getInterfaceID("foo", "eth0", "subA"),
+		getInterfaceID("foo", "eth0"),
 		graph.Metadata{
 			"Name":        "eth0",
 			"Type":        "interface",
@@ -746,7 +754,7 @@ func TestNetGetOrCreateAggInterfaceNewNode(t *testing.T) {
 	assert.Nil(t, err)
 
 	expectedNode := createNodeWithTime(
-		getInterfaceID("devA", "aggA", MetadataSubtypeAggregationInterface),
+		getInterfaceID("devA", "aggA"),
 		graph.Metadata{
 			"Name":        "aggA",
 			"Type":        "interface",
@@ -778,7 +786,7 @@ func TestNetGetOrCreateAggInterfaceExistingNodeNotLinkedToDevice(t *testing.T) {
 	assert.Nil(t, err)
 
 	aggNodePresent := createNodeWithTime(
-		getInterfaceID("devA", "aggA", MetadataSubtypeAggregationInterface),
+		getInterfaceID("devA", "aggA"),
 		graph.Metadata{
 			"Name":        "aggA",
 			"Type":        "interface",
