@@ -230,7 +230,7 @@ type NetInterfacePayload struct {
 	// Information about the physical interface
 	Interface *NetNodePayload `json:"Interface"`
 	// Information about the aggregation interface.
-	// Define only if the input has an aggregation interface defined.
+	// Defined only if the input has an aggregation interface defined.
 	Aggregation *NetNodePayload `json:"Aggregation"`
 }
 

@@ -29,6 +29,8 @@ type Mutation {
   Create, or update, an interface owned by a device.
   Device could be selected using its ID or a Gremlin query.
   A node is created to represent the interface and linked to the device node.
+  If aggregation is defined it will be linked to this interface.
+  If aggregation node does not exists, it will be created.
   """
   net_AddInterface(input: net_AddInterfaceInput!): net_InterfacePayload!
 

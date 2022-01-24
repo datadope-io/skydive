@@ -836,9 +836,9 @@ type net_InterfacePayload {
   Interface: net_NodePayload!
   """
   Information about the aggregation interface.
-  Define only if the input has an aggregation interface defined.
+  Defined only if the input has an aggregation interface defined.
   """
-  Aggregation: net_NodePayload!
+  Aggregation: net_NodePayload
 }
 
 """
@@ -1211,6 +1211,8 @@ input net_KeyValue {
   Create, or update, an interface owned by a device.
   Device could be selected using its ID or a Gremlin query.
   A node is created to represent the interface and linked to the device node.
+  If aggregation is defined it will be linked to this interface.
+  If aggregation node does not exists, it will be created.
   """
   net_AddInterface(input: net_AddInterfaceInput!): net_InterfacePayload!
 
@@ -3772,14 +3774,11 @@ func (ec *executionContext) _net_InterfacePayload_Aggregation(ctx context.Contex
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
 	res := resTmp.(*model.NetNodePayload)
 	fc.Result = res
-	return ec.marshalNnet_NodePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetNodePayload(ctx, field.Selections, res)
+	return ec.marshalOnet_NodePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetNodePayload(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _net_LogicalInterfacePayload_LogicalInterface(ctx context.Context, field graphql.CollectedField, obj *model.NetLogicalInterfacePayload) (ret graphql.Marshaler) {
@@ -5625,9 +5624,6 @@ func (ec *executionContext) _net_InterfacePayload(ctx context.Context, sel ast.S
 			}
 		case "Aggregation":
 			out.Values[i] = ec._net_InterfacePayload_Aggregation(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6906,6 +6902,13 @@ func (ec *executionContext) unmarshalOnet_KeyValue2ᚕᚖgithubᚗcomᚋskydive�
 		}
 	}
 	return res, nil
+}
+
+func (ec *executionContext) marshalOnet_NodePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetNodePayload(ctx context.Context, sel ast.SelectionSet, v *model.NetNodePayload) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._net_NodePayload(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOnet_PseudowireInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetPseudowireInputᚄ(ctx context.Context, v interface{}) ([]*model.NetPseudowireInput, error) {

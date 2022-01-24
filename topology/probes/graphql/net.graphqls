@@ -164,9 +164,9 @@ type net_InterfacePayload {
   Interface: net_NodePayload!
   """
   Information about the aggregation interface.
-  Define only if the input has an aggregation interface defined.
+  Defined only if the input has an aggregation interface defined.
   """
-  Aggregation: net_NodePayload!
+  Aggregation: net_NodePayload
 }
 
 """
