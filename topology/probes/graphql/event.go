@@ -285,7 +285,8 @@ func (p *Probe) cleanNodesEvents(expiredEventThreshold time.Time) {
 	}
 }
 
-// deleteExpiredEvents remove expired events for a particular node older than "thresholdTime".
+// deleteExpiredEvents remove expired events for a particular node.
+// Events are removed if they CreatedAt + TTL is less than "expiredEventThreshold", it's live time has end.
 // Only events with TTL higher than 0 will be processed.
 func (p *Probe) deleteExpiredEvents(nodeID graph.Identifier, thresholdTime time.Time) error {
 	// Save errors produced inside of the updating function
@@ -303,7 +304,9 @@ func (p *Probe) deleteExpiredEvents(nodeID graph.Identifier, thresholdTime time.
 
 		for k, v := range *nodeEvents {
 			if v.TTL > 0 {
-				if v.CreatedAt.UnixMilli()+v.TTL*SecondToMilli < tt.UnixMilli() {
+				// Usamos UpdatedAt por si llegan más eventos del mismo ID. Queremos que no se cierre
+				// hasta que dejen de llegar.
+				if v.UpdatedAt.UnixMilli()+v.TTL*SecondToMilli < tt.UnixMilli() {
 					logging.GetLogger().Debugf("Deleted expired event %s from node %s", k, nodeID)
 					v.DeletedAt = graph.Time(time.Now())
 					(*nodeEvents)[k] = v
@@ -324,7 +327,7 @@ func (p *Probe) deleteExpiredEvents(nodeID graph.Identifier, thresholdTime time.
 
 		for k, v := range *nodeEvents {
 			if v.TTL > 0 {
-				if v.CreatedAt.UnixMilli()+v.TTL*SecondToMilli < tt.UnixMilli() {
+				if v.UpdatedAt.UnixMilli()+v.TTL*SecondToMilli < tt.UnixMilli() {
 					logging.GetLogger().Debugf("Deleted expired event %s from node %s", k, nodeID)
 					delete(*nodeEvents, k)
 					// TODO en vez de ese delete llamar a la función que cierra eventos que tambien gestiona propagados

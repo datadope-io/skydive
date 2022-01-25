@@ -922,3 +922,65 @@ func TestDeleteEventWithPropagationWhenChildNodeIsDeleted(t *testing.T) {
 	assert.True(t, ok)
 	assert.Truef(t, len(*events) == 0, "province should have no events")
 }
+
+// TestTwoConsecutiveCreateEventsForTheSameID a second create event for the same ID
+// should not update the actual event, postponing its delete date
+func TestTwoConsecutiveCreateEventsForTheSameID(t *testing.T) {
+	g := newGraph(t)
+
+	deviceNode := createNode("device1ID", graph.Metadata{
+		"Name": "device1",
+		"Type": "device",
+	})
+
+	err := g.AddNode(deviceNode)
+	assert.NoError(t, err)
+
+	r := Resolver{Graph: g}
+	grapgqlProbe, err := NewProbe(g)
+
+	ttl50 := 50
+
+	_, err = r.createEvent(
+		"foobar",
+		"G.V().Has('Name', 'device1')",
+		model.EventLevelWarning,
+		&ttl50,
+		[]*model.EventKeyValue{{Key: "new", Value: "value"}},
+		time.Unix(0, 0),
+		false,
+		[]string{},
+		"",
+	)
+	assert.NoError(t, err)
+
+	_, err = r.createEvent(
+		"foobar",
+		"G.V().Has('Name', 'device1')",
+		model.EventLevelWarning,
+		&ttl50,
+		[]*model.EventKeyValue{{Key: "new", Value: "value"}},
+		time.Unix(25, 0),
+		false,
+		[]string{},
+		"",
+	)
+	assert.NoError(t, err)
+
+	grapgqlProbe.deleteExpiredEvents(deviceNode.ID, time.Unix(60, 0))
+	modNode := g.GetNode(deviceNode.ID)
+
+	expectedEvents := &Events{
+		"foobar": Event{
+			TTL:   50,
+			Level: "WARNING",
+			Payload: []PayloadValues{
+				{Key: "new", Value: "value"},
+			},
+			CreatedAt: graph.Unix(0, 0),
+			UpdatedAt: graph.Unix(25, 0),
+		},
+	}
+
+	assert.Equal(t, expectedEvents, modNode.Metadata["Events"])
+}
