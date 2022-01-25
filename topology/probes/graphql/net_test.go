@@ -710,7 +710,7 @@ func TestNetAddLogicalToInterfaceDoNotDeleteAlreadyIfaceFailEdge(t *testing.T) {
 	deviceNode := createNode("device", graph.Metadata{"Name": "devA", "Type": "device"})
 	ifaceInput := model.NetInterfaceInput{Name: "foo"}
 	_, _, _, err = r.netAddLogicalToInterface(deviceNode, &ifaceInput, nil)
-	assert.EqualError(t, err, "link device with interface, interface node not created: unable to create edge type ownership, between 'device' and '25ad6ba5-1905-5901-5d29-63f7928b2930': Parent node not found")
+	assert.EqualError(t, err, "link device with interface, interface node not created: unable to create edge type ownership, between 'device' and '323e99f0d71f14d72972921a391f9f21d6710f5e238d89e1937ce6e3d7bc7f5b': Parent node not found")
 
 	// ifaceNode should be kept in the graph
 	graphNodes := g.GetNodes(nil)
@@ -735,7 +735,7 @@ func TestNetAddLogicalToInterfaceInitialChecks(t *testing.T) {
 
 	ifaceInput = model.NetInterfaceInput{Name: "foo"}
 	_, _, _, err = r.netAddLogicalToInterface(deviceNode, &ifaceInput, nil)
-	assert.EqualErrorf(t, err, "link device with interface, interface node not created: unable to create edge type ownership, between 'device' and '25ad6ba5-1905-5901-5d29-63f7928b2930': Parent node not found", "empty subtype")
+	assert.EqualErrorf(t, err, "link device with interface, interface node not created: unable to create edge type ownership, between 'device' and '323e99f0d71f14d72972921a391f9f21d6710f5e238d89e1937ce6e3d7bc7f5b': Parent node not found", "empty subtype")
 
 	// No nodes has been created in the graph
 	assert.Lenf(t, g.GetNodes(nil), 0, "no nodes in graph")
@@ -831,7 +831,7 @@ func TestNetGetOrCreateAggInterfaceInitialChecks(t *testing.T) {
 	assert.EqualErrorf(t, err, "aggregation interface name could not be empty", "empty aggregation name")
 
 	_, err = r.netGetOrCreateAggInterface(deviceNode, "aggA", nil)
-	assert.EqualErrorf(t, err, "unable to create aggregation interface: unable to link device with interface: unable to create edge type ownership, between 'device' and '374d1238-37a3-57e5-6175-a1666ef4ef2d': Parent node not found", "device not in graph")
+	assert.EqualErrorf(t, err, "unable to create aggregation interface: unable to link device with interface: unable to create edge type ownership, between 'device' and 'afdb36e22995eb3a74edb2220aa4ef3b3880c80b4ab9033a9701c661539b0337': Parent node not found", "device not in graph")
 
 	// No nodes has been created in the graph
 	assert.Lenf(t, g.GetNodes(nil), 0, "no nodes in graph")
@@ -861,7 +861,7 @@ func TestNetAddInterfaceToDeviceInitialChecks(t *testing.T) {
 
 	ifaceInput = model.NetInterfaceInput{Name: "eth0"}
 	_, _, _, err = r.netAddInterfaceToDevice(deviceNode, &ifaceInput, "foo", nil)
-	assert.EqualErrorf(t, err, "unable to link device with interface: unable to create edge type ownership, between 'device' and 'b1e4f178-8930-58e6-50fa-409f08673791': Parent node not found", "device node not in graph")
+	assert.EqualErrorf(t, err, "unable to link device with interface: unable to create edge type ownership, between 'device' and '58f56e173d570d6077c46ee925b88a8543782ce97e7f164cc93501069c2a8cc0': Parent node not found", "device node not in graph")
 
 	// No nodes has been created in the graph
 	assert.Lenf(t, g.GetNodes(nil), 0, "no nodes in graph")
@@ -1252,7 +1252,7 @@ func TestPseudoWireLowerIDTriggersFirst(t *testing.T) {
 	dev2Iface, err := probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
 		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
 		Interface: &model.NetInterfaceInput{
-			Name:        "eno0",
+			Name:        "xgigaeno0",
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
 				{ID: strPointer("1"), Neighbor: strPointer("1.1.1.1")},
@@ -1322,7 +1322,7 @@ func TestPseudoWireHigherIDTriggersFirst(t *testing.T) {
 	dev1Iface, err := probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
 		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
 		Interface: &model.NetInterfaceInput{
-			Name:        "eth0",
+			Name:        "agigaeth0", // Nombre elegido para que genere un id menor
 			Description: []*model.NetKeyValue{},
 			PseudoWires: []*model.NetPseudowireInput{
 				{ID: strPointer("1"), Neighbor: strPointer("2.2.2.2")},
@@ -1743,7 +1743,7 @@ func TestEVPNPseudoWiresWithoutBuildings(t *testing.T) {
 	assert.Len(t, edges, 1)
 	expectedEdgeMetadata := graph.Metadata{
 		MetaKeyRelationType: RelationTypePseudoWire,
-		MetaKeyPseudowireID: "654321-123456",
+		MetaKeyPseudowireID: "123456-654321",
 	}
 	assert.Equal(t, expectedEdgeMetadata, edges[0].Metadata)
 }
