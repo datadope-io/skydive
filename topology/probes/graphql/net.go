@@ -77,7 +77,12 @@ const (
 )
 
 // netAddLocation is a function to create nodes with location info.
-func (r *Resolver) netAddLocation(name string, metadataType string, location *model.NetLocationInput) (*graph.Node, bool, bool, error) {
+func (r *Resolver) netAddLocation(
+	name string,
+	metadataType string,
+	location *model.NetLocationInput,
+	createdAt *time.Time,
+) (*graph.Node, bool, bool, error) {
 	// Create the building node
 	buildingNode, created, updated, err := r.createOrUpdateNode(
 		graph.GenID(fmt.Sprintf("%s_%s", name, metadataType)),
@@ -89,7 +94,7 @@ func (r *Resolver) netAddLocation(name string, metadataType string, location *mo
 				MetaKeyLongitude: location.Lng,
 			},
 		},
-		nil,
+		createdAt,
 	)
 	return buildingNode, created, updated, err
 }

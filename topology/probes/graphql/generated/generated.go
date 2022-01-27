@@ -1080,6 +1080,11 @@ input net_RegionInput {
   Reference location for the region
   """
   Location: net_LocationInput!
+  """
+  Optional field to establish the creation time of the skydive elements. If
+  not set, defaults to the current time.
+  """
+  CreatedAt: Time
 }
 
 """
@@ -1119,6 +1124,11 @@ input net_ProvinceInput {
   Reference location for the province
   """
   Location: net_LocationInput!
+  """
+  Optional field to establish the creation time of the skydive elements. If
+  not set, defaults to the current time.
+  """
+  CreatedAt: Time
 }
 
 """
@@ -1159,6 +1169,11 @@ input net_BuildingInput {
   Location for the building
   """
   Location: net_LocationInput!
+  """
+  Optional field to establish the creation time of the skydive elements. If
+  not set, defaults to the current time.
+  """
+  CreatedAt: Time
 }
 
 """
@@ -4469,6 +4484,14 @@ func (ec *executionContext) unmarshalInputnet_BuildingInput(ctx context.Context,
 			if err != nil {
 				return it, err
 			}
+		case "CreatedAt":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("CreatedAt"))
+			it.CreatedAt, err = ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -4773,6 +4796,14 @@ func (ec *executionContext) unmarshalInputnet_ProvinceInput(ctx context.Context,
 			if err != nil {
 				return it, err
 			}
+		case "CreatedAt":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("CreatedAt"))
+			it.CreatedAt, err = ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -4856,6 +4887,14 @@ func (ec *executionContext) unmarshalInputnet_RegionInput(ctx context.Context, o
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Location"))
 			it.Location, err = ec.unmarshalNnet_LocationInput2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetLocationInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "CreatedAt":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("CreatedAt"))
+			it.CreatedAt, err = ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
 			if err != nil {
 				return it, err
 			}

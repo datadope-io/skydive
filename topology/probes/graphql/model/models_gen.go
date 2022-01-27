@@ -131,6 +131,9 @@ type NetBuildingInput struct {
 	Name string `json:"Name"`
 	// Location for the building
 	Location *NetLocationInput `json:"Location"`
+	// Optional field to establish the creation time of the skydive elements. If
+	// not set, defaults to the current time.
+	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
 // Return value when creating a new building.
@@ -273,6 +276,9 @@ type NetProvinceInput struct {
 	Name string `json:"Name"`
 	// Reference location for the province
 	Location *NetLocationInput `json:"Location"`
+	// Optional field to establish the creation time of the skydive elements. If
+	// not set, defaults to the current time.
+	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
 // Return value when creating a new province.
@@ -310,6 +316,9 @@ type NetRegionInput struct {
 	Name string `json:"Name"`
 	// Reference location for the region
 	Location *NetLocationInput `json:"Location"`
+	// Optional field to establish the creation time of the skydive elements. If
+	// not set, defaults to the current time.
+	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
 // Return value when creating a new region.
