@@ -765,6 +765,7 @@ input net_DeviceInput {
   not set, defaults to the current time.
   If the node already exists and this value is different from the existing one, it will
   produce an error.
+  Format: 2021-01-01T00:00:00Z
   """
   CreatedAt: Time
 
@@ -812,6 +813,7 @@ input net_AddInterfaceInput {
   """
   Optional field to establish the creation time of the skydive elements. If
   not set, defaults to the current time.
+  Format: 2021-01-01T00:00:00Z
   """
   CreatedAt: Time
 }
@@ -856,6 +858,7 @@ input net_AddAggregationInput {
   """
   Optional field to establish the creation time of the skydive elements. If
   not set, defaults to the current time.
+  Format: 2021-01-01T00:00:00Z
   """
   CreatedAt: Time
 }
@@ -993,6 +996,7 @@ input net_AddLogicalInterfaceInput {
   """
   Optional field to establish the creation time of the skydive elements. If
   not set, defaults to the current time.
+  Format: 2021-01-01T00:00:00Z
   """
   CreatedAt: Time
 }
@@ -1025,6 +1029,7 @@ input net_AddIf2IfLinkInput {
   """
   Optional field to establish the creation time of the skydive elements. If
   not set, defaults to the current time.
+  Format: 2021-01-01T00:00:00Z
   """
   CreatedAt: Time
 }
@@ -1083,6 +1088,7 @@ input net_RegionInput {
   """
   Optional field to establish the creation time of the skydive elements. If
   not set, defaults to the current time.
+  Format: 2021-01-01T00:00:00Z
   """
   CreatedAt: Time
 }
@@ -1127,6 +1133,7 @@ input net_ProvinceInput {
   """
   Optional field to establish the creation time of the skydive elements. If
   not set, defaults to the current time.
+  Format: 2021-01-01T00:00:00Z
   """
   CreatedAt: Time
 }
@@ -1172,6 +1179,7 @@ input net_BuildingInput {
   """
   Optional field to establish the creation time of the skydive elements. If
   not set, defaults to the current time.
+  Format: 2021-01-01T00:00:00Z
   """
   CreatedAt: Time
 }

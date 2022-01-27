@@ -78,6 +78,7 @@ type NetAddAggregationInput struct {
 	Aggregation *NetInterfaceInput `json:"Aggregation"`
 	// Optional field to establish the creation time of the skydive elements. If
 	// not set, defaults to the current time.
+	// Format: 2021-01-01T00:00:00Z
 	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
@@ -89,6 +90,7 @@ type NetAddIf2IfLinkInput struct {
 	DstInterface *NetSelector `json:"DstInterface"`
 	// Optional field to establish the creation time of the skydive elements. If
 	// not set, defaults to the current time.
+	// Format: 2021-01-01T00:00:00Z
 	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
@@ -103,6 +105,7 @@ type NetAddInterfaceInput struct {
 	Aggregation *string `json:"Aggregation"`
 	// Optional field to establish the creation time of the skydive elements. If
 	// not set, defaults to the current time.
+	// Format: 2021-01-01T00:00:00Z
 	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
@@ -114,6 +117,7 @@ type NetAddLogicalInterfaceInput struct {
 	Interface *NetInterfaceInput `json:"Interface"`
 	// Optional field to establish the creation time of the skydive elements. If
 	// not set, defaults to the current time.
+	// Format: 2021-01-01T00:00:00Z
 	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
@@ -133,6 +137,7 @@ type NetBuildingInput struct {
 	Location *NetLocationInput `json:"Location"`
 	// Optional field to establish the creation time of the skydive elements. If
 	// not set, defaults to the current time.
+	// Format: 2021-01-01T00:00:00Z
 	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
@@ -177,6 +182,7 @@ type NetDeviceInput struct {
 	// not set, defaults to the current time.
 	// If the node already exists and this value is different from the existing one, it will
 	// produce an error.
+	// Format: 2021-01-01T00:00:00Z
 	CreatedAt *time.Time `json:"CreatedAt"`
 	// Ubicación del dispositivo. Código del edificio.
 	Building *string `json:"Building"`
@@ -278,6 +284,7 @@ type NetProvinceInput struct {
 	Location *NetLocationInput `json:"Location"`
 	// Optional field to establish the creation time of the skydive elements. If
 	// not set, defaults to the current time.
+	// Format: 2021-01-01T00:00:00Z
 	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
@@ -318,6 +325,7 @@ type NetRegionInput struct {
 	Location *NetLocationInput `json:"Location"`
 	// Optional field to establish the creation time of the skydive elements. If
 	// not set, defaults to the current time.
+	// Format: 2021-01-01T00:00:00Z
 	CreatedAt *time.Time `json:"CreatedAt"`
 }
 
