@@ -173,8 +173,6 @@ func (d *BuildingGremlinTraversalStep) getBuilding(g *graph.Graph) ([]*graph.Nod
 	buildings := g.GetNodes(graph.Metadata{"Name": d.building})
 	if len(buildings) == 0 {
 		return nil, nil
-	} else if len(buildings) > 1 {
-		return nil, errors.New("Found more than one building with the same name")
 	}
 
 	building := buildings[0]
