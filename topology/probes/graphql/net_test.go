@@ -741,6 +741,57 @@ func TestNetAddLogicalToInterfaceInitialChecks(t *testing.T) {
 	assert.Lenf(t, g.GetNodes(nil), 0, "no nodes in graph")
 }
 
+// TestNetAddLogicalToInterfaceWithPWRespectCreatedAt when creating logical interfaces with PW information,
+// the createdAt value should be used in the CreatedAt and UpdatedAt fields.
+func TestNetAddLogicalToInterfaceWithPWRespectCreatedAt(t *testing.T) {
+	g := newGraph(t)
+	r := Resolver{Graph: g}
+
+	phyIfaceNode := createNode("phyIface1", graph.Metadata{"Name": "eth0", "Type": "inteface"})
+	err := g.AddNode(phyIfaceNode)
+	assert.Nil(t, err)
+
+	ifaceInput := model.NetInterfaceInput{
+		Name:        "eth0.123",
+		PseudoWires: []*model.NetPseudowireInput{{ID: strPointer("123"), Neighbor: strPointer("1.1.1.1")}},
+	}
+	_, _, _, err = r.netAddLogicalToInterface(phyIfaceNode, &ifaceInput, nil)
+	assert.Nil(t, err)
+
+	graphNodes := g.GetNodes(graph.Metadata{"Name": "eth0.123"})
+	assert.Equal(t, graphNodes[0].CreatedAt, graphNodes[0].UpdatedAt)
+
+	// También debe mantener la info de PW
+	assert.Equal(t, graph.Metadata{
+		"Name":        "eth0.123",
+		"Type":        "interface",
+		"SubType":     "logical",
+		"Description": map[string]string{},
+		"DeviceID":    "",
+		"NetworkInfo": &NetworkInfo{PseudoWires: []PseudoWireInfo{{ID: "123", Neighbor: "1.1.1.1"}}},
+	}, graphNodes[0].Metadata)
+}
+
+// TestNetAddLogicalToInterfaceWithRespectCreatedAt when using createdAt value, CreatedAt and UpdatedAt values
+// in the node should take that value.
+func TestNetAddLogicalToInterfaceWithRespectCreatedAt(t *testing.T) {
+	g := newGraph(t)
+	r := Resolver{Graph: g}
+
+	phyIfaceNode := createNode("phyIface1", graph.Metadata{"Name": "eth0", "Type": "inteface"})
+	err := g.AddNode(phyIfaceNode)
+	assert.Nil(t, err)
+
+	ifaceInput := model.NetInterfaceInput{
+		Name: "eth0.123",
+	}
+	_, _, _, err = r.netAddLogicalToInterface(phyIfaceNode, &ifaceInput, nil)
+	assert.Nil(t, err)
+
+	graphNodes := g.GetNodes(graph.Metadata{"Name": "eth0.123"})
+	assert.Equal(t, graphNodes[0].CreatedAt, graphNodes[0].UpdatedAt)
+}
+
 func TestNetGetOrCreateAggInterfaceNewNode(t *testing.T) {
 	g := newGraph(t)
 	r := Resolver{Graph: g}

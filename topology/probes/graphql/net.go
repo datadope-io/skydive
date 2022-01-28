@@ -190,13 +190,9 @@ func (r *Resolver) netAddLogicalToInterface(
 		return node, created, updated, fmt.Errorf("link base interface with interface, interface node not created: %v", err)
 	}
 
-	// Problema con los pseudowires, queremos crear los links hacia los padres antes de que el nodo de la interfaz sepa
-	// quien es su padre, por lo que no puede subir hacia arriba.
-	// En la creación anterior, al llamar a netCreateInterface se pasó el parámeto addPseudo=false, para no meter la info de PW.
-	// Ahora realizamos la llamada de nuevo con addPseudo=true, para que se añada esa info, se dispare la probe de PW y se creen los enlaces correspondientes.
-	node, created, updated, err = r.netCreateInterface(*iface, MetadataSubtypeLogicalInterface, string(phyIface.ID), deviceID, createdAt, true)
+	err = r.handlePseudowires(node, iface.PseudoWires)
 	if err != nil {
-		return node, created, updated, fmt.Errorf("unable to create logical interface: %v", err)
+		return node, created, updated, fmt.Errorf("unable to add pseudowires to logical interface: %v", err)
 	}
 
 	return node, created, updated, nil
@@ -248,16 +244,54 @@ func (r *Resolver) netAddInterfaceToDevice(
 		return node, created, updated, fmt.Errorf("unable to link device with interface: %v", err)
 	}
 
-	// TODO problema con los pseudowires, queremos crear los links hacia los padres antes de que el nodo de la interfaz sepa
-	// quien es su padre, por lo que no puede subir hacia arriba.
-	// Intento simular que creo de nuevo el nodo a ver si salta de nuevo el GetABLinks
-	// Ignoramos created y updated porque aqui siempre serían false y true. Cogemos los originales
-	node, _, _, err = r.netCreateInterface(*iface, subtype, deviceName, deviceID, createdAt, true)
+	err = r.handlePseudowires(node, iface.PseudoWires)
 	if err != nil {
-		return node, created, updated, fmt.Errorf("unable to create logical interface: %v", err)
+		return node, created, updated, fmt.Errorf("unable to add pseudowires to the interface: %v", err)
 	}
 
 	return node, created, updated, nil
+}
+
+// handlePseudowires handle the update of node metadata to add pseudowires information.
+// It should be done in a different step, after the node creation, so the linker can work correctly (propagating
+// PW to the building, province and region).
+func (r *Resolver) handlePseudowires(node *graph.Node, pwInfo []*model.NetPseudowireInput) error {
+	if len(pwInfo) != 0 {
+		pws := []PseudoWireInfo{}
+		for _, pwData := range pwInfo {
+			if pwData.ID != nil {
+				pws = append(pws, PseudoWireInfo{
+					ID:       *pwData.ID,
+					Neighbor: *pwData.Neighbor,
+				})
+			} else if pwData.LocalVpws != nil && pwData.RemoteVpws != nil {
+				pws = append(pws, PseudoWireInfo{
+					LocalVpws:  *pwData.LocalVpws,
+					RemoteVpws: *pwData.RemoteVpws,
+				})
+			} else {
+				return fmt.Errorf("invalid pseudo wire data")
+			}
+		}
+		netInfo, err := node.Metadata.GetField(MetadataKeyNetworkInfo)
+		if err != nil {
+			return fmt.Errorf("unable to get network info from node: %v", err)
+		}
+
+		// Añadimos la metadata de los pseudowires manteniendo el UpdatedAt al valor de CreatedAt
+		netInfo.(*NetworkInfo).PseudoWires = pws
+
+		// Forzamos al graph a que genere un evento, para que el linker pueda funcionar correctamente
+		// Para poder generar el evento tenemos que pasar un nodo con un revision mayor.
+		// La modificación de la metadata del nodo ya se ha hecho en la línea anterior.
+		n := node.Copy()
+		n.Revision++
+		err = r.Graph.NodeUpdated(n)
+		if err != nil {
+			return fmt.Errorf("unable to update network info with PW data: %v", err)
+		}
+	}
+	return nil
 }
 
 // netCreateInterface create a new interface node with the data and subtype values.
@@ -322,26 +356,6 @@ func (r *Resolver) netCreateInterface(
 
 	if len(ipinfo) > 0 {
 		networkInfo.IP = ipinfo
-	}
-
-	if addPseudo && len(data.PseudoWires) != 0 {
-		pws := []PseudoWireInfo{}
-		for _, pwData := range data.PseudoWires {
-			if pwData.ID != nil {
-				pws = append(pws, PseudoWireInfo{
-					ID:       *pwData.ID,
-					Neighbor: *pwData.Neighbor,
-				})
-			} else if pwData.LocalVpws != nil && pwData.RemoteVpws != nil {
-				pws = append(pws, PseudoWireInfo{
-					LocalVpws:  *pwData.LocalVpws,
-					RemoteVpws: *pwData.RemoteVpws,
-				})
-			} else {
-				return node, created, updated, fmt.Errorf("invalid pseudo wire data")
-			}
-		}
-		networkInfo.PseudoWires = pws
 	}
 
 	// Convert description from graphql format to skydive metadata format (map[string]string)
