@@ -187,12 +187,13 @@ func (r *Resolver) netAddLogicalToInterface(
 				return node, created, updated, fmt.Errorf("delete logical interface not linked: %v", errDelNode)
 			}
 		}
-		return node, created, updated, fmt.Errorf("link device with interface, interface node not created: %v", err)
+		return node, created, updated, fmt.Errorf("link base interface with interface, interface node not created: %v", err)
 	}
 
-	// TODO problema con los pseudowires, queremos crear los links hacia los padres antes de que el nodo de la interfaz sepa
+	// Problema con los pseudowires, queremos crear los links hacia los padres antes de que el nodo de la interfaz sepa
 	// quien es su padre, por lo que no puede subir hacia arriba.
-	// Intento simular que creo de nuevo el nodo a ver si salta de nuevo el GetABLinks
+	// En la creación anterior, al llamar a netCreateInterface se pasó el parámeto addPseudo=false, para no meter la info de PW.
+	// Ahora realizamos la llamada de nuevo con addPseudo=true, para que se añada esa info, se dispare la probe de PW y se creen los enlaces correspondientes.
 	node, created, updated, err = r.netCreateInterface(*iface, MetadataSubtypeLogicalInterface, string(phyIface.ID), deviceID, createdAt, true)
 	if err != nil {
 		return node, created, updated, fmt.Errorf("unable to create logical interface: %v", err)
@@ -271,7 +272,7 @@ func (r *Resolver) netCreateInterface(
 	prefix string,
 	deviceID string,
 	createdAt *time.Time,
-	addPseudo bool, // TODO temporal, para apañar la creacion de pseudowires padres
+	addPseudo bool, // Para apañar la creacion de pseudowires padres
 ) (node *graph.Node, created bool, updated bool, err error) {
 	if subtype == "" {
 		return node, created, updated, fmt.Errorf("interface subtype could not be empty")
