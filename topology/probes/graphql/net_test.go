@@ -205,14 +205,14 @@ func TestNetCreateInterfacErrorCreateInterfaceNode(t *testing.T) {
 	prefix := "prefix"
 
 	createdAt := time.Unix(100, 0)
-	node, created, updated, err := r.netCreateInterface(data, subtype, prefix, "1.1.1.1", &createdAt, false)
+	node, created, updated, err := r.netCreateInterface(data, subtype, prefix, "1.1.1.1", &createdAt)
 	assert.Nil(t, err)
 	assert.NotNil(t, node)
 	assert.Truef(t, created, "created")
 	assert.Falsef(t, updated, "updated")
 
 	newCreatedAt := time.Unix(200, 0)
-	_, _, _, err = r.netCreateInterface(data, subtype, prefix, "1.1.1.1", &newCreatedAt, false)
+	_, _, _, err = r.netCreateInterface(data, subtype, prefix, "1.1.1.1", &newCreatedAt)
 	assert.EqualErrorf(t, err, "network interface: forbidden to modify CreatedAt value of existing node", "error mod date")
 }
 
@@ -647,7 +647,6 @@ func TestNetCreateInterface(t *testing.T) {
 				test.prefix,
 				test.deviceid,
 				test.createdAt,
-				false,
 			)
 			if test.expectedError != "" {
 				assert.EqualErrorf(t, err, test.expectedError, "error")

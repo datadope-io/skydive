@@ -172,7 +172,7 @@ func (r *Resolver) netAddLogicalToInterface(
 	// physical/aggregation interface and the name and type of the logical interface
 
 	// Create graph node representing the interface
-	node, created, updated, err = r.netCreateInterface(*iface, MetadataSubtypeLogicalInterface, string(phyIface.ID), deviceID, createdAt, false)
+	node, created, updated, err = r.netCreateInterface(*iface, MetadataSubtypeLogicalInterface, string(phyIface.ID), deviceID, createdAt)
 	if err != nil {
 		return node, created, updated, fmt.Errorf("unable to create logical interface: %v", err)
 	}
@@ -227,7 +227,7 @@ func (r *Resolver) netAddInterfaceToDevice(
 	deviceID, _ := device.Metadata.GetFieldString(MetaKeyDeviceID)
 
 	// Create graph node representing the interface
-	node, created, updated, err = r.netCreateInterface(*iface, subtype, deviceName, deviceID, createdAt, false)
+	node, created, updated, err = r.netCreateInterface(*iface, subtype, deviceName, deviceID, createdAt)
 	if err != nil {
 		return node, created, updated, fmt.Errorf("unable to create interface: %v", err)
 	}
@@ -306,7 +306,6 @@ func (r *Resolver) netCreateInterface(
 	prefix string,
 	deviceID string,
 	createdAt *time.Time,
-	addPseudo bool, // Para apañar la creacion de pseudowires padres
 ) (node *graph.Node, created bool, updated bool, err error) {
 	if subtype == "" {
 		return node, created, updated, fmt.Errorf("interface subtype could not be empty")
