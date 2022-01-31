@@ -146,6 +146,10 @@ func (p *Probe) Stop() {
 
 // OnError implements the LinkerEventListener interface
 func (p *Probe) OnError(err error) {
+	if err.Error() == "Edge ID conflict" {
+		logging.GetLogger().Info(err)
+		return
+	}
 	logging.GetLogger().Error(err)
 }
 
