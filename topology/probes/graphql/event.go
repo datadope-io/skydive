@@ -52,6 +52,8 @@ func (r *Resolver) createEvent(
 	r.Graph.Lock()
 	node, err := r.getNodeFromGremlinQuery(gremlinQuery)
 	if err != nil {
+		// Si salimos antes de propagate, desbloquear el lock
+		r.Graph.Unlock()
 		return gid, err
 	}
 
@@ -111,11 +113,14 @@ func (r *Resolver) createEvent(
 		events := Events{id: e}
 		err = r.Graph.AddMetadata(node, MetaKeyEvents, &events)
 		if err != nil {
+			r.Graph.Unlock()
 			return node.ID, fmt.Errorf("adding new Events key in Metadata")
 		}
 	} else if err != nil {
+		r.Graph.Unlock()
 		return node.ID, fmt.Errorf("unable to add event: %v", err)
 	} else if updateErr != nil {
+		r.Graph.Unlock()
 		return node.ID, fmt.Errorf("unable to add event: %v", updateErr)
 	}
 	// Release lock before a new createEvent call could be done with propagation
