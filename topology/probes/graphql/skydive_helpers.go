@@ -7,6 +7,7 @@ import (
 
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/graph/traversal"
+	ge "github.com/skydive-project/skydive/gremlin/traversal"
 )
 
 const (
@@ -50,6 +51,18 @@ func (r *Resolver) newEdge(id graph.Identifier, srcNode, dstNode *graph.Node, m 
 // getNodeFromGremlinQuery return a single node from a gremlin query
 func (r *Resolver) getNodeFromGremlinQuery(query string) (*graph.Node, error) {
 	tr := traversal.NewGremlinTraversalParser()
+
+	// Add gremlin extensions, to be able to use the following steps:
+	//   - Descendants
+	//   - Ascendants
+	//   - Neighbors
+	//   - Building
+	// As seen in analyzer/server.go
+	tr.AddTraversalExtension(ge.NewDescendantsTraversalExtension())
+	tr.AddTraversalExtension(ge.NewAscendantsTraversalExtension())
+	tr.AddTraversalExtension(ge.NewNeighborsTraversalExtension())
+	tr.AddTraversalExtension(ge.NewBuildingTraversalExtension())
+
 	ts, err := tr.Parse(strings.NewReader(query))
 	if err != nil {
 		return nil, fmt.Errorf("parsing gremlin query: %v", err)
