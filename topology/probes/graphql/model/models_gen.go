@@ -163,6 +163,8 @@ type NetDelIf2IfLinkInput struct {
 	SrcInterface *NetSelector `json:"SrcInterface"`
 	// Destination interface.
 	DstInterface *NetSelector `json:"DstInterface"`
+	// Link type. If not defiend is "Connect" (xDP)
+	Type *NetLinkType `json:"Type"`
 }
 
 // Values to delete an interface from a network device.

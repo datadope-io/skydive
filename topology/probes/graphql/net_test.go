@@ -1729,6 +1729,7 @@ func TestDeleteLLDPLink(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
+	// Creamos un link sin especificar, por defecto es un link LLDP (connect)
 	_, err = probe.resolver.Mutation().NetAddIf2IfLink(context.Background(), model.NetAddIf2IfLinkInput{
 		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
 		DstInterface: &model.NetSelector{ID: &dev2.Device.ID},
@@ -1736,16 +1737,29 @@ func TestDeleteLLDPLink(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Comprobamos que se ha creado un edge tipo LLDP (connect)
-	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationConnect}), 1)
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: string(model.NetLinkTypeConnect)}), 1)
 
-	// Llama a la mutation de borrado de edges LLDP
+	// Creamos un link tipo radio link
+	rl := model.NetLinkTypeRadioLink
+	_, err = probe.resolver.Mutation().NetAddIf2IfLink(context.Background(), model.NetAddIf2IfLinkInput{
+		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
+		DstInterface: &model.NetSelector{ID: &dev2.Device.ID},
+		Type:         &rl,
+	})
+	assert.NoError(t, err)
+
+	// Comprobamos que se ha creado un edge tipo LLDP (connect)
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: string(model.NetLinkTypeRadioLink)}), 1)
+
+	// Llama a la mutation de borrado de edges LLDP (se borra por defecto connect)
 	_, err = probe.resolver.Mutation().NetDelIf2IfLink(context.Background(), model.NetDelIf2IfLinkInput{
 		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
 		DstInterface: &model.NetSelector{ID: &dev2.Device.ID},
 	})
 
-	// Comprobamos que no quedan edges tipo LLDP (connect)
-	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationConnect}), 0)
+	// Comprobamos que no quedan edges tipo LLDP (connect), pero si el radio link
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: string(model.NetLinkTypeConnect)}), 0)
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: string(model.NetLinkTypeRadioLink)}), 1)
 }
 
 func TestEVPNPseudoWiresWithoutBuildings(t *testing.T) {

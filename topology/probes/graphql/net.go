@@ -19,8 +19,6 @@ const (
 	MetaKeyRelationType = "RelationType"
 	// RelationTypeOwnership edge type value for edges between device-agg and agg-iface
 	RelationTypeOwnership = "ownership"
-	// RelationConnect edge type value for edges between iface-iface
-	RelationConnect = "connect"
 	// RelationTypePseudoWire edge type value for pseudo wire between ifaces
 	RelationTypePseudoWire = "pseudowire"
 

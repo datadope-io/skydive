@@ -283,9 +283,15 @@ func (r *mutationResolver) NetAddIf2IfLink(ctx context.Context, input model.NetA
 	// Store all the edges created in this array to return them in the payload
 	interfaceLinks := []*model.NetEdgePayload{}
 
+	// Default link type is "connect", otherwise, use the provided one
+	relationType := model.NetLinkTypeConnect
+	if input.Type != nil {
+		relationType = *input.Type
+	}
+
 	// Create the link between the interfaces
 	edge, created, updated, err := r.createOrUpdateEdge(srcIface, dstIface, graph.Metadata{
-		MetaKeyRelationType: RelationConnect,
+		MetaKeyRelationType: string(relationType),
 	}, input.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("add link between interfaces, edge: %v", err)
@@ -324,7 +330,7 @@ func (r *mutationResolver) NetAddIf2IfLink(ctx context.Context, input model.NetA
 			}
 
 			edge, created, updated, err = r.createOrUpdateEdge(srcNode, dstNode, graph.Metadata{
-				MetaKeyRelationType: RelationConnect,
+				MetaKeyRelationType: string(relationType),
 			}, input.CreatedAt)
 			if err != nil {
 				return nil, fmt.Errorf("add link between interfaces, edge: %v", err)
@@ -355,8 +361,14 @@ func (r *mutationResolver) NetDelIf2IfLink(ctx context.Context, input model.NetD
 		return nil, fmt.Errorf("del link between interfaces, destination selector: %v", err)
 	}
 
+	// Default link type is "connect", otherwise, use the provided one
+	relationType := model.NetLinkTypeConnect
+	if input.Type != nil {
+		relationType = *input.Type
+	}
+
 	lldpEdge := r.Graph.GetFirstLink(srcIface, dstIface, graph.Metadata{
-		MetaKeyRelationType: RelationConnect,
+		MetaKeyRelationType: string(relationType),
 	})
 
 	if lldpEdge == nil {

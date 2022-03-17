@@ -406,6 +406,11 @@ input net_DelIf2IfLinkInput {
   Destination interface.
   """
   DstInterface: net_Selector!
+
+  """
+  Link type. If not defiend is "Connect" (xDP)
+  """
+  Type: net_LinkType
 }
 
 """

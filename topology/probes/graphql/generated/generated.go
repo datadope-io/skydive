@@ -1078,6 +1078,11 @@ input net_DelIf2IfLinkInput {
   Destination interface.
   """
   DstInterface: net_Selector!
+
+  """
+  Link type. If not defiend is "Connect" (xDP)
+  """
+  Type: net_LinkType
 }
 
 """
@@ -4665,6 +4670,14 @@ func (ec *executionContext) unmarshalInputnet_DelIf2IfLinkInput(ctx context.Cont
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("DstInterface"))
 			it.DstInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Type":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Type"))
+			it.Type, err = ec.unmarshalOnet_LinkType2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetLinkType(ctx, v)
 			if err != nil {
 				return it, err
 			}
