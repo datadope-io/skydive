@@ -1894,3 +1894,64 @@ func TestEVPNPseudoWiresWithBuildings(t *testing.T) {
 	//    - iface<->iface (1)
 	assert.Len(t, edges, 10)
 }
+
+// TestBuildingWithClasses test if an input building with a class defined is correctly added to the graph.
+func TestBuildingWithClasses(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Needed region and province to create the building
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionAProvinceA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionA",
+	})
+	assert.NoError(t, err)
+
+	// Create a building with a class
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:     "BuildingA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province: "RegionAProvinceA",
+		Class:    strPointer("classA"),
+	})
+	assert.NoError(t, err)
+
+	// Get building nodes from graph
+	nodes := probe.graph.GetNodes(graph.Metadata{MetaKeyName: "BuildingA"})
+	assert.Len(t, nodes, 1)
+
+	// The building should have the class value as a metadata key. Value should be always true
+	building := nodes[0]
+	v, err := building.GetFieldString("classA")
+	assert.NoError(t, err)
+	assert.Equal(t, "t", v)
+
+	// Create the same building with a different class
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:     "BuildingA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province: "RegionAProvinceA",
+		Class:    strPointer("classB"),
+	})
+	assert.NoError(t, err)
+
+	// Get building nodes from graph
+	nodes = probe.graph.GetNodes(graph.Metadata{MetaKeyName: "BuildingA"})
+	assert.Len(t, nodes, 1)
+
+	// The building should have the class value as a metadata key. Value should be always true
+	building = nodes[0]
+	v, err = building.GetFieldString("classB")
+	assert.NoError(t, err)
+	assert.Equal(t, "t", v)
+}

@@ -17,7 +17,7 @@ func (r *mutationResolver) NetAddRegion(ctx context.Context, input model.NetRegi
 	r.Graph.Lock()
 	defer r.Graph.Unlock()
 
-	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeRegion, input.Location, input.CreatedAt)
+	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeRegion, input.Location, nil, input.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (r *mutationResolver) NetAddProvince(ctx context.Context, input model.NetPr
 	r.Graph.Lock()
 	defer r.Graph.Unlock()
 
-	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeProvince, input.Location, input.CreatedAt)
+	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeProvince, input.Location, nil, input.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (r *mutationResolver) NetAddBuilding(ctx context.Context, input model.NetBu
 	r.Graph.Lock()
 	defer r.Graph.Unlock()
 
-	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeBuilding, input.Location, input.CreatedAt)
+	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeBuilding, input.Location, input.Class, input.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -464,5 +464,7 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
+type (
+	mutationResolver struct{ *Resolver }
+	queryResolver    struct{ *Resolver }
+)

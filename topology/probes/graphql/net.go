@@ -81,19 +81,28 @@ func (r *Resolver) netAddLocation(
 	name string,
 	metadataType string,
 	location *model.NetLocationInput,
+	class *string,
 	createdAt *time.Time,
 ) (*graph.Node, bool, bool, error) {
 	// Create the building node
+	metadata := graph.Metadata{
+		MetaKeyName: name,
+		MetaKeyType: metadataType,
+		MetaKeyLocation: map[string]float64{
+			MetaKeyLatitude:  location.Lat,
+			MetaKeyLongitude: location.Lng,
+		},
+	}
+
+	// If class is defined, create a new key in the metadata using class as key and 't' as value
+	// Used to distinguish which buildings have different devices.
+	if class != nil {
+		metadata[*class] = "t"
+	}
+
 	buildingNode, created, updated, err := r.createOrUpdateNode(
 		graph.GenID(fmt.Sprintf("%s_%s", name, metadataType)),
-		graph.Metadata{
-			MetaKeyName: name,
-			MetaKeyType: metadataType,
-			MetaKeyLocation: map[string]float64{
-				MetaKeyLatitude:  location.Lat,
-				MetaKeyLongitude: location.Lng,
-			},
-		},
+		metadata,
 		createdAt,
 	)
 	return buildingNode, created, updated, err
