@@ -2,7 +2,7 @@ module github.com/skydive-project/skydive
 
 require (
 	git.fd.io/govpp.git v0.0.0-20190321220742-345201eedce4
-	github.com/99designs/gqlgen v0.14.0
+	github.com/99designs/gqlgen v0.17.1
 	github.com/VerizonDigital/vflow v0.0.0-20190111005900-eb30d936249e
 	github.com/abbot/go-http-auth v0.4.0
 	github.com/avast/retry-go v3.0.0+incompatible
@@ -83,14 +83,14 @@ require (
 	github.com/tebeka/selenium v0.0.0-20170314201507-657e45ec600f
 	github.com/tinylib/msgp v1.1.0
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80 // indirect
-	github.com/vektah/gqlparser/v2 v2.2.0
+	github.com/vektah/gqlparser/v2 v2.4.0
 	github.com/vishvananda/netlink v1.0.0
 	github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
 	github.com/voxelbrain/goptions v0.0.0-20180630082107-58cddc247ea2 // indirect
 	github.com/weaveworks/tcptracer-bpf v0.0.0-20170817155301-e080bd747dc6
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974
 	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
-	golang.org/x/tools v0.0.0-20210106214847-113979e3529a
+	golang.org/x/tools v0.1.9
 	google.golang.org/grpc v1.23.1
 	gopkg.in/fsnotify/fsnotify.v1 v1.0.0-20180110053347-c2828203cd70
 	gopkg.in/macaroon-bakery.v2 v2.2.0 // indirect

@@ -89,6 +89,12 @@ input net_DeviceInput {
   Model: String
 
   """
+  For Type=TransmissionNode, we can specify the name of the building
+  where the device is located.
+  """
+  BuildingName: String
+
+  """
   Optional field to establish the creation time of the skydive elements. If
   not set, defaults to the current time.
   If the node already exists and this value is different from the existing one, it will
@@ -109,6 +115,16 @@ Define the kind of network device
 enum net_DeviceType {
   Router
   Switch
+  TransmissionNode
+}
+
+"""
+Define the kind of link between interfaces
+"""
+enum net_LinkType {
+  """Link type for xDP connections"""
+  Connect
+  RadioLink
 }
 
 """
@@ -355,6 +371,21 @@ input net_AddIf2IfLinkInput {
   DstInterface: net_Selector!
 
   """
+  Link name
+  """
+  Name: String
+
+  """
+  State, if we want to define the link state, eg.: up, down, etc
+  """
+  State: String
+
+  """
+  Link type. If not defiend is "Connect" (xDP)
+  """
+  Type: net_LinkType
+
+  """
   Optional field to establish the creation time of the skydive elements. If
   not set, defaults to the current time.
   Format: 2021-01-01T00:00:00Z
@@ -500,6 +531,12 @@ input net_BuildingInput {
   Name of the building
   """
   Name: String!
+  """
+  This could be used to identify buildings used for different purposes.
+  Each of this classes would be added as key values to the building metadata, so they could be used to filter the building.
+  If the building already exists, the new key value will be added to the existing metadata.
+  """
+  Class: String
   """
   Location for the building
   """
