@@ -40,6 +40,8 @@ const (
 	MetaKeyVendor = "Vendor"
 	// MetaKeyModel extra data added to devices' metadata if defined
 	MetaKeyModel = "Model"
+	// MetaKeyBuilding extra data added to devices' metadata if defined
+	MetaKeyBuilding = "Building"
 	// MetaKeyPseudowireID pseudo wire id stored in edges
 	MetaKeyPseudowireID = "PseudoWireID"
 
@@ -118,6 +120,7 @@ func (r *Resolver) netAddDevice(
 	deviceType *model.NetDeviceType,
 	model *string,
 	vendor *string,
+	building *string,
 	createdAt *time.Time,
 ) (node *graph.Node, nodeCreated bool, nodeUpdated bool, err error) {
 	if name == "" {
@@ -152,6 +155,9 @@ func (r *Resolver) netAddDevice(
 	}
 	if vendor != nil {
 		metadata[MetaKeyVendor] = *vendor
+	}
+	if building != nil {
+		metadata[MetaKeyBuilding] = *building
 	}
 
 	node, nodeCreated, nodeUpdated, err = r.createOrUpdateNode(id, metadata, createdAt)

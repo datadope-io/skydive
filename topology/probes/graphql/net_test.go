@@ -57,6 +57,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 		&routerType,
 		nil,
 		strPointer("vendorNew"),
+		nil,
 		&newCreatedAt,
 	)
 	assert.EqualError(t, err, "forbidden to modify CreatedAt value of existing node")
@@ -68,6 +69,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 		&routerType,
 		nil,
 		strPointer("vendorNew"),
+		strPointer("building"),
 		&createdAt,
 	)
 	assert.Nil(t, err)
@@ -85,6 +87,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 		MetaKeyType:       "device",
 		MetaKeyDeviceType: "Router",
 		MetaKeyVendor:     "vendorNew",
+		MetaKeyBuilding:   "building",
 		// Model was set to nil, so deleted from the node
 	}
 
@@ -105,6 +108,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 		nil,
 		strPointer("vendorNew"),
 		nil,
+		nil,
 	)
 	assert.Nil(t, err)
 }
@@ -120,6 +124,7 @@ func TestNetAddDevice(t *testing.T) {
 		deviceType      *model.NetDeviceType
 		model           *string
 		vendor          *string
+		building        *string
 		createdAt       *time.Time
 		expectedNode    *graph.Node
 		expectedCreated bool
@@ -183,6 +188,7 @@ func TestNetAddDevice(t *testing.T) {
 				test.deviceType,
 				test.model,
 				test.vendor,
+				test.building,
 				test.createdAt,
 			)
 
