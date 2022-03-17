@@ -42,6 +42,8 @@ const (
 	MetaKeyBuilding = "Building"
 	// MetaKeyPseudowireID pseudo wire id stored in edges
 	MetaKeyPseudowireID = "PseudoWireID"
+	// MetaKeyState state of the interface
+	MetaKeyState = "State"
 
 	// MetaKeyLocation key to store the location of the node, as a map of latitude and longitude
 	MetaKeyLocation = "Location"

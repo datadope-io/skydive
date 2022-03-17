@@ -1733,11 +1733,20 @@ func TestDeleteLLDPLink(t *testing.T) {
 	_, err = probe.resolver.Mutation().NetAddIf2IfLink(context.Background(), model.NetAddIf2IfLinkInput{
 		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
 		DstInterface: &model.NetSelector{ID: &dev2.Device.ID},
+		Name:         strPointer("eth0"),
+		State:        strPointer("up"),
 	})
 	assert.NoError(t, err)
 
-	// Comprobamos que se ha creado un edge tipo LLDP (connect)
-	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: string(model.NetLinkTypeConnect)}), 1)
+	// Comprobamos que se ha creado un edge tipo LLDP (connect) con el Name y State especificados
+	edges := probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: string(model.NetLinkTypeConnect)})
+	assert.Len(t, edges, 1)
+	edgeName, err := edges[0].GetFieldString(MetaKeyName)
+	assert.NoError(t, err)
+	assert.Equal(t, "eth0", edgeName)
+	edgeState, err := edges[0].GetFieldString(MetaKeyState)
+	assert.NoError(t, err)
+	assert.Equal(t, "up", edgeState)
 
 	// Creamos un link tipo radio link
 	rl := model.NetLinkTypeRadioLink
