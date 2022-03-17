@@ -88,6 +88,12 @@ type NetAddIf2IfLinkInput struct {
 	SrcInterface *NetSelector `json:"SrcInterface"`
 	// Destination interface.
 	DstInterface *NetSelector `json:"DstInterface"`
+	// Link name
+	Name *string `json:"Name"`
+	// State, if we want to define the link state, eg.: up, down, etc
+	State *string `json:"State"`
+	// Link type. If not defiend is "Connect" (xDP)
+	Type *NetLinkType `json:"Type"`
 	// Optional field to establish the creation time of the skydive elements. If
 	// not set, defaults to the current time.
 	// Format: 2021-01-01T00:00:00Z
@@ -133,6 +139,10 @@ type NetBuildingInput struct {
 	Province string `json:"Province"`
 	// Name of the building
 	Name string `json:"Name"`
+	// This could be used to identify buildings used for different purposes.
+	// Each of this classes would be added as key values to the building metadata, so they could be used to filter the building.
+	// If the building already exists, the new key value will be added to the existing metadata.
+	Class *string `json:"Class"`
 	// Location for the building
 	Location *NetLocationInput `json:"Location"`
 	// Optional field to establish the creation time of the skydive elements. If
@@ -153,6 +163,8 @@ type NetDelIf2IfLinkInput struct {
 	SrcInterface *NetSelector `json:"SrcInterface"`
 	// Destination interface.
 	DstInterface *NetSelector `json:"DstInterface"`
+	// Link type. If not defiend is "Connect" (xDP)
+	Type *NetLinkType `json:"Type"`
 }
 
 // Values to delete an interface from a network device.
@@ -178,6 +190,9 @@ type NetDeviceInput struct {
 	Vendor *string `json:"Vendor"`
 	// Device model, eg.: CBS250-8P-E-2G
 	Model *string `json:"Model"`
+	// For Type=TransmissionNode, we can specify the name of the building
+	// where the device is located.
+	BuildingName *string `json:"BuildingName"`
 	// Optional field to establish the creation time of the skydive elements. If
 	// not set, defaults to the current time.
 	// If the node already exists and this value is different from the existing one, it will
@@ -419,18 +434,20 @@ func (e EventLevel) MarshalGQL(w io.Writer) {
 type NetDeviceType string
 
 const (
-	NetDeviceTypeRouter NetDeviceType = "Router"
-	NetDeviceTypeSwitch NetDeviceType = "Switch"
+	NetDeviceTypeRouter           NetDeviceType = "Router"
+	NetDeviceTypeSwitch           NetDeviceType = "Switch"
+	NetDeviceTypeTransmissionNode NetDeviceType = "TransmissionNode"
 )
 
 var AllNetDeviceType = []NetDeviceType{
 	NetDeviceTypeRouter,
 	NetDeviceTypeSwitch,
+	NetDeviceTypeTransmissionNode,
 }
 
 func (e NetDeviceType) IsValid() bool {
 	switch e {
-	case NetDeviceTypeRouter, NetDeviceTypeSwitch:
+	case NetDeviceTypeRouter, NetDeviceTypeSwitch, NetDeviceTypeTransmissionNode:
 		return true
 	}
 	return false
@@ -454,5 +471,48 @@ func (e *NetDeviceType) UnmarshalGQL(v interface{}) error {
 }
 
 func (e NetDeviceType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+// Define the kind of link between interfaces
+type NetLinkType string
+
+const (
+	// Link type for xDP connections
+	NetLinkTypeConnect   NetLinkType = "Connect"
+	NetLinkTypeRadioLink NetLinkType = "RadioLink"
+)
+
+var AllNetLinkType = []NetLinkType{
+	NetLinkTypeConnect,
+	NetLinkTypeRadioLink,
+}
+
+func (e NetLinkType) IsValid() bool {
+	switch e {
+	case NetLinkTypeConnect, NetLinkTypeRadioLink:
+		return true
+	}
+	return false
+}
+
+func (e NetLinkType) String() string {
+	return string(e)
+}
+
+func (e *NetLinkType) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = NetLinkType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid net_LinkType", str)
+	}
+	return nil
+}
+
+func (e NetLinkType) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }

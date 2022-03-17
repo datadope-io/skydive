@@ -57,6 +57,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 		&routerType,
 		nil,
 		strPointer("vendorNew"),
+		nil,
 		&newCreatedAt,
 	)
 	assert.EqualError(t, err, "forbidden to modify CreatedAt value of existing node")
@@ -68,6 +69,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 		&routerType,
 		nil,
 		strPointer("vendorNew"),
+		strPointer("building"),
 		&createdAt,
 	)
 	assert.Nil(t, err)
@@ -85,6 +87,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 		MetaKeyType:       "device",
 		MetaKeyDeviceType: "Router",
 		MetaKeyVendor:     "vendorNew",
+		MetaKeyBuilding:   "building",
 		// Model was set to nil, so deleted from the node
 	}
 
@@ -105,6 +108,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 		nil,
 		strPointer("vendorNew"),
 		nil,
+		nil,
 	)
 	assert.Nil(t, err)
 }
@@ -120,6 +124,7 @@ func TestNetAddDevice(t *testing.T) {
 		deviceType      *model.NetDeviceType
 		model           *string
 		vendor          *string
+		building        *string
 		createdAt       *time.Time
 		expectedNode    *graph.Node
 		expectedCreated bool
@@ -183,6 +188,7 @@ func TestNetAddDevice(t *testing.T) {
 				test.deviceType,
 				test.model,
 				test.vendor,
+				test.building,
 				test.createdAt,
 			)
 
@@ -1723,23 +1729,46 @@ func TestDeleteLLDPLink(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
+	// Creamos un link sin especificar, por defecto es un link LLDP (connect)
 	_, err = probe.resolver.Mutation().NetAddIf2IfLink(context.Background(), model.NetAddIf2IfLinkInput{
 		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
 		DstInterface: &model.NetSelector{ID: &dev2.Device.ID},
+		Name:         strPointer("eth0"),
+		State:        strPointer("up"),
+	})
+	assert.NoError(t, err)
+
+	// Comprobamos que se ha creado un edge tipo LLDP (connect) con el Name y State especificados
+	edges := probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: string(model.NetLinkTypeConnect)})
+	assert.Len(t, edges, 1)
+	edgeName, err := edges[0].GetFieldString(MetaKeyName)
+	assert.NoError(t, err)
+	assert.Equal(t, "eth0", edgeName)
+	edgeState, err := edges[0].GetFieldString(MetaKeyState)
+	assert.NoError(t, err)
+	assert.Equal(t, "up", edgeState)
+
+	// Creamos un link tipo radio link
+	rl := model.NetLinkTypeRadioLink
+	_, err = probe.resolver.Mutation().NetAddIf2IfLink(context.Background(), model.NetAddIf2IfLinkInput{
+		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
+		DstInterface: &model.NetSelector{ID: &dev2.Device.ID},
+		Type:         &rl,
 	})
 	assert.NoError(t, err)
 
 	// Comprobamos que se ha creado un edge tipo LLDP (connect)
-	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationConnect}), 1)
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: string(model.NetLinkTypeRadioLink)}), 1)
 
-	// Llama a la mutation de borrado de edges LLDP
+	// Llama a la mutation de borrado de edges LLDP (se borra por defecto connect)
 	_, err = probe.resolver.Mutation().NetDelIf2IfLink(context.Background(), model.NetDelIf2IfLinkInput{
 		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
 		DstInterface: &model.NetSelector{ID: &dev2.Device.ID},
 	})
 
-	// Comprobamos que no quedan edges tipo LLDP (connect)
-	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: RelationConnect}), 0)
+	// Comprobamos que no quedan edges tipo LLDP (connect), pero si el radio link
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: string(model.NetLinkTypeConnect)}), 0)
+	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: string(model.NetLinkTypeRadioLink)}), 1)
 }
 
 func TestEVPNPseudoWiresWithoutBuildings(t *testing.T) {
@@ -1893,4 +1922,65 @@ func TestEVPNPseudoWiresWithBuildings(t *testing.T) {
 	//    - [r,p,b] <-> [r,p,b] (9)
 	//    - iface<->iface (1)
 	assert.Len(t, edges, 10)
+}
+
+// TestBuildingWithClasses test if an input building with a class defined is correctly added to the graph.
+func TestBuildingWithClasses(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Needed region and province to create the building
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionAProvinceA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionA",
+	})
+	assert.NoError(t, err)
+
+	// Create a building with a class
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:     "BuildingA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province: "RegionAProvinceA",
+		Class:    strPointer("classA"),
+	})
+	assert.NoError(t, err)
+
+	// Get building nodes from graph
+	nodes := probe.graph.GetNodes(graph.Metadata{MetaKeyName: "BuildingA"})
+	assert.Len(t, nodes, 1)
+
+	// The building should have the class value as a metadata key. Value should be always true
+	building := nodes[0]
+	v, err := building.GetFieldString("classA")
+	assert.NoError(t, err)
+	assert.Equal(t, "t", v)
+
+	// Create the same building with a different class
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:     "BuildingA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province: "RegionAProvinceA",
+		Class:    strPointer("classB"),
+	})
+	assert.NoError(t, err)
+
+	// Get building nodes from graph
+	nodes = probe.graph.GetNodes(graph.Metadata{MetaKeyName: "BuildingA"})
+	assert.Len(t, nodes, 1)
+
+	// The building should have the class value as a metadata key. Value should be always true
+	building = nodes[0]
+	v, err = building.GetFieldString("classB")
+	assert.NoError(t, err)
+	assert.Equal(t, "t", v)
 }

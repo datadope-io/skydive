@@ -64,64 +64,64 @@ type ComplexityRoot struct {
 		Version func(childComplexity int) int
 	}
 
-	EventAddMultiplePayload struct {
+	Event_AddMultiplePayload struct {
 		Errors func(childComplexity int) int
 		Fail   func(childComplexity int) int
 		Ok     func(childComplexity int) int
 	}
 
-	EventAddPayload struct {
+	Event_AddPayload struct {
 		ID func(childComplexity int) int
 	}
 
-	EventClosePayload struct {
+	Event_ClosePayload struct {
 		ID func(childComplexity int) int
 	}
 
-	NetAggregationPayload struct {
+	Net_AggregationPayload struct {
 		Aggregation func(childComplexity int) int
 	}
 
-	NetBuildingPayload struct {
+	Net_BuildingPayload struct {
 		Building func(childComplexity int) int
 	}
 
-	NetDevicePayload struct {
+	Net_DevicePayload struct {
 		Device func(childComplexity int) int
 	}
 
-	NetEdgePayload struct {
+	Net_EdgePayload struct {
 		EdgeCreated func(childComplexity int) int
 		EdgeUpdated func(childComplexity int) int
 		ID          func(childComplexity int) int
 	}
 
-	NetIf2IfLinkPayload struct {
+	Net_If2IfLinkPayload struct {
 		InterfaceLinks func(childComplexity int) int
 	}
 
-	NetInterfacePayload struct {
+	Net_InterfacePayload struct {
 		Aggregation func(childComplexity int) int
 		Interface   func(childComplexity int) int
 	}
 
-	NetLogicalInterfacePayload struct {
+	Net_LogicalInterfacePayload struct {
 		LogicalInterface func(childComplexity int) int
 	}
 
-	NetNodePayload struct {
+	Net_NodePayload struct {
 		ID          func(childComplexity int) int
 		NodeCreated func(childComplexity int) int
 		NodeUpdated func(childComplexity int) int
 	}
 
-	NetProvincePayload struct {
+	Net_ProvincePayload struct {
 		ID          func(childComplexity int) int
 		NodeCreated func(childComplexity int) int
 		NodeUpdated func(childComplexity int) int
 	}
 
-	NetRegionPayload struct {
+	Net_RegionPayload struct {
 		ID          func(childComplexity int) int
 		NodeCreated func(childComplexity int) int
 		NodeUpdated func(childComplexity int) int
@@ -326,172 +326,172 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		return e.complexity.Query.Version(childComplexity), true
 
 	case "event_AddMultiplePayload.Errors":
-		if e.complexity.EventAddMultiplePayload.Errors == nil {
+		if e.complexity.Event_AddMultiplePayload.Errors == nil {
 			break
 		}
 
-		return e.complexity.EventAddMultiplePayload.Errors(childComplexity), true
+		return e.complexity.Event_AddMultiplePayload.Errors(childComplexity), true
 
 	case "event_AddMultiplePayload.Fail":
-		if e.complexity.EventAddMultiplePayload.Fail == nil {
+		if e.complexity.Event_AddMultiplePayload.Fail == nil {
 			break
 		}
 
-		return e.complexity.EventAddMultiplePayload.Fail(childComplexity), true
+		return e.complexity.Event_AddMultiplePayload.Fail(childComplexity), true
 
 	case "event_AddMultiplePayload.Ok":
-		if e.complexity.EventAddMultiplePayload.Ok == nil {
+		if e.complexity.Event_AddMultiplePayload.Ok == nil {
 			break
 		}
 
-		return e.complexity.EventAddMultiplePayload.Ok(childComplexity), true
+		return e.complexity.Event_AddMultiplePayload.Ok(childComplexity), true
 
 	case "event_AddPayload.ID":
-		if e.complexity.EventAddPayload.ID == nil {
+		if e.complexity.Event_AddPayload.ID == nil {
 			break
 		}
 
-		return e.complexity.EventAddPayload.ID(childComplexity), true
+		return e.complexity.Event_AddPayload.ID(childComplexity), true
 
 	case "event_ClosePayload.ID":
-		if e.complexity.EventClosePayload.ID == nil {
+		if e.complexity.Event_ClosePayload.ID == nil {
 			break
 		}
 
-		return e.complexity.EventClosePayload.ID(childComplexity), true
+		return e.complexity.Event_ClosePayload.ID(childComplexity), true
 
 	case "net_AggregationPayload.Aggregation":
-		if e.complexity.NetAggregationPayload.Aggregation == nil {
+		if e.complexity.Net_AggregationPayload.Aggregation == nil {
 			break
 		}
 
-		return e.complexity.NetAggregationPayload.Aggregation(childComplexity), true
+		return e.complexity.Net_AggregationPayload.Aggregation(childComplexity), true
 
 	case "net_BuildingPayload.Building":
-		if e.complexity.NetBuildingPayload.Building == nil {
+		if e.complexity.Net_BuildingPayload.Building == nil {
 			break
 		}
 
-		return e.complexity.NetBuildingPayload.Building(childComplexity), true
+		return e.complexity.Net_BuildingPayload.Building(childComplexity), true
 
 	case "net_DevicePayload.Device":
-		if e.complexity.NetDevicePayload.Device == nil {
+		if e.complexity.Net_DevicePayload.Device == nil {
 			break
 		}
 
-		return e.complexity.NetDevicePayload.Device(childComplexity), true
+		return e.complexity.Net_DevicePayload.Device(childComplexity), true
 
 	case "net_EdgePayload.EdgeCreated":
-		if e.complexity.NetEdgePayload.EdgeCreated == nil {
+		if e.complexity.Net_EdgePayload.EdgeCreated == nil {
 			break
 		}
 
-		return e.complexity.NetEdgePayload.EdgeCreated(childComplexity), true
+		return e.complexity.Net_EdgePayload.EdgeCreated(childComplexity), true
 
 	case "net_EdgePayload.EdgeUpdated":
-		if e.complexity.NetEdgePayload.EdgeUpdated == nil {
+		if e.complexity.Net_EdgePayload.EdgeUpdated == nil {
 			break
 		}
 
-		return e.complexity.NetEdgePayload.EdgeUpdated(childComplexity), true
+		return e.complexity.Net_EdgePayload.EdgeUpdated(childComplexity), true
 
 	case "net_EdgePayload.ID":
-		if e.complexity.NetEdgePayload.ID == nil {
+		if e.complexity.Net_EdgePayload.ID == nil {
 			break
 		}
 
-		return e.complexity.NetEdgePayload.ID(childComplexity), true
+		return e.complexity.Net_EdgePayload.ID(childComplexity), true
 
 	case "net_If2IfLinkPayload.InterfaceLinks":
-		if e.complexity.NetIf2IfLinkPayload.InterfaceLinks == nil {
+		if e.complexity.Net_If2IfLinkPayload.InterfaceLinks == nil {
 			break
 		}
 
-		return e.complexity.NetIf2IfLinkPayload.InterfaceLinks(childComplexity), true
+		return e.complexity.Net_If2IfLinkPayload.InterfaceLinks(childComplexity), true
 
 	case "net_InterfacePayload.Aggregation":
-		if e.complexity.NetInterfacePayload.Aggregation == nil {
+		if e.complexity.Net_InterfacePayload.Aggregation == nil {
 			break
 		}
 
-		return e.complexity.NetInterfacePayload.Aggregation(childComplexity), true
+		return e.complexity.Net_InterfacePayload.Aggregation(childComplexity), true
 
 	case "net_InterfacePayload.Interface":
-		if e.complexity.NetInterfacePayload.Interface == nil {
+		if e.complexity.Net_InterfacePayload.Interface == nil {
 			break
 		}
 
-		return e.complexity.NetInterfacePayload.Interface(childComplexity), true
+		return e.complexity.Net_InterfacePayload.Interface(childComplexity), true
 
 	case "net_LogicalInterfacePayload.LogicalInterface":
-		if e.complexity.NetLogicalInterfacePayload.LogicalInterface == nil {
+		if e.complexity.Net_LogicalInterfacePayload.LogicalInterface == nil {
 			break
 		}
 
-		return e.complexity.NetLogicalInterfacePayload.LogicalInterface(childComplexity), true
+		return e.complexity.Net_LogicalInterfacePayload.LogicalInterface(childComplexity), true
 
 	case "net_NodePayload.ID":
-		if e.complexity.NetNodePayload.ID == nil {
+		if e.complexity.Net_NodePayload.ID == nil {
 			break
 		}
 
-		return e.complexity.NetNodePayload.ID(childComplexity), true
+		return e.complexity.Net_NodePayload.ID(childComplexity), true
 
 	case "net_NodePayload.NodeCreated":
-		if e.complexity.NetNodePayload.NodeCreated == nil {
+		if e.complexity.Net_NodePayload.NodeCreated == nil {
 			break
 		}
 
-		return e.complexity.NetNodePayload.NodeCreated(childComplexity), true
+		return e.complexity.Net_NodePayload.NodeCreated(childComplexity), true
 
 	case "net_NodePayload.NodeUpdated":
-		if e.complexity.NetNodePayload.NodeUpdated == nil {
+		if e.complexity.Net_NodePayload.NodeUpdated == nil {
 			break
 		}
 
-		return e.complexity.NetNodePayload.NodeUpdated(childComplexity), true
+		return e.complexity.Net_NodePayload.NodeUpdated(childComplexity), true
 
 	case "net_ProvincePayload.ID":
-		if e.complexity.NetProvincePayload.ID == nil {
+		if e.complexity.Net_ProvincePayload.ID == nil {
 			break
 		}
 
-		return e.complexity.NetProvincePayload.ID(childComplexity), true
+		return e.complexity.Net_ProvincePayload.ID(childComplexity), true
 
 	case "net_ProvincePayload.NodeCreated":
-		if e.complexity.NetProvincePayload.NodeCreated == nil {
+		if e.complexity.Net_ProvincePayload.NodeCreated == nil {
 			break
 		}
 
-		return e.complexity.NetProvincePayload.NodeCreated(childComplexity), true
+		return e.complexity.Net_ProvincePayload.NodeCreated(childComplexity), true
 
 	case "net_ProvincePayload.NodeUpdated":
-		if e.complexity.NetProvincePayload.NodeUpdated == nil {
+		if e.complexity.Net_ProvincePayload.NodeUpdated == nil {
 			break
 		}
 
-		return e.complexity.NetProvincePayload.NodeUpdated(childComplexity), true
+		return e.complexity.Net_ProvincePayload.NodeUpdated(childComplexity), true
 
 	case "net_RegionPayload.ID":
-		if e.complexity.NetRegionPayload.ID == nil {
+		if e.complexity.Net_RegionPayload.ID == nil {
 			break
 		}
 
-		return e.complexity.NetRegionPayload.ID(childComplexity), true
+		return e.complexity.Net_RegionPayload.ID(childComplexity), true
 
 	case "net_RegionPayload.NodeCreated":
-		if e.complexity.NetRegionPayload.NodeCreated == nil {
+		if e.complexity.Net_RegionPayload.NodeCreated == nil {
 			break
 		}
 
-		return e.complexity.NetRegionPayload.NodeCreated(childComplexity), true
+		return e.complexity.Net_RegionPayload.NodeCreated(childComplexity), true
 
 	case "net_RegionPayload.NodeUpdated":
-		if e.complexity.NetRegionPayload.NodeUpdated == nil {
+		if e.complexity.Net_RegionPayload.NodeUpdated == nil {
 			break
 		}
 
-		return e.complexity.NetRegionPayload.NodeUpdated(childComplexity), true
+		return e.complexity.Net_RegionPayload.NodeUpdated(childComplexity), true
 
 	}
 	return 0, false
@@ -761,6 +761,12 @@ input net_DeviceInput {
   Model: String
 
   """
+  For Type=TransmissionNode, we can specify the name of the building
+  where the device is located.
+  """
+  BuildingName: String
+
+  """
   Optional field to establish the creation time of the skydive elements. If
   not set, defaults to the current time.
   If the node already exists and this value is different from the existing one, it will
@@ -781,6 +787,16 @@ Define the kind of network device
 enum net_DeviceType {
   Router
   Switch
+  TransmissionNode
+}
+
+"""
+Define the kind of link between interfaces
+"""
+enum net_LinkType {
+  """Link type for xDP connections"""
+  Connect
+  RadioLink
 }
 
 """
@@ -1027,6 +1043,21 @@ input net_AddIf2IfLinkInput {
   DstInterface: net_Selector!
 
   """
+  Link name
+  """
+  Name: String
+
+  """
+  State, if we want to define the link state, eg.: up, down, etc
+  """
+  State: String
+
+  """
+  Link type. If not defiend is "Connect" (xDP)
+  """
+  Type: net_LinkType
+
+  """
   Optional field to establish the creation time of the skydive elements. If
   not set, defaults to the current time.
   Format: 2021-01-01T00:00:00Z
@@ -1047,6 +1078,11 @@ input net_DelIf2IfLinkInput {
   Destination interface.
   """
   DstInterface: net_Selector!
+
+  """
+  Link type. If not defiend is "Connect" (xDP)
+  """
+  Type: net_LinkType
 }
 
 """
@@ -1172,6 +1208,12 @@ input net_BuildingInput {
   Name of the building
   """
   Name: String!
+  """
+  This could be used to identify buildings used for different purposes.
+  Each of this classes would be added as key values to the building metadata, so they could be used to filter the building.
+  If the building already exists, the new key value will be added to the existing metadata.
+  """
+  Class: String
   """
   Location for the building
   """
@@ -2245,14 +2287,14 @@ func (ec *executionContext) ___Directive_description(ctx context.Context, field 
 		Object:     "__Directive",
 		Field:      field,
 		Args:       nil,
-		IsMethod:   false,
+		IsMethod:   true,
 		IsResolver: false,
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Description, nil
+		return obj.Description(), nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2261,9 +2303,9 @@ func (ec *executionContext) ___Directive_description(ctx context.Context, field 
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalOString2string(ctx, field.Selections, res)
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Directive_locations(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
@@ -2417,14 +2459,14 @@ func (ec *executionContext) ___EnumValue_description(ctx context.Context, field 
 		Object:     "__EnumValue",
 		Field:      field,
 		Args:       nil,
-		IsMethod:   false,
+		IsMethod:   true,
 		IsResolver: false,
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Description, nil
+		return obj.Description(), nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2433,9 +2475,9 @@ func (ec *executionContext) ___EnumValue_description(ctx context.Context, field 
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalOString2string(ctx, field.Selections, res)
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___EnumValue_isDeprecated(ctx context.Context, field graphql.CollectedField, obj *introspection.EnumValue) (ret graphql.Marshaler) {
@@ -2551,14 +2593,14 @@ func (ec *executionContext) ___Field_description(ctx context.Context, field grap
 		Object:     "__Field",
 		Field:      field,
 		Args:       nil,
-		IsMethod:   false,
+		IsMethod:   true,
 		IsResolver: false,
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Description, nil
+		return obj.Description(), nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2567,9 +2609,9 @@ func (ec *executionContext) ___Field_description(ctx context.Context, field grap
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalOString2string(ctx, field.Selections, res)
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Field_args(ctx context.Context, field graphql.CollectedField, obj *introspection.Field) (ret graphql.Marshaler) {
@@ -2755,14 +2797,14 @@ func (ec *executionContext) ___InputValue_description(ctx context.Context, field
 		Object:     "__InputValue",
 		Field:      field,
 		Args:       nil,
-		IsMethod:   false,
+		IsMethod:   true,
 		IsResolver: false,
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Description, nil
+		return obj.Description(), nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2771,9 +2813,9 @@ func (ec *executionContext) ___InputValue_description(ctx context.Context, field
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalOString2string(ctx, field.Selections, res)
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___InputValue_type(ctx context.Context, field graphql.CollectedField, obj *introspection.InputValue) (ret graphql.Marshaler) {
@@ -2830,6 +2872,38 @@ func (ec *executionContext) ___InputValue_defaultValue(ctx context.Context, fiel
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.DefaultValue, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) ___Schema_description(ctx context.Context, field graphql.CollectedField, obj *introspection.Schema) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "__Schema",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Description(), nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3106,9 +3180,9 @@ func (ec *executionContext) ___Type_description(ctx context.Context, field graph
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalOString2string(ctx, field.Selections, res)
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Type_fields(ctx context.Context, field graphql.CollectedField, obj *introspection.Type) (ret graphql.Marshaler) {
@@ -3315,6 +3389,38 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 	res := resTmp.(*introspection.Type)
 	fc.Result = res
 	return ec.marshalO__Type2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) ___Type_specifiedByURL(ctx context.Context, field graphql.CollectedField, obj *introspection.Type) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "__Type",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SpecifiedByURL(), nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _event_AddMultiplePayload_Ok(ctx context.Context, field graphql.CollectedField, obj *model.EventAddMultiplePayload) (ret graphql.Marshaler) {
@@ -4165,6 +4271,10 @@ func (ec *executionContext) unmarshalInputevent_AddInput(ctx context.Context, ob
 		asMap[k] = v
 	}
 
+	if _, present := asMap["Propagate"]; !present {
+		asMap["Propagate"] = false
+	}
+
 	for k, v := range asMap {
 		switch k {
 		case "GremlinQuery":
@@ -4359,6 +4469,30 @@ func (ec *executionContext) unmarshalInputnet_AddIf2IfLinkInput(ctx context.Cont
 			if err != nil {
 				return it, err
 			}
+		case "Name":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Name"))
+			it.Name, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "State":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("State"))
+			it.State, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Type":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Type"))
+			it.Type, err = ec.unmarshalOnet_LinkType2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetLinkType(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		case "CreatedAt":
 			var err error
 
@@ -4484,6 +4618,14 @@ func (ec *executionContext) unmarshalInputnet_BuildingInput(ctx context.Context,
 			if err != nil {
 				return it, err
 			}
+		case "Class":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Class"))
+			it.Class, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		case "Location":
 			var err error
 
@@ -4528,6 +4670,14 @@ func (ec *executionContext) unmarshalInputnet_DelIf2IfLinkInput(ctx context.Cont
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("DstInterface"))
 			it.DstInterface, err = ec.unmarshalNnet_Selector2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetSelector(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Type":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Type"))
+			it.Type, err = ec.unmarshalOnet_LinkType2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetLinkType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -4606,6 +4756,14 @@ func (ec *executionContext) unmarshalInputnet_DeviceInput(ctx context.Context, o
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Model"))
 			it.Model, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "BuildingName":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("BuildingName"))
+			it.BuildingName, err = ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -5040,7 +5198,6 @@ var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, mutationImplementors)
-
 	ctx = graphql.WithFieldContext(ctx, &graphql.FieldContext{
 		Object: "Mutation",
 	})
@@ -5048,71 +5205,141 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
+		innerCtx := graphql.WithRootFieldContext(ctx, &graphql.RootFieldContext{
+			Object: field.Name,
+			Field:  field,
+		})
+
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
 		case "net_AddRegion":
-			out.Values[i] = ec._Mutation_net_AddRegion(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_net_AddRegion(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "net_AddProvince":
-			out.Values[i] = ec._Mutation_net_AddProvince(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_net_AddProvince(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "net_AddBuilding":
-			out.Values[i] = ec._Mutation_net_AddBuilding(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_net_AddBuilding(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "net_AddDevice":
-			out.Values[i] = ec._Mutation_net_AddDevice(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_net_AddDevice(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "net_AddInterface":
-			out.Values[i] = ec._Mutation_net_AddInterface(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_net_AddInterface(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "net_DelInterface":
-			out.Values[i] = ec._Mutation_net_DelInterface(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_net_DelInterface(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "net_AddAggregation":
-			out.Values[i] = ec._Mutation_net_AddAggregation(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_net_AddAggregation(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "net_AddLogicalInterface":
-			out.Values[i] = ec._Mutation_net_AddLogicalInterface(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_net_AddLogicalInterface(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "net_AddIf2IfLink":
-			out.Values[i] = ec._Mutation_net_AddIf2IfLink(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_net_AddIf2IfLink(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "net_DelIf2IfLink":
-			out.Values[i] = ec._Mutation_net_DelIf2IfLink(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_net_DelIf2IfLink(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "event_Add":
-			out.Values[i] = ec._Mutation_event_Add(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_event_Add(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "event_AddMultiple":
-			out.Values[i] = ec._Mutation_event_AddMultiple(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_event_AddMultiple(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "event_Close":
-			out.Values[i] = ec._Mutation_event_Close(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_event_Close(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5131,7 +5358,6 @@ var queryImplementors = []string{"Query"}
 
 func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, queryImplementors)
-
 	ctx = graphql.WithFieldContext(ctx, &graphql.FieldContext{
 		Object: "Query",
 	})
@@ -5139,12 +5365,18 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
+		innerCtx := graphql.WithRootFieldContext(ctx, &graphql.RootFieldContext{
+			Object: field.Name,
+			Field:  field,
+		})
+
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
 		case "version":
 			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
+
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
@@ -5155,11 +5387,29 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					atomic.AddUint32(&invalids, 1)
 				}
 				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx, innerFunc)
+			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return rrm(innerCtx)
 			})
 		case "__type":
-			out.Values[i] = ec._Query___type(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Query___type(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 		case "__schema":
-			out.Values[i] = ec._Query___schema(ctx, field)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Query___schema(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5175,7 +5425,6 @@ var __DirectiveImplementors = []string{"__Directive"}
 
 func (ec *executionContext) ___Directive(ctx context.Context, sel ast.SelectionSet, obj *introspection.Directive) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, __DirectiveImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5183,24 +5432,49 @@ func (ec *executionContext) ___Directive(ctx context.Context, sel ast.SelectionS
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("__Directive")
 		case "name":
-			out.Values[i] = ec.___Directive_name(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Directive_name(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "description":
-			out.Values[i] = ec.___Directive_description(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Directive_description(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "locations":
-			out.Values[i] = ec.___Directive_locations(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Directive_locations(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "args":
-			out.Values[i] = ec.___Directive_args(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Directive_args(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "isRepeatable":
-			out.Values[i] = ec.___Directive_isRepeatable(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Directive_isRepeatable(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5219,7 +5493,6 @@ var __EnumValueImplementors = []string{"__EnumValue"}
 
 func (ec *executionContext) ___EnumValue(ctx context.Context, sel ast.SelectionSet, obj *introspection.EnumValue) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, __EnumValueImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5227,19 +5500,39 @@ func (ec *executionContext) ___EnumValue(ctx context.Context, sel ast.SelectionS
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("__EnumValue")
 		case "name":
-			out.Values[i] = ec.___EnumValue_name(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___EnumValue_name(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "description":
-			out.Values[i] = ec.___EnumValue_description(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___EnumValue_description(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "isDeprecated":
-			out.Values[i] = ec.___EnumValue_isDeprecated(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___EnumValue_isDeprecated(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "deprecationReason":
-			out.Values[i] = ec.___EnumValue_deprecationReason(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___EnumValue_deprecationReason(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5255,7 +5548,6 @@ var __FieldImplementors = []string{"__Field"}
 
 func (ec *executionContext) ___Field(ctx context.Context, sel ast.SelectionSet, obj *introspection.Field) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, __FieldImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5263,29 +5555,59 @@ func (ec *executionContext) ___Field(ctx context.Context, sel ast.SelectionSet, 
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("__Field")
 		case "name":
-			out.Values[i] = ec.___Field_name(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Field_name(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "description":
-			out.Values[i] = ec.___Field_description(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Field_description(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "args":
-			out.Values[i] = ec.___Field_args(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Field_args(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "type":
-			out.Values[i] = ec.___Field_type(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Field_type(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "isDeprecated":
-			out.Values[i] = ec.___Field_isDeprecated(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Field_isDeprecated(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "deprecationReason":
-			out.Values[i] = ec.___Field_deprecationReason(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Field_deprecationReason(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5301,7 +5623,6 @@ var __InputValueImplementors = []string{"__InputValue"}
 
 func (ec *executionContext) ___InputValue(ctx context.Context, sel ast.SelectionSet, obj *introspection.InputValue) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, __InputValueImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5309,19 +5630,39 @@ func (ec *executionContext) ___InputValue(ctx context.Context, sel ast.Selection
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("__InputValue")
 		case "name":
-			out.Values[i] = ec.___InputValue_name(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___InputValue_name(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "description":
-			out.Values[i] = ec.___InputValue_description(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___InputValue_description(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "type":
-			out.Values[i] = ec.___InputValue_type(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___InputValue_type(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "defaultValue":
-			out.Values[i] = ec.___InputValue_defaultValue(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___InputValue_defaultValue(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5337,29 +5678,60 @@ var __SchemaImplementors = []string{"__Schema"}
 
 func (ec *executionContext) ___Schema(ctx context.Context, sel ast.SelectionSet, obj *introspection.Schema) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, __SchemaImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("__Schema")
+		case "description":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Schema_description(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "types":
-			out.Values[i] = ec.___Schema_types(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Schema_types(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "queryType":
-			out.Values[i] = ec.___Schema_queryType(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Schema_queryType(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "mutationType":
-			out.Values[i] = ec.___Schema_mutationType(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Schema_mutationType(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "subscriptionType":
-			out.Values[i] = ec.___Schema_subscriptionType(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Schema_subscriptionType(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "directives":
-			out.Values[i] = ec.___Schema_directives(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Schema_directives(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5378,7 +5750,6 @@ var __TypeImplementors = []string{"__Type"}
 
 func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, obj *introspection.Type) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, __TypeImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5386,26 +5757,78 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("__Type")
 		case "kind":
-			out.Values[i] = ec.___Type_kind(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Type_kind(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "name":
-			out.Values[i] = ec.___Type_name(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Type_name(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "description":
-			out.Values[i] = ec.___Type_description(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Type_description(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "fields":
-			out.Values[i] = ec.___Type_fields(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Type_fields(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "interfaces":
-			out.Values[i] = ec.___Type_interfaces(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Type_interfaces(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "possibleTypes":
-			out.Values[i] = ec.___Type_possibleTypes(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Type_possibleTypes(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "enumValues":
-			out.Values[i] = ec.___Type_enumValues(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Type_enumValues(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "inputFields":
-			out.Values[i] = ec.___Type_inputFields(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Type_inputFields(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		case "ofType":
-			out.Values[i] = ec.___Type_ofType(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Type_ofType(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+		case "specifiedByURL":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec.___Type_specifiedByURL(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5421,7 +5844,6 @@ var event_AddMultiplePayloadImplementors = []string{"event_AddMultiplePayload"}
 
 func (ec *executionContext) _event_AddMultiplePayload(ctx context.Context, sel ast.SelectionSet, obj *model.EventAddMultiplePayload) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, event_AddMultiplePayloadImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5429,17 +5851,32 @@ func (ec *executionContext) _event_AddMultiplePayload(ctx context.Context, sel a
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("event_AddMultiplePayload")
 		case "Ok":
-			out.Values[i] = ec._event_AddMultiplePayload_Ok(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._event_AddMultiplePayload_Ok(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "Fail":
-			out.Values[i] = ec._event_AddMultiplePayload_Fail(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._event_AddMultiplePayload_Fail(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "Errors":
-			out.Values[i] = ec._event_AddMultiplePayload_Errors(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._event_AddMultiplePayload_Errors(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5458,7 +5895,6 @@ var event_AddPayloadImplementors = []string{"event_AddPayload"}
 
 func (ec *executionContext) _event_AddPayload(ctx context.Context, sel ast.SelectionSet, obj *model.EventAddPayload) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, event_AddPayloadImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5466,7 +5902,12 @@ func (ec *executionContext) _event_AddPayload(ctx context.Context, sel ast.Selec
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("event_AddPayload")
 		case "ID":
-			out.Values[i] = ec._event_AddPayload_ID(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._event_AddPayload_ID(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5485,7 +5926,6 @@ var event_ClosePayloadImplementors = []string{"event_ClosePayload"}
 
 func (ec *executionContext) _event_ClosePayload(ctx context.Context, sel ast.SelectionSet, obj *model.EventClosePayload) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, event_ClosePayloadImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5493,7 +5933,12 @@ func (ec *executionContext) _event_ClosePayload(ctx context.Context, sel ast.Sel
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("event_ClosePayload")
 		case "ID":
-			out.Values[i] = ec._event_ClosePayload_ID(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._event_ClosePayload_ID(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5512,7 +5957,6 @@ var net_AggregationPayloadImplementors = []string{"net_AggregationPayload"}
 
 func (ec *executionContext) _net_AggregationPayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetAggregationPayload) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, net_AggregationPayloadImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5520,7 +5964,12 @@ func (ec *executionContext) _net_AggregationPayload(ctx context.Context, sel ast
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("net_AggregationPayload")
 		case "Aggregation":
-			out.Values[i] = ec._net_AggregationPayload_Aggregation(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_AggregationPayload_Aggregation(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5539,7 +5988,6 @@ var net_BuildingPayloadImplementors = []string{"net_BuildingPayload"}
 
 func (ec *executionContext) _net_BuildingPayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetBuildingPayload) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, net_BuildingPayloadImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5547,7 +5995,12 @@ func (ec *executionContext) _net_BuildingPayload(ctx context.Context, sel ast.Se
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("net_BuildingPayload")
 		case "Building":
-			out.Values[i] = ec._net_BuildingPayload_Building(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_BuildingPayload_Building(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5566,7 +6019,6 @@ var net_DevicePayloadImplementors = []string{"net_DevicePayload"}
 
 func (ec *executionContext) _net_DevicePayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetDevicePayload) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, net_DevicePayloadImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5574,7 +6026,12 @@ func (ec *executionContext) _net_DevicePayload(ctx context.Context, sel ast.Sele
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("net_DevicePayload")
 		case "Device":
-			out.Values[i] = ec._net_DevicePayload_Device(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_DevicePayload_Device(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5593,7 +6050,6 @@ var net_EdgePayloadImplementors = []string{"net_EdgePayload"}
 
 func (ec *executionContext) _net_EdgePayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetEdgePayload) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, net_EdgePayloadImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5601,17 +6057,32 @@ func (ec *executionContext) _net_EdgePayload(ctx context.Context, sel ast.Select
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("net_EdgePayload")
 		case "ID":
-			out.Values[i] = ec._net_EdgePayload_ID(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_EdgePayload_ID(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "EdgeCreated":
-			out.Values[i] = ec._net_EdgePayload_EdgeCreated(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_EdgePayload_EdgeCreated(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "EdgeUpdated":
-			out.Values[i] = ec._net_EdgePayload_EdgeUpdated(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_EdgePayload_EdgeUpdated(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5630,7 +6101,6 @@ var net_If2IfLinkPayloadImplementors = []string{"net_If2IfLinkPayload"}
 
 func (ec *executionContext) _net_If2IfLinkPayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetIf2IfLinkPayload) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, net_If2IfLinkPayloadImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5638,7 +6108,12 @@ func (ec *executionContext) _net_If2IfLinkPayload(ctx context.Context, sel ast.S
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("net_If2IfLinkPayload")
 		case "InterfaceLinks":
-			out.Values[i] = ec._net_If2IfLinkPayload_InterfaceLinks(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_If2IfLinkPayload_InterfaceLinks(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5657,7 +6132,6 @@ var net_InterfacePayloadImplementors = []string{"net_InterfacePayload"}
 
 func (ec *executionContext) _net_InterfacePayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetInterfacePayload) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, net_InterfacePayloadImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5665,12 +6139,22 @@ func (ec *executionContext) _net_InterfacePayload(ctx context.Context, sel ast.S
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("net_InterfacePayload")
 		case "Interface":
-			out.Values[i] = ec._net_InterfacePayload_Interface(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_InterfacePayload_Interface(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "Aggregation":
-			out.Values[i] = ec._net_InterfacePayload_Aggregation(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_InterfacePayload_Aggregation(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5686,7 +6170,6 @@ var net_LogicalInterfacePayloadImplementors = []string{"net_LogicalInterfacePayl
 
 func (ec *executionContext) _net_LogicalInterfacePayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetLogicalInterfacePayload) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, net_LogicalInterfacePayloadImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5694,7 +6177,12 @@ func (ec *executionContext) _net_LogicalInterfacePayload(ctx context.Context, se
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("net_LogicalInterfacePayload")
 		case "LogicalInterface":
-			out.Values[i] = ec._net_LogicalInterfacePayload_LogicalInterface(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_LogicalInterfacePayload_LogicalInterface(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5713,7 +6201,6 @@ var net_NodePayloadImplementors = []string{"net_NodePayload"}
 
 func (ec *executionContext) _net_NodePayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetNodePayload) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, net_NodePayloadImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5721,17 +6208,32 @@ func (ec *executionContext) _net_NodePayload(ctx context.Context, sel ast.Select
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("net_NodePayload")
 		case "ID":
-			out.Values[i] = ec._net_NodePayload_ID(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_NodePayload_ID(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "NodeCreated":
-			out.Values[i] = ec._net_NodePayload_NodeCreated(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_NodePayload_NodeCreated(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "NodeUpdated":
-			out.Values[i] = ec._net_NodePayload_NodeUpdated(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_NodePayload_NodeUpdated(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5750,7 +6252,6 @@ var net_ProvincePayloadImplementors = []string{"net_ProvincePayload"}
 
 func (ec *executionContext) _net_ProvincePayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetProvincePayload) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, net_ProvincePayloadImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5758,17 +6259,32 @@ func (ec *executionContext) _net_ProvincePayload(ctx context.Context, sel ast.Se
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("net_ProvincePayload")
 		case "ID":
-			out.Values[i] = ec._net_ProvincePayload_ID(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_ProvincePayload_ID(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "NodeCreated":
-			out.Values[i] = ec._net_ProvincePayload_NodeCreated(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_ProvincePayload_NodeCreated(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "NodeUpdated":
-			out.Values[i] = ec._net_ProvincePayload_NodeUpdated(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_ProvincePayload_NodeUpdated(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5787,7 +6303,6 @@ var net_RegionPayloadImplementors = []string{"net_RegionPayload"}
 
 func (ec *executionContext) _net_RegionPayload(ctx context.Context, sel ast.SelectionSet, obj *model.NetRegionPayload) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, net_RegionPayloadImplementors)
-
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
@@ -5795,17 +6310,32 @@ func (ec *executionContext) _net_RegionPayload(ctx context.Context, sel ast.Sele
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("net_RegionPayload")
 		case "ID":
-			out.Values[i] = ec._net_RegionPayload_ID(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_RegionPayload_ID(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "NodeCreated":
-			out.Values[i] = ec._net_RegionPayload_NodeCreated(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_RegionPayload_NodeCreated(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "NodeUpdated":
-			out.Values[i] = ec._net_RegionPayload_NodeUpdated(ctx, field, obj)
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._net_RegionPayload_NodeUpdated(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5840,18 +6370,18 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 }
 
 func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v interface{}) (float64, error) {
-	res, err := graphql.UnmarshalFloat(v)
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.SelectionSet, v float64) graphql.Marshaler {
-	res := graphql.MarshalFloat(v)
+	res := graphql.MarshalFloatContext(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
 		}
 	}
-	return res
+	return graphql.WrapContextMarshaler(ctx, res)
 }
 
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
@@ -5872,11 +6402,7 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 func (ec *executionContext) unmarshalNInt2ᚕintᚄ(ctx context.Context, v interface{}) ([]int, error) {
 	var vSlice []interface{}
 	if v != nil {
-		if tmp1, ok := v.([]interface{}); ok {
-			vSlice = tmp1
-		} else {
-			vSlice = []interface{}{v}
-		}
+		vSlice = graphql.CoerceList(v)
 	}
 	var err error
 	res := make([]int, len(vSlice))
@@ -5923,11 +6449,7 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 func (ec *executionContext) unmarshalNString2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {
 	var vSlice []interface{}
 	if v != nil {
-		if tmp1, ok := v.([]interface{}); ok {
-			vSlice = tmp1
-		} else {
-			vSlice = []interface{}{v}
-		}
+		vSlice = graphql.CoerceList(v)
 	}
 	var err error
 	res := make([]string, len(vSlice))
@@ -6022,11 +6544,7 @@ func (ec *executionContext) marshalN__DirectiveLocation2string(ctx context.Conte
 func (ec *executionContext) unmarshalN__DirectiveLocation2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {
 	var vSlice []interface{}
 	if v != nil {
-		if tmp1, ok := v.([]interface{}); ok {
-			vSlice = tmp1
-		} else {
-			vSlice = []interface{}{v}
-		}
+		vSlice = graphql.CoerceList(v)
 	}
 	var err error
 	res := make([]string, len(vSlice))
@@ -6221,11 +6739,7 @@ func (ec *executionContext) unmarshalNevent_AddInput2githubᚗcomᚋskydiveᚑpr
 func (ec *executionContext) unmarshalNevent_AddInput2ᚕᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐEventAddInputᚄ(ctx context.Context, v interface{}) ([]*model.EventAddInput, error) {
 	var vSlice []interface{}
 	if v != nil {
-		if tmp1, ok := v.([]interface{}); ok {
-			vSlice = tmp1
-		} else {
-			vSlice = []interface{}{v}
-		}
+		vSlice = graphql.CoerceList(v)
 	}
 	var err error
 	res := make([]*model.EventAddInput, len(vSlice))
@@ -6563,7 +7077,8 @@ func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v interf
 }
 
 func (ec *executionContext) marshalOBoolean2bool(ctx context.Context, sel ast.SelectionSet, v bool) graphql.Marshaler {
-	return graphql.MarshalBoolean(v)
+	res := graphql.MarshalBoolean(v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOBoolean2ᚖbool(ctx context.Context, v interface{}) (*bool, error) {
@@ -6578,7 +7093,8 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	if v == nil {
 		return graphql.Null
 	}
-	return graphql.MarshalBoolean(*v)
+	res := graphql.MarshalBoolean(*v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v interface{}) (*int, error) {
@@ -6593,16 +7109,8 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	if v == nil {
 		return graphql.Null
 	}
-	return graphql.MarshalInt(*v)
-}
-
-func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {
-	res, err := graphql.UnmarshalString(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalOString2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
-	return graphql.MarshalString(v)
+	res := graphql.MarshalInt(*v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {
@@ -6611,11 +7119,7 @@ func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v
 	}
 	var vSlice []interface{}
 	if v != nil {
-		if tmp1, ok := v.([]interface{}); ok {
-			vSlice = tmp1
-		} else {
-			vSlice = []interface{}{v}
-		}
+		vSlice = graphql.CoerceList(v)
 	}
 	var err error
 	res := make([]string, len(vSlice))
@@ -6659,7 +7163,8 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	if v == nil {
 		return graphql.Null
 	}
-	return graphql.MarshalString(*v)
+	res := graphql.MarshalString(*v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOTime2ᚖtimeᚐTime(ctx context.Context, v interface{}) (*time.Time, error) {
@@ -6674,7 +7179,8 @@ func (ec *executionContext) marshalOTime2ᚖtimeᚐTime(ctx context.Context, sel
 	if v == nil {
 		return graphql.Null
 	}
-	return graphql.MarshalTime(*v)
+	res := graphql.MarshalTime(*v)
+	return res
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {
@@ -6885,11 +7391,7 @@ func (ec *executionContext) unmarshalOevent_KeyValue2ᚕᚖgithubᚗcomᚋskydiv
 	}
 	var vSlice []interface{}
 	if v != nil {
-		if tmp1, ok := v.([]interface{}); ok {
-			vSlice = tmp1
-		} else {
-			vSlice = []interface{}{v}
-		}
+		vSlice = graphql.CoerceList(v)
 	}
 	var err error
 	res := make([]*model.EventKeyValue, len(vSlice))
@@ -6933,11 +7435,7 @@ func (ec *executionContext) unmarshalOnet_KeyValue2ᚕᚖgithubᚗcomᚋskydive�
 	}
 	var vSlice []interface{}
 	if v != nil {
-		if tmp1, ok := v.([]interface{}); ok {
-			vSlice = tmp1
-		} else {
-			vSlice = []interface{}{v}
-		}
+		vSlice = graphql.CoerceList(v)
 	}
 	var err error
 	res := make([]*model.NetKeyValue, len(vSlice))
@@ -6949,6 +7447,22 @@ func (ec *executionContext) unmarshalOnet_KeyValue2ᚕᚖgithubᚗcomᚋskydive�
 		}
 	}
 	return res, nil
+}
+
+func (ec *executionContext) unmarshalOnet_LinkType2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetLinkType(ctx context.Context, v interface{}) (*model.NetLinkType, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.NetLinkType)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOnet_LinkType2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetLinkType(ctx context.Context, sel ast.SelectionSet, v *model.NetLinkType) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalOnet_NodePayload2ᚖgithubᚗcomᚋskydiveᚑprojectᚋskydiveᚋtopologyᚋprobesᚋgraphqlᚋmodelᚐNetNodePayload(ctx context.Context, sel ast.SelectionSet, v *model.NetNodePayload) graphql.Marshaler {
@@ -6964,11 +7478,7 @@ func (ec *executionContext) unmarshalOnet_PseudowireInput2ᚕᚖgithubᚗcomᚋs
 	}
 	var vSlice []interface{}
 	if v != nil {
-		if tmp1, ok := v.([]interface{}); ok {
-			vSlice = tmp1
-		} else {
-			vSlice = []interface{}{v}
-		}
+		vSlice = graphql.CoerceList(v)
 	}
 	var err error
 	res := make([]*model.NetPseudowireInput, len(vSlice))

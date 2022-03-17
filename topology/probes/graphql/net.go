@@ -19,8 +19,6 @@ const (
 	MetaKeyRelationType = "RelationType"
 	// RelationTypeOwnership edge type value for edges between device-agg and agg-iface
 	RelationTypeOwnership = "ownership"
-	// RelationConnect edge type value for edges between iface-iface
-	RelationConnect = "connect"
 	// RelationTypePseudoWire edge type value for pseudo wire between ifaces
 	RelationTypePseudoWire = "pseudowire"
 
@@ -40,8 +38,12 @@ const (
 	MetaKeyVendor = "Vendor"
 	// MetaKeyModel extra data added to devices' metadata if defined
 	MetaKeyModel = "Model"
+	// MetaKeyBuilding extra data added to devices' metadata if defined
+	MetaKeyBuilding = "Building"
 	// MetaKeyPseudowireID pseudo wire id stored in edges
 	MetaKeyPseudowireID = "PseudoWireID"
+	// MetaKeyState state of the interface
+	MetaKeyState = "State"
 
 	// MetaKeyLocation key to store the location of the node, as a map of latitude and longitude
 	MetaKeyLocation = "Location"
@@ -81,19 +83,28 @@ func (r *Resolver) netAddLocation(
 	name string,
 	metadataType string,
 	location *model.NetLocationInput,
+	class *string,
 	createdAt *time.Time,
 ) (*graph.Node, bool, bool, error) {
 	// Create the building node
+	metadata := graph.Metadata{
+		MetaKeyName: name,
+		MetaKeyType: metadataType,
+		MetaKeyLocation: map[string]float64{
+			MetaKeyLatitude:  location.Lat,
+			MetaKeyLongitude: location.Lng,
+		},
+	}
+
+	// If class is defined, create a new key in the metadata using class as key and 't' as value
+	// Used to distinguish which buildings have different devices.
+	if class != nil {
+		metadata[*class] = "t"
+	}
+
 	buildingNode, created, updated, err := r.createOrUpdateNode(
 		graph.GenID(fmt.Sprintf("%s_%s", name, metadataType)),
-		graph.Metadata{
-			MetaKeyName: name,
-			MetaKeyType: metadataType,
-			MetaKeyLocation: map[string]float64{
-				MetaKeyLatitude:  location.Lat,
-				MetaKeyLongitude: location.Lng,
-			},
-		},
+		metadata,
 		createdAt,
 	)
 	return buildingNode, created, updated, err
@@ -109,6 +120,7 @@ func (r *Resolver) netAddDevice(
 	deviceType *model.NetDeviceType,
 	model *string,
 	vendor *string,
+	building *string,
 	createdAt *time.Time,
 ) (node *graph.Node, nodeCreated bool, nodeUpdated bool, err error) {
 	if name == "" {
@@ -143,6 +155,9 @@ func (r *Resolver) netAddDevice(
 	}
 	if vendor != nil {
 		metadata[MetaKeyVendor] = *vendor
+	}
+	if building != nil {
+		metadata[MetaKeyBuilding] = *building
 	}
 
 	node, nodeCreated, nodeUpdated, err = r.createOrUpdateNode(id, metadata, createdAt)
