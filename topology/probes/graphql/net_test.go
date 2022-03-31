@@ -1983,4 +1983,9 @@ func TestBuildingWithClasses(t *testing.T) {
 	v, err = building.GetFieldString("classB")
 	assert.NoError(t, err)
 	assert.Equal(t, "t", v)
+
+	// Old class should be kept
+	v, err = building.GetFieldString("classA")
+	assert.NoError(t, err)
+	assert.Equal(t, "t", v)
 }

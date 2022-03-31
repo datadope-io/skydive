@@ -79,6 +79,8 @@ const (
 )
 
 // netAddLocation is a function to create nodes with location info.
+// class is an special value to define different kinds the node could be.
+// That values should be kept between different mutations to the same node.
 func (r *Resolver) netAddLocation(
 	name string,
 	metadataType string,
@@ -86,14 +88,27 @@ func (r *Resolver) netAddLocation(
 	class *string,
 	createdAt *time.Time,
 ) (*graph.Node, bool, bool, error) {
-	// Create the building node
-	metadata := graph.Metadata{
-		MetaKeyName: name,
-		MetaKeyType: metadataType,
-		MetaKeyLocation: map[string]float64{
+	nodeId := graph.GenID(fmt.Sprintf("%s_%s", name, metadataType))
+	metadata := graph.Metadata{}
+
+	node := r.Graph.GetNode(nodeId)
+	if node == nil {
+		// Create the metadata of a new building node
+		metadata = graph.Metadata{
+			MetaKeyName: name,
+			MetaKeyType: metadataType,
+			MetaKeyLocation: map[string]float64{
+				MetaKeyLatitude:  location.Lat,
+				MetaKeyLongitude: location.Lng,
+			},
+		}
+	} else {
+		// Update the metadata of an existing building node
+		metadata = node.Metadata
+		metadata[MetaKeyLocation] = map[string]float64{
 			MetaKeyLatitude:  location.Lat,
 			MetaKeyLongitude: location.Lng,
-		},
+		}
 	}
 
 	// If class is defined, create a new key in the metadata using class as key and 't' as value
@@ -103,7 +118,7 @@ func (r *Resolver) netAddLocation(
 	}
 
 	buildingNode, created, updated, err := r.createOrUpdateNode(
-		graph.GenID(fmt.Sprintf("%s_%s", name, metadataType)),
+		nodeId,
 		metadata,
 		createdAt,
 	)
