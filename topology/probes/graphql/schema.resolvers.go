@@ -17,7 +17,7 @@ func (r *mutationResolver) NetAddRegion(ctx context.Context, input model.NetRegi
 	r.Graph.Lock()
 	defer r.Graph.Unlock()
 
-	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeRegion, input.Location, nil, input.CreatedAt)
+	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeRegion, input.Location, nil, nil, nil, input.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (r *mutationResolver) NetAddProvince(ctx context.Context, input model.NetPr
 	r.Graph.Lock()
 	defer r.Graph.Unlock()
 
-	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeProvince, input.Location, nil, input.CreatedAt)
+	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeProvince, input.Location, nil, nil, nil, input.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (r *mutationResolver) NetAddBuilding(ctx context.Context, input model.NetBu
 	r.Graph.Lock()
 	defer r.Graph.Unlock()
 
-	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeBuilding, input.Location, input.Class, input.CreatedAt)
+	node, created, updated, err := r.netAddLocation(input.Name, MetadataTypeBuilding, input.Location, input.Class, input.VisibleName, input.IDSite, input.CreatedAt)
 	if err != nil {
 		return nil, err
 	}

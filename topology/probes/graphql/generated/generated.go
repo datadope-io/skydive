@@ -1209,6 +1209,14 @@ input net_BuildingInput {
   """
   Name: String!
   """
+  Optional secondary name for the building, normally longer and more descriptive
+  """
+  VisibleName: String
+  """
+  Code used for the NodeRan buildings
+  """
+  IDSite: String
+  """
   This could be used to identify buildings used for different purposes.
   Each of this classes would be added as key values to the building metadata, so they could be used to filter the building.
   If the building already exists, the new key value will be added to the existing metadata.
@@ -4615,6 +4623,22 @@ func (ec *executionContext) unmarshalInputnet_BuildingInput(ctx context.Context,
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Name"))
 			it.Name, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "VisibleName":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("VisibleName"))
+			it.VisibleName, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "IDSite":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("IDSite"))
+			it.IDSite, err = ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}

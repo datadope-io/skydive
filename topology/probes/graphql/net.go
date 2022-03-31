@@ -28,6 +28,10 @@ const (
 	MetaKeySubtype = "SubType"
 	// MetaKeyName key storing the name of the node
 	MetaKeyName = "Name"
+	// MetaKeyVisibleName key storing the visible name of the node
+	MetaKeyVisibleName = "VisibleName"
+	// MetaKeyIDSite key storing the ID of the site of the RAN nodes
+	MetaKeyIDSite = "IDSite"
 	// MetaKeyDescription key storing the dict with the description of the interface
 	MetaKeyDescription = "Description"
 	// MetaKeyDeviceID identifier used by routers. Format IP address as A.B.C.D
@@ -86,6 +90,8 @@ func (r *Resolver) netAddLocation(
 	metadataType string,
 	location *model.NetLocationInput,
 	class *string,
+	visibleName *string,
+	idSite *string,
 	createdAt *time.Time,
 ) (*graph.Node, bool, bool, error) {
 	nodeId := graph.GenID(fmt.Sprintf("%s_%s", name, metadataType))
@@ -115,6 +121,12 @@ func (r *Resolver) netAddLocation(
 	// Used to distinguish which buildings have different devices.
 	if class != nil {
 		metadata[*class] = "t"
+	}
+	if visibleName != nil {
+		metadata[MetaKeyVisibleName] = *visibleName
+	}
+	if idSite != nil {
+		metadata[MetaKeyIDSite] = *idSite
 	}
 
 	buildingNode, created, updated, err := r.createOrUpdateNode(

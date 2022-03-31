@@ -1948,10 +1948,12 @@ func TestBuildingWithClasses(t *testing.T) {
 
 	// Create a building with a class
 	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
-		Name:     "BuildingA",
-		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
-		Province: "RegionAProvinceA",
-		Class:    strPointer("classA"),
+		Name:        "BuildingA",
+		VisibleName: strPointer("Building A"),
+		IDSite:      strPointer("SiteA"),
+		Location:    &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province:    "RegionAProvinceA",
+		Class:       strPointer("classA"),
 	})
 	assert.NoError(t, err)
 
@@ -1988,4 +1990,13 @@ func TestBuildingWithClasses(t *testing.T) {
 	v, err = building.GetFieldString("classA")
 	assert.NoError(t, err)
 	assert.Equal(t, "t", v)
+
+	// VisibleName and IDSite should be kept
+	v, err = building.GetFieldString("VisibleName")
+	assert.NoError(t, err)
+	assert.Equal(t, "Building A", v)
+
+	v, err = building.GetFieldString("IDSite")
+	assert.NoError(t, err)
+	assert.Equal(t, "SiteA", v)
 }

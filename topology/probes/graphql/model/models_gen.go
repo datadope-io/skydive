@@ -139,6 +139,10 @@ type NetBuildingInput struct {
 	Province string `json:"Province"`
 	// Name of the building
 	Name string `json:"Name"`
+	// Optional secondary name for the building, normally longer and more descriptive
+	VisibleName *string `json:"VisibleName"`
+	// Code used for the NodeRan buildings
+	IDSite *string `json:"IDSite"`
 	// This could be used to identify buildings used for different purposes.
 	// Each of this classes would be added as key values to the building metadata, so they could be used to filter the building.
 	// If the building already exists, the new key value will be added to the existing metadata.
