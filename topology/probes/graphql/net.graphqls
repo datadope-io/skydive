@@ -107,6 +107,11 @@ input net_DeviceInput {
   Ubicación del dispositivo. Código del edificio.
   """
   Building: String
+
+  """
+  For NodeRan, field to specify the list of cells
+  """
+  Cells: [String!]
 }
 
 """
@@ -116,6 +121,7 @@ enum net_DeviceType {
   Router
   Switch
   TransmissionNode
+  NodeRan
 }
 
 """

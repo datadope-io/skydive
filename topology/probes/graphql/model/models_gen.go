@@ -205,6 +205,8 @@ type NetDeviceInput struct {
 	CreatedAt *time.Time `json:"CreatedAt"`
 	// Ubicación del dispositivo. Código del edificio.
 	Building *string `json:"Building"`
+	// For NodeRan, field to specify the list of cells
+	Cells []string `json:"Cells"`
 }
 
 // Return value when creating a new network device.
@@ -441,17 +443,19 @@ const (
 	NetDeviceTypeRouter           NetDeviceType = "Router"
 	NetDeviceTypeSwitch           NetDeviceType = "Switch"
 	NetDeviceTypeTransmissionNode NetDeviceType = "TransmissionNode"
+	NetDeviceTypeNodeRan          NetDeviceType = "NodeRan"
 )
 
 var AllNetDeviceType = []NetDeviceType{
 	NetDeviceTypeRouter,
 	NetDeviceTypeSwitch,
 	NetDeviceTypeTransmissionNode,
+	NetDeviceTypeNodeRan,
 }
 
 func (e NetDeviceType) IsValid() bool {
 	switch e {
-	case NetDeviceTypeRouter, NetDeviceTypeSwitch, NetDeviceTypeTransmissionNode:
+	case NetDeviceTypeRouter, NetDeviceTypeSwitch, NetDeviceTypeTransmissionNode, NetDeviceTypeNodeRan:
 		return true
 	}
 	return false

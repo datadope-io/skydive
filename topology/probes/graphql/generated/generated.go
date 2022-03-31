@@ -779,6 +779,11 @@ input net_DeviceInput {
   Ubicación del dispositivo. Código del edificio.
   """
   Building: String
+
+  """
+  For NodeRan, field to specify the list of cells
+  """
+  Cells: [String!]
 }
 
 """
@@ -788,6 +793,7 @@ enum net_DeviceType {
   Router
   Switch
   TransmissionNode
+  NodeRan
 }
 
 """
@@ -4804,6 +4810,14 @@ func (ec *executionContext) unmarshalInputnet_DeviceInput(ctx context.Context, o
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Building"))
 			it.Building, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "Cells":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Cells"))
+			it.Cells, err = ec.unmarshalOString2ᚕstringᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}

@@ -58,6 +58,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 		nil,
 		strPointer("vendorNew"),
 		nil,
+		nil,
 		&newCreatedAt,
 	)
 	assert.EqualError(t, err, "forbidden to modify CreatedAt value of existing node")
@@ -70,6 +71,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 		nil,
 		strPointer("vendorNew"),
 		strPointer("building"),
+		nil,
 		&createdAt,
 	)
 	assert.Nil(t, err)
@@ -109,6 +111,7 @@ func TestNetAddDeviceUpdateNode(t *testing.T) {
 		strPointer("vendorNew"),
 		nil,
 		nil,
+		nil,
 	)
 	assert.Nil(t, err)
 }
@@ -125,6 +128,7 @@ func TestNetAddDevice(t *testing.T) {
 		model           *string
 		vendor          *string
 		building        *string
+		cells           []string
 		createdAt       *time.Time
 		expectedNode    *graph.Node
 		expectedCreated bool
@@ -189,6 +193,7 @@ func TestNetAddDevice(t *testing.T) {
 				test.model,
 				test.vendor,
 				test.building,
+				test.cells,
 				test.createdAt,
 			)
 
@@ -200,6 +205,37 @@ func TestNetAddDevice(t *testing.T) {
 			assert.Equalf(t, test.expectedUpdated, updated, "updated")
 		})
 	}
+}
+
+func TestNetAddDeviceWithCells(t *testing.T) {
+	routerType := model.NetDeviceTypeRouter
+	g := newGraph(t)
+	r := Resolver{Graph: g}
+	node, created, updated, err := r.netAddDevice(
+		"deviceName",
+		nil,
+		&routerType,
+		strPointer("model"),
+		strPointer("vendor"),
+		strPointer("building"),
+		[]string{"cell1", "cell2"},
+		nil,
+	)
+	assert.Nil(t, err)
+	assert.Truef(t, created, "node created")
+	assert.Falsef(t, updated, "node not updated")
+	nodeCellsIface, err := node.GetField(MetaKeyCells)
+	assert.Nil(t, err)
+	nodeCells, ok := nodeCellsIface.(map[string]bool)
+	assert.Truef(t, ok, "node cells are a string slice")
+	assert.Lenf(t, nodeCells, 2, "node cells length")
+
+	// Get the keys of nodeCells
+	var keys []string
+	for k := range nodeCells {
+		keys = append(keys, k)
+	}
+	assert.ElementsMatchf(t, []string{"cell1", "cell2"}, keys, "node cells keys")
 }
 
 func TestNetCreateInterfacErrorCreateInterfaceNode(t *testing.T) {

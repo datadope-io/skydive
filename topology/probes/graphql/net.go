@@ -44,6 +44,8 @@ const (
 	MetaKeyModel = "Model"
 	// MetaKeyBuilding extra data added to devices' metadata if defined
 	MetaKeyBuilding = "Building"
+	// MetaKeyCells dict with each cell name as the key and True as value
+	MetaKeyCells = "Cells"
 	// MetaKeyPseudowireID pseudo wire id stored in edges
 	MetaKeyPseudowireID = "PseudoWireID"
 	// MetaKeyState state of the interface
@@ -148,6 +150,7 @@ func (r *Resolver) netAddDevice(
 	model *string,
 	vendor *string,
 	building *string,
+	cells []string,
 	createdAt *time.Time,
 ) (node *graph.Node, nodeCreated bool, nodeUpdated bool, err error) {
 	if name == "" {
@@ -185,6 +188,15 @@ func (r *Resolver) netAddDevice(
 	}
 	if building != nil {
 		metadata[MetaKeyBuilding] = *building
+	}
+	if cells != nil {
+		// If cells is defined, add each of the cell as the key in a map,
+		// to be able to filter by cell later.
+		cellsMap := make(map[string]bool)
+		for _, cell := range cells {
+			cellsMap[cell] = true
+		}
+		metadata[MetaKeyCells] = cellsMap
 	}
 
 	node, nodeCreated, nodeUpdated, err = r.createOrUpdateNode(id, metadata, createdAt)
