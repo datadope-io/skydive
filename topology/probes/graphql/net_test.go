@@ -1807,6 +1807,316 @@ func TestDeleteLLDPLink(t *testing.T) {
 	assert.Len(t, probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: string(model.NetLinkTypeRadioLink)}), 1)
 }
 
+// TestMultipleRadioLinks comprobar que si creamos varios radios links, todos se mantienen a nivel de CCAA y provincia.
+// Tendremos que tener dos edges a nivel de CCAA, uno con cada nombre
+func TestMultipleRadioLinks(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Creamos la region y provincia
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionB",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionAProvinceA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionA",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionBProvinceB",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionB",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:        "BuildingA",
+		VisibleName: strPointer("Building A"),
+		IDSite:      strPointer("SiteA"),
+		Location:    &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province:    "RegionAProvinceA",
+		Class:       strPointer("classA"),
+	})
+
+	assert.NoError(t, err)
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:        "BuildingB",
+		VisibleName: strPointer("Building B"),
+		IDSite:      strPointer("SiteB"),
+		Location:    &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province:    "RegionBProvinceB",
+		Class:       strPointer("classB"),
+	})
+	assert.NoError(t, err)
+
+	assert.NoError(t, err)
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:        "BuildingC",
+		VisibleName: strPointer("Building C"),
+		IDSite:      strPointer("SiteC"),
+		Location:    &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province:    "RegionBProvinceB",
+		Class:       strPointer("classC"),
+	})
+	assert.NoError(t, err)
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+		Building: strPointer("BuildingA"),
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface:      &model.NetInterfaceInput{Name: "eth0"},
+	})
+	assert.NoError(t, err)
+
+	// Device 2
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+		Building: strPointer("BuildingB"),
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface:      &model.NetInterfaceInput{Name: "eno0"},
+	})
+	assert.NoError(t, err)
+
+	// Device 3
+	deviceCID := "3.3.3.3"
+	dev3, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev3",
+		DeviceID: &deviceCID,
+		Type:     &routerType,
+		Building: strPointer("BuildingC"),
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface:      &model.NetInterfaceInput{Name: "eno0"},
+	})
+	assert.NoError(t, err)
+
+	// Creamos un radiolink entre el device 1 y el device 2
+	radioLinkType := model.NetLinkTypeRadioLink
+	_, err = probe.resolver.Mutation().NetAddIf2IfLink(context.Background(), model.NetAddIf2IfLinkInput{
+		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
+		DstInterface: &model.NetSelector{ID: &dev2.Device.ID},
+		Name:         strPointer("1to2"),
+		State:        strPointer("up"),
+		Type:         &radioLinkType,
+	})
+	assert.NoError(t, err)
+
+	// Creamos un radiolink entre el device 1 y el device 3, donde el device 2 y
+	// el device 3 están en la misma región y provincia
+	_, err = probe.resolver.Mutation().NetAddIf2IfLink(context.Background(), model.NetAddIf2IfLinkInput{
+		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
+		DstInterface: &model.NetSelector{ID: &dev3.Device.ID},
+		Name:         strPointer("1to3"),
+		State:        strPointer("up"),
+		Type:         &radioLinkType,
+	})
+	assert.NoError(t, err)
+
+	// Comprobamos que existen 8 edges tipo radio link:
+	//   - entre las interfaces de dev1 y dev2 (1to2)
+	//   - entre las interfaces de dev1 y dev3 (1to3)
+	//   - entre el buildingA y el buildingB (1to2)
+	//   - (2x) entre el buildingA, RegionBProvinceB y RegionB (1to2)
+	//   - (2x) entre el buildingB, RegionAProvinceA y RegionA (1to2)
+	//   - entre el buildingA y el buildingC (1to3)
+	//   - (2x) entre el buildingA, RegionBProvinceB y RegionB (1to3)
+	//   - (2x) entre el buildingC, RegionAProvinceA y RegionA (1to3)
+	//   - entre la RegionAProvinceA y RegionBProvinceB (1to2)
+	//   - entre la RegionAProvinceA y RegionB (1to2)
+	//   - entre la RegionA y la RegionBProvinceB (1to2)
+	//   - entre la RegionA y la RegionB (1to2)
+	//   - entre la RegionAProvinceA y RegionBProvinceB (1to3)
+	//   - entre la RegionAProvinceA y RegionB (1to3)
+	//   - entre la RegionA y la RegionBProvinceB (1to3)
+	//   - entre la RegionA y la RegionB (1to3)
+
+	edges := probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: string(model.NetLinkTypeRadioLink)})
+	assert.Len(t, edges, 20)
+}
+
+// TestMultipleLLDPLinks como el anterior, pero usando links LLDP en vez de radiolinks.
+// En este caso, no se deben crear múltiples links entre regiones y provincias, ya que al no tener más información,
+// un único link es suficiente para declarar que tenemos esa conectividad.
+func TestMultipleLLDPLinks(t *testing.T) {
+	g := newGraph(t)
+
+	probe, err := NewProbe(g)
+	assert.NoError(t, err)
+	probe.Start()
+
+	// Creamos la region y provincia
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddRegion(context.Background(), model.NetRegionInput{
+		Name:     "RegionB",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionAProvinceA",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionA",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddProvince(context.Background(), model.NetProvinceInput{
+		Name:     "RegionBProvinceB",
+		Location: &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Region:   "RegionB",
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:        "BuildingA",
+		VisibleName: strPointer("Building A"),
+		IDSite:      strPointer("SiteA"),
+		Location:    &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province:    "RegionAProvinceA",
+		Class:       strPointer("classA"),
+	})
+
+	assert.NoError(t, err)
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:        "BuildingB",
+		VisibleName: strPointer("Building B"),
+		IDSite:      strPointer("SiteB"),
+		Location:    &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province:    "RegionBProvinceB",
+		Class:       strPointer("classB"),
+	})
+	assert.NoError(t, err)
+
+	assert.NoError(t, err)
+	_, err = probe.resolver.Mutation().NetAddBuilding(context.Background(), model.NetBuildingInput{
+		Name:        "BuildingC",
+		VisibleName: strPointer("Building C"),
+		IDSite:      strPointer("SiteC"),
+		Location:    &model.NetLocationInput{Lat: 0.0, Lng: 0.0},
+		Province:    "RegionBProvinceB",
+		Class:       strPointer("classC"),
+	})
+	assert.NoError(t, err)
+
+	// Device 1
+	routerType := model.NetDeviceTypeRouter
+	deviceAID := "1.1.1.1"
+	dev1, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev1",
+		DeviceID: &deviceAID,
+		Type:     &routerType,
+		Building: strPointer("BuildingA"),
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev1.Device.ID},
+		Interface:      &model.NetInterfaceInput{Name: "eth0"},
+	})
+	assert.NoError(t, err)
+
+	// Device 2
+	deviceBID := "2.2.2.2"
+	dev2, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev2",
+		DeviceID: &deviceBID,
+		Type:     &routerType,
+		Building: strPointer("BuildingB"),
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface:      &model.NetInterfaceInput{Name: "eno0"},
+	})
+	assert.NoError(t, err)
+
+	// Device 3
+	deviceCID := "3.3.3.3"
+	dev3, err := probe.resolver.Mutation().NetAddDevice(context.Background(), model.NetDeviceInput{
+		Name:     "Dev3",
+		DeviceID: &deviceCID,
+		Type:     &routerType,
+		Building: strPointer("BuildingC"),
+	})
+	assert.NoError(t, err)
+
+	_, err = probe.resolver.Mutation().NetAddInterface(context.Background(), model.NetAddInterfaceInput{
+		DeviceSelector: &model.NetSelector{ID: &dev2.Device.ID},
+		Interface:      &model.NetInterfaceInput{Name: "eno0"},
+	})
+	assert.NoError(t, err)
+
+	connectLinkType := model.NetLinkTypeConnect
+	_, err = probe.resolver.Mutation().NetAddIf2IfLink(context.Background(), model.NetAddIf2IfLinkInput{
+		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
+		DstInterface: &model.NetSelector{ID: &dev2.Device.ID},
+		Type:         &connectLinkType,
+	})
+	assert.NoError(t, err)
+
+	// Creamos un radiolink entre el device 1 y el device 3, donde el device 2 y
+	// el device 3 están en la misma región y provincia
+	_, err = probe.resolver.Mutation().NetAddIf2IfLink(context.Background(), model.NetAddIf2IfLinkInput{
+		SrcInterface: &model.NetSelector{ID: &dev1.Device.ID},
+		DstInterface: &model.NetSelector{ID: &dev3.Device.ID},
+		Type:         &connectLinkType,
+	})
+	assert.NoError(t, err)
+
+	// Comprobamos que existen 8 edges tipo radio link:
+	//   - entre las interfaces de dev1 y dev2
+	//   - entre las interfaces de dev1 y dev3
+	//   - entre el buildingA y el buildingB
+	//   - (2x) entre el buildingA, RegionBProvinceB y RegionB
+	//   - (2x) entre el buildingB, RegionAProvinceA y RegionA
+	//   - entre el buildingA y el buildingC
+	//   - (2x) entre el buildingC, RegionAProvinceA y RegionA
+	//   - entre la RegionAProvinceA y RegionBProvinceB
+	//   - entre la RegionAProvinceA y RegionB
+	//   - entre la RegionA y la RegionBProvinceB
+	//   - entre la RegionA y la RegionB
+	edges := probe.graph.GetEdges(graph.Metadata{MetaKeyRelationType: string(model.NetLinkTypeConnect)})
+	assert.Len(t, edges, 14)
+}
+
 func TestEVPNPseudoWiresWithoutBuildings(t *testing.T) {
 	g := newGraph(t)
 

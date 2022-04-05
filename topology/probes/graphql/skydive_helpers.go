@@ -8,6 +8,7 @@ import (
 	"github.com/skydive-project/skydive/graffiti/graph"
 	"github.com/skydive-project/skydive/graffiti/graph/traversal"
 	ge "github.com/skydive-project/skydive/gremlin/traversal"
+	"github.com/skydive-project/skydive/topology/probes/graphql/model"
 )
 
 const (
@@ -157,6 +158,12 @@ func (r *Resolver) createOrUpdateEdge(
 
 	// Generate the edge interface based on node's ID and Metadata.RelationType
 	id := graph.GenID(string(srcNode.ID), string(dstNode.ID), relationType)
+	// If link is a radio link, use also the name for the id, to be able to generate several edges
+	// between nodes with different names
+	radioLinkName, err := metadata.GetFieldString(MetaKeyName)
+	if err == nil && relationType == string(model.NetLinkTypeRadioLink) {
+		id = graph.GenID(string(srcNode.ID), string(dstNode.ID), radioLinkName)
+	}
 	edge = r.Graph.GetEdge(id)
 	if edge == nil {
 		edge, err = r.newEdge(id, srcNode, dstNode, metadata, createdAt)
