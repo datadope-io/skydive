@@ -101,6 +101,7 @@ func (r *mutationResolver) NetAddDevice(ctx context.Context, input model.NetDevi
 		input.Vendor,
 		input.BuildingName,
 		input.Cells,
+		input.RNCNodes,
 		input.CreatedAt,
 	)
 	if err != nil {

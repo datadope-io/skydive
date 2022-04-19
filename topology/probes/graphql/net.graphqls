@@ -112,6 +112,11 @@ input net_DeviceInput {
   For NodeRan, field to specify the list of cells
   """
   Cells: [String!]
+
+  """
+  For RNC, field to specify the list of nodes. Added as metadata
+  """
+  RNCNodes: [String!]
 }
 
 """
@@ -122,6 +127,7 @@ enum net_DeviceType {
   Switch
   TransmissionNode
   NodeRan
+  RNC
 }
 
 """

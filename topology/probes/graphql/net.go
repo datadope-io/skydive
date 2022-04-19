@@ -46,6 +46,8 @@ const (
 	MetaKeyBuilding = "Building"
 	// MetaKeyCells dict with each cell name as the key and True as value
 	MetaKeyCells = "Cells"
+	// MetaKeyRNCNodes dict with each RNC node name as the key and True as value
+	MetaKeyRNCNodes = "RNCNodes"
 	// MetaKeyPseudowireID pseudo wire id stored in edges
 	MetaKeyPseudowireID = "PseudoWireID"
 	// MetaKeyState state of the interface
@@ -151,6 +153,7 @@ func (r *Resolver) netAddDevice(
 	vendor *string,
 	building *string,
 	cells []string,
+	rncNodes []string,
 	createdAt *time.Time,
 ) (node *graph.Node, nodeCreated bool, nodeUpdated bool, err error) {
 	if name == "" {
@@ -192,11 +195,20 @@ func (r *Resolver) netAddDevice(
 	if cells != nil {
 		// If cells is defined, add each of the cell as the key in a map,
 		// to be able to filter by cell later.
-		cellsMap := make(map[string]bool)
+		cellsMap := make(map[string]string)
 		for _, cell := range cells {
-			cellsMap[cell] = true
+			cellsMap[cell] = "t"
 		}
 		metadata[MetaKeyCells] = cellsMap
+	}
+	if rncNodes != nil {
+		// If rncNodes is defined, add each of the nodes as the key in a map,
+		// to be able to filter by cell later.
+		nodesMap := make(map[string]string)
+		for _, node := range rncNodes {
+			nodesMap[node] = "t"
+		}
+		metadata[MetaKeyRNCNodes] = nodesMap
 	}
 
 	node, nodeCreated, nodeUpdated, err = r.createOrUpdateNode(id, metadata, createdAt)

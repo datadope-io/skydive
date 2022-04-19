@@ -207,6 +207,8 @@ type NetDeviceInput struct {
 	Building *string `json:"Building"`
 	// For NodeRan, field to specify the list of cells
 	Cells []string `json:"Cells"`
+	// For RNC, field to specify the list of nodes. Added as metadata
+	RNCNodes []string `json:"RNCNodes"`
 }
 
 // Return value when creating a new network device.
@@ -444,6 +446,7 @@ const (
 	NetDeviceTypeSwitch           NetDeviceType = "Switch"
 	NetDeviceTypeTransmissionNode NetDeviceType = "TransmissionNode"
 	NetDeviceTypeNodeRan          NetDeviceType = "NodeRan"
+	NetDeviceTypeRnc              NetDeviceType = "RNC"
 )
 
 var AllNetDeviceType = []NetDeviceType{
@@ -451,11 +454,12 @@ var AllNetDeviceType = []NetDeviceType{
 	NetDeviceTypeSwitch,
 	NetDeviceTypeTransmissionNode,
 	NetDeviceTypeNodeRan,
+	NetDeviceTypeRnc,
 }
 
 func (e NetDeviceType) IsValid() bool {
 	switch e {
-	case NetDeviceTypeRouter, NetDeviceTypeSwitch, NetDeviceTypeTransmissionNode, NetDeviceTypeNodeRan:
+	case NetDeviceTypeRouter, NetDeviceTypeSwitch, NetDeviceTypeTransmissionNode, NetDeviceTypeNodeRan, NetDeviceTypeRnc:
 		return true
 	}
 	return false

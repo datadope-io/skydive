@@ -784,6 +784,11 @@ input net_DeviceInput {
   For NodeRan, field to specify the list of cells
   """
   Cells: [String!]
+
+  """
+  For RNC, field to specify the list of nodes. Added as metadata
+  """
+  RNCNodes: [String!]
 }
 
 """
@@ -794,6 +799,7 @@ enum net_DeviceType {
   Switch
   TransmissionNode
   NodeRan
+  RNC
 }
 
 """
@@ -4818,6 +4824,14 @@ func (ec *executionContext) unmarshalInputnet_DeviceInput(ctx context.Context, o
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("Cells"))
 			it.Cells, err = ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "RNCNodes":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("RNCNodes"))
+			it.RNCNodes, err = ec.unmarshalOString2ᚕstringᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
