@@ -1,6 +1,8 @@
 package traversal
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 
 	"github.com/skydive-project/skydive/graffiti/filters"
@@ -22,6 +24,8 @@ type BuildingTraversalExtension struct {
 type BuildingGremlinTraversalStep struct {
 	context  traversal.GremlinTraversalContext
 	building string
+	// edgeFilter list of RelationType to move between interfaces of different buildings
+	edgeFilter []string
 	// nextStepOnlyIDs is set to true if the next step only needs node IDs and not the whole node info
 	nextStepOnlyIDs bool
 }
@@ -50,20 +54,35 @@ func (e *BuildingTraversalExtension) ParseStep(t traversal.Token, p traversal.Gr
 		return nil, nil
 	}
 
-	building := ""
-
-	switch len(p.Params) {
-	case 1:
-		b, ok := p.Params[0].(string)
-		if !ok {
-			return nil, errors.New("Building last argument must be the maximum depth specified as an integer")
-		}
-		building = b
-	default:
-		return nil, errors.New("Building accepts only one argument, the building name")
+	if len(p.Params) != 2 {
+		return nil, fmt.Errorf("Building step requires 2 parameters, name and within filter")
 	}
 
-	return &BuildingGremlinTraversalStep{context: p, building: building}, nil
+	building, ok := p.Params[0].(string)
+	if !ok {
+		return nil, errors.New("Building first argument must be the building name as a string")
+	}
+
+	edgeFilterRaw, ok := p.Params[1].(*traversal.WithinElementMatcher)
+	if !ok {
+		return nil, errors.New("Building second argument must be the a within filter with the RelationType to move between interfaces of different buildings")
+	}
+
+	// Convert an slice of interface{} to a slice of string
+	edgeFilter := make([]string, 0, len(edgeFilterRaw.List))
+	for _, e := range edgeFilterRaw.List {
+		eStr, ok := e.(string)
+		if !ok {
+			return nil, fmt.Errorf("edge filter must be a list of strings")
+		}
+		edgeFilter = append(edgeFilter, eStr)
+	}
+
+	return &BuildingGremlinTraversalStep{
+		context:    p,
+		building:   building,
+		edgeFilter: edgeFilter,
+	}, nil
 }
 
 // getChildIDsFromNode returns the IDs of the children of the given node (nodes connected with an ownership edge)
@@ -187,7 +206,7 @@ func (d *BuildingGremlinTraversalStep) getBuilding(g *graph.Graph) ([]*graph.Nod
 	interfacesIDs = append(interfacesIDs, d.getChildIDsFromIDs(g, interfacesIDs)...)
 
 	// Get the nodes connected to the interfaces, only those connected with 'connect' or 'pseudowire' edges
-	remoteNodesIDs := d.getConnectedNodesFromIDs(g, interfacesIDs, []string{"connect", "pseudowire"})
+	remoteNodesIDs := d.getConnectedNodesFromIDs(g, interfacesIDs, d.edgeFilter)
 
 	// Get the interfaces or devices of those remote IDs.
 	// We don't know if we have reached a physical/aggregation interface or a logical one.

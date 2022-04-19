@@ -15,6 +15,7 @@ type NodeCmp struct {
 func TestGetBuilding(t *testing.T) {
 	testCases := []struct {
 		desc          string
+		edgeFilter    []string
 		graphNodes    []*graph.Node
 		graphEdges    []*graph.Edge
 		building      string
@@ -22,6 +23,10 @@ func TestGetBuilding(t *testing.T) {
 	}{
 		{
 			desc: "only building node, building should not be returned",
+			edgeFilter: []string{
+				"connect",
+				"pseudowire",
+			},
 			graphNodes: []*graph.Node{
 				createTestNode("B", "building"),
 			},
@@ -31,6 +36,10 @@ func TestGetBuilding(t *testing.T) {
 		},
 		{
 			desc: "building with one device",
+			edgeFilter: []string{
+				"connect",
+				"pseudowire",
+			},
 			graphNodes: []*graph.Node{
 				createTestNode("B", "building"),
 				createTestNode("D", "device"),
@@ -45,6 +54,10 @@ func TestGetBuilding(t *testing.T) {
 		},
 		{
 			desc: "building with one device and one interface",
+			edgeFilter: []string{
+				"connect",
+				"pseudowire",
+			},
 			graphNodes: []*graph.Node{
 				createTestNode("B", "building"),
 				createTestNode("D", "device"),
@@ -62,6 +75,10 @@ func TestGetBuilding(t *testing.T) {
 		},
 		{
 			desc: "building with one device, one interface and one logic interface",
+			edgeFilter: []string{
+				"connect",
+				"pseudowire",
+			},
 			graphNodes: []*graph.Node{
 				createTestNode("B", "building"),
 				createTestNode("D", "device"),
@@ -82,6 +99,10 @@ func TestGetBuilding(t *testing.T) {
 		},
 		{
 			desc: "building with one device, connected via LLDP to another device, via physical interfaces",
+			edgeFilter: []string{
+				"connect",
+				"pseudowire",
+			},
 			graphNodes: []*graph.Node{
 				createTestNode("B1", "building"),
 				createTestNode("D1", "device"),
@@ -107,6 +128,10 @@ func TestGetBuilding(t *testing.T) {
 		},
 		{
 			desc: "building with one device, connected via pseudowire to another device, via physical interfaces",
+			edgeFilter: []string{
+				"connect",
+				"pseudowire",
+			},
 			graphNodes: []*graph.Node{
 				createTestNode("B1", "building"),
 				createTestNode("D1", "device"),
@@ -131,7 +156,39 @@ func TestGetBuilding(t *testing.T) {
 			},
 		},
 		{
+			desc: "building with one device, connected via radiolink to another device, via physical interfaces",
+			edgeFilter: []string{
+				"radiolink",
+			},
+			graphNodes: []*graph.Node{
+				createTestNode("B1", "building"),
+				createTestNode("D1", "device"),
+				createTestNode("I1", "interface"),
+				createTestNode("B2", "building"),
+				createTestNode("D2", "device"),
+				createTestNode("I2", "interface"),
+			},
+			graphEdges: []*graph.Edge{
+				createTestEdge("B1", "building", "D1", "device", "ownership"),
+				createTestEdge("D1", "device", "I1", "interface", "ownership"),
+				createTestEdge("B2", "building", "D2", "device", "ownership"),
+				createTestEdge("D2", "device", "I2", "interface", "ownership"),
+				createTestEdge("I1", "interface", "I2", "interface", "radiolink"),
+			},
+			building: "B1",
+			expectedNodes: []*graph.Node{
+				createTestNode("D1", "device"),
+				createTestNode("I1", "interface"),
+				createTestNode("D2", "device"),
+				createTestNode("I2", "interface"),
+			},
+		},
+		{
 			desc: "building with one device, connected via pseudowire to another device, via logical interfaces",
+			edgeFilter: []string{
+				"connect",
+				"pseudowire",
+			},
 			graphNodes: []*graph.Node{
 				createTestNode("B1", "building"),
 				createTestNode("D1", "device"),
@@ -163,6 +220,10 @@ func TestGetBuilding(t *testing.T) {
 		},
 		{
 			desc: "building with one device, connected via pseudowire to another device, with logical interface connected to physical interface",
+			edgeFilter: []string{
+				"connect",
+				"pseudowire",
+			},
 			graphNodes: []*graph.Node{
 				createTestNode("B1", "building"),
 				createTestNode("D1", "device"),
@@ -191,6 +252,10 @@ func TestGetBuilding(t *testing.T) {
 		},
 		{
 			desc: "building with one device, connected via pseudowire to another device, with logical interface connected to physical interface, using the opposite building",
+			edgeFilter: []string{
+				"connect",
+				"pseudowire",
+			},
 			graphNodes: []*graph.Node{
 				createTestNode("B1", "building"),
 				createTestNode("D1", "device"),
@@ -219,6 +284,10 @@ func TestGetBuilding(t *testing.T) {
 		},
 		{
 			desc: "extra interfaces of the remote device are not included",
+			edgeFilter: []string{
+				"connect",
+				"pseudowire",
+			},
 			graphNodes: []*graph.Node{
 				createTestNode("B1", "building"),
 				createTestNode("D1", "device"),
@@ -269,7 +338,8 @@ func TestGetBuilding(t *testing.T) {
 			}
 
 			d := BuildingGremlinTraversalStep{
-				building: tC.building,
+				building:   tC.building,
+				edgeFilter: tC.edgeFilter,
 			}
 			nodes, err := d.getBuilding(g)
 			assert.NoError(t, err)
