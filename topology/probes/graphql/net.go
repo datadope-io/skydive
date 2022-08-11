@@ -114,7 +114,7 @@ func (r *Resolver) netAddLocation(
 		}
 	} else {
 		// Update the metadata of an existing building node
-		metadata = node.Metadata
+		metadata = node.Metadata.Copy()
 		metadata[MetaKeyLocation] = map[string]float64{
 			MetaKeyLatitude:  location.Lat,
 			MetaKeyLongitude: location.Lng,
