@@ -3,8 +3,9 @@
 package graphql
 
 import (
-	"github.com/skydive-project/skydive/graffiti/getter"
 	"strings"
+
+	"github.com/skydive-project/skydive/graffiti/getter"
 )
 
 func (obj *EthernetInfo) GetFieldBool(key string) (bool, error) {
@@ -49,7 +50,6 @@ func (obj *EthernetInfo) MatchInt64(key string, predicate getter.Int64Predicate)
 	}
 
 	switch first {
-
 	case "VLAN":
 		if index != -1 && obj.VLAN != nil {
 			return obj.VLAN.MatchInt64(key[index+1:], predicate)
@@ -66,7 +66,6 @@ func (obj *EthernetInfo) MatchString(key string, predicate getter.StringPredicat
 	}
 
 	switch first {
-
 	case "VLAN":
 		if index != -1 && obj.VLAN != nil {
 			return obj.VLAN.MatchString(key[index+1:], predicate)
@@ -91,7 +90,6 @@ func (obj *EthernetInfo) GetField(key string) (interface{}, error) {
 				return obj.VLAN, nil
 			}
 		}
-
 	}
 	return nil, getter.ErrFieldNotFound
 }
@@ -163,7 +161,6 @@ func (obj *Event) MatchInt64(key string, predicate getter.Int64Predicate) bool {
 	}
 
 	switch first {
-
 	case "Payload":
 		if index != -1 {
 			for _, obj := range obj.Payload {
@@ -288,7 +285,7 @@ func (obj *Events) MatchString(key string, predicate getter.StringPredicate) boo
 }
 
 func (obj *Events) GetField(key string) (interface{}, error) {
-	return nil, getter.ErrFieldNotFound
+	return (*obj)[key], nil
 }
 
 func (obj *NetworkInfo) GetFieldBool(key string) (bool, error) {
@@ -758,7 +755,6 @@ func (obj *VLANTrunkInfo) GetField(key string) (interface{}, error) {
 				return results, nil
 			}
 		}
-
 	}
 	return nil, getter.ErrFieldNotFound
 }
