@@ -285,7 +285,11 @@ func (obj *Events) MatchString(key string, predicate getter.StringPredicate) boo
 }
 
 func (obj *Events) GetField(key string) (interface{}, error) {
-	return (*obj)[key], nil
+	v, ok := (*obj)[key]
+	if ok {
+		return v, nil
+	}
+	return nil, getter.ErrFieldNotFound
 }
 
 func (obj *NetworkInfo) GetFieldBool(key string) (bool, error) {
