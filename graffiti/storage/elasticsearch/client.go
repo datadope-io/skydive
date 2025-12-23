@@ -470,16 +470,16 @@ func FormatFilter(filter *filters.Filter, normalizeKey func(string) string) elas
 	}
 
 	if f := filter.GtInt64Filter; f != nil {
-		return elastic.NewRangeQuery(normalizeKey(f.Key)).Gt(f.Value)
+		return elastic.NewRawStringQuery(fmt.Sprintf(`{"range":{"%s":{"gt":%d}}}`, normalizeKey(f.Key), f.Value))
 	}
 	if f := filter.LtInt64Filter; f != nil {
-		return elastic.NewRangeQuery(normalizeKey(f.Key)).Lt(f.Value)
+		return elastic.NewRawStringQuery(fmt.Sprintf(`{"range":{"%s":{"lt":%d}}}`, normalizeKey(f.Key), f.Value))
 	}
 	if f := filter.GteInt64Filter; f != nil {
-		return elastic.NewRangeQuery(normalizeKey(f.Key)).Gte(f.Value)
+		return elastic.NewRawStringQuery(fmt.Sprintf(`{"range":{"%s":{"gte":%d}}}`, normalizeKey(f.Key), f.Value))
 	}
 	if f := filter.LteInt64Filter; f != nil {
-		return elastic.NewRangeQuery(normalizeKey(f.Key)).Lte(f.Value)
+		return elastic.NewRawStringQuery(fmt.Sprintf(`{"range":{"%s":{"lte":%d}}}`, normalizeKey(f.Key), f.Value))
 	}
 	if f := filter.NullFilter; f != nil {
 		return elastic.NewBoolQuery().MustNot(elastic.NewExistsQuery(normalizeKey(f.Key)))
