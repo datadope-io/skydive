@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 as builder
+FROM golang:1.25.5-trixie AS builder
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -y update \
     && apt-get -y install build-essential git-core golang npm openvswitch-common libpcap0.8 libpcap0.8-dev libxml2-dev protobuf-compiler libprotobuf-dev libvirt-dev \
@@ -8,7 +8,7 @@ COPY . .
 ARG GOPATH=/go
 RUN make build
 
-FROM ubuntu:20.04 as skydive
+FROM debian:trixie AS skydive
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -y update \
     && apt-get -y install golang npm openvswitch-common libpcap0.8 libvirt0 \
