@@ -29,6 +29,38 @@ type NeighborsGremlinTraversalStep struct {
 	edgeFilter graph.ElementMatcher
 	// nextStepOnlyIDs is set to true if the next step only needs node IDs and not the whole node info
 	nextStepOnlyIDs bool
+	// nodeFilterParams holds the params of a Has() step following Neighbors.
+	// In history queries (G.At) it is pushed down to the backend so only the
+	// matching nodes are fetched. The Has() step is still executed afterwards.
+	nodeFilterParams []interface{}
+}
+
+// neighborsIDsBatchSize limits the number of ID clauses per backend query
+const neighborsIDsBatchSize = 500
+
+// errFilterNotPushable is returned when the Has() filter can not be evaluated
+// by the backend with the same result as in memory
+var errFilterNotPushable = errors.New("filter can not be pushed down to the backend")
+
+// isPushableFilter returns false if the filter, or any nested filter, is a
+// regular expression. Regex() is evaluated in memory with Go (RE2) syntax and
+// by Elasticsearch with Lucene syntax: patterns valid in Go, like "(?i)...",
+// silently match nothing in Elasticsearch. IPV4Range is also sent as a regex.
+func isPushableFilter(f *filters.Filter) bool {
+	if f == nil {
+		return true
+	}
+	if f.RegexFilter != nil || f.IPV4RangeFilter != nil {
+		return false
+	}
+	if f.BoolFilter != nil {
+		for _, sub := range f.BoolFilter.Filters {
+			if !isPushableFilter(sub) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // NewNeighborsTraversalExtension returns a new graph traversal extension
@@ -161,7 +193,47 @@ func (d *NeighborsGremlinTraversalStep) getNeighbors(g *graph.Graph, nodes []*gr
 		nodesIDs = append(nodesIDs, n)
 	}
 
+	// History queries: fetch only the nodes matching the following Has() step,
+	// instead of loading every revision of every neighbor and filtering later
+	if len(d.nodeFilterParams) > 0 && g.GetContext().TimeSlice != nil {
+		if filtered, err := d.getNodesFromIDsFiltered(g, nodesIDs); err == nil {
+			return filtered
+		}
+	}
+
 	return g.GetNodesFromIDs(nodesIDs)
+}
+
+// getNodesFromIDsFiltered returns the nodes with the given IDs that also match
+// the params of the Has() step following Neighbors, querying in batches.
+// Filters with regular expressions are not pushed down (errFilterNotPushable).
+func (d *NeighborsGremlinTraversalStep) getNodesFromIDsFiltered(g *graph.Graph, ids []graph.Identifier) ([]*graph.Node, error) {
+	hasFilter, err := traversal.ParamsToFilter(filters.BoolFilterOp_AND, d.nodeFilterParams...)
+	if err != nil {
+		return nil, err
+	}
+	if !isPushableFilter(hasFilter) {
+		return nil, errFilterNotPushable
+	}
+
+	nodes := []*graph.Node{}
+	for start := 0; start < len(ids); start += neighborsIDsBatchSize {
+		end := start + neighborsIDsBatchSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+
+		idFilters := make([]*filters.Filter, 0, end-start)
+		for _, id := range ids[start:end] {
+			// "@" prefix: root field ID, not Metadata.ID
+			idFilters = append(idFilters, filters.NewTermStringFilter("@ID", string(id)))
+		}
+
+		matcher := graph.NewElementFilter(filters.NewAndFilter(filters.NewOrFilter(idFilters...), hasFilter))
+		nodes = append(nodes, g.GetNodes(matcher)...)
+	}
+
+	return nodes, nil
 }
 
 // Exec Neighbors step
@@ -182,6 +254,11 @@ func (d *NeighborsGremlinTraversalStep) Reduce(next traversal.GremlinTraversalSt
 	// Merge step only needs the ids of nodes. Saving some queries.
 	if _, ok := next.(*MergeGremlinTraversalStep); ok {
 		d.nextStepOnlyIDs = true
+	}
+	// Remember a following Has() filter (same condition used by V() to absorb Has()).
+	// The Has() step is kept in the pipeline, so results do not change.
+	if hasStep, ok := next.(*traversal.GremlinTraversalStepHas); ok && len(hasStep.Params) >= 2 {
+		d.nodeFilterParams = hasStep.Params
 	}
 	return next, nil
 }

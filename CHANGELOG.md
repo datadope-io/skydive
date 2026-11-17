@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.28.0_datadope-27] - 2026-11-17
+### Fixed
+
+- Elasticsearch backend: `GetNodesFromIDs` at a time point (`G.At(t)`) returned a
+  single node for the whole list of IDs instead of the latest revision of each
+  node. `G.At(t)...Neighbors(...)` returned 1 node instead of the full neighborhood.
+- `Neighbors` step in history queries (`G.At(t, d)`): when followed by a `Has()`
+  step, that filter is pushed down to the backend so only the matching nodes are
+  fetched (in batches of 500 IDs), instead of loading every revision of every
+  neighbor in a single response. Avoids the analyzer OOM and the >30s queries on
+  big neighborhoods. The `Has()` step is still executed, results do not change.
+  Filters with `Regex()` or `IPV4Range()` are not pushed down (evaluated in memory
+  as before): Elasticsearch uses Lucene regex syntax, and patterns valid in Go such
+  as `(?i)...` silently match nothing there.
+
 ## [0.28.0] - 2021-07-19
 ### Added
 

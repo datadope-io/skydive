@@ -487,3 +487,32 @@ func BenchmarkGetNeighbors(b *testing.B) {
 		d.getNeighbors(g, []*graph.Node{g.GetNode(graph.Identifier("1"))})
 	}
 }
+
+// TestIsPushableFilter checks that Has() filters with regular expressions are
+// not pushed down to the backend, at any nesting level
+func TestIsPushableFilter(t *testing.T) {
+	tests := []struct {
+		name     string
+		params   []interface{}
+		pushable bool
+	}{
+		{"term", []interface{}{"Type", "Server"}, true},
+		{"terms", []interface{}{"Type", "Server", "Name", "foo"}, true},
+		{"within", []interface{}{"Type", traversal.Within("Server", "Software")}, true},
+		{"ne", []interface{}{"Type", traversal.Ne("Software")}, true},
+		{"gt", []interface{}{"Type", "Server", "CMDBResyncTS", traversal.Gt(int64(0))}, true},
+		{"regex", []interface{}{"Name", traversal.Regex("(?i)foo")}, false},
+		{"regex with terms", []interface{}{"Type", "Server", "Name", traversal.Regex("foo.*")}, false},
+		{"ipv4range", []interface{}{"Type", "Server", "IPV4", traversal.IPV4Range("10.0.0.0/8")}, false},
+	}
+
+	for _, tt := range tests {
+		f, err := traversal.ParamsToFilter(filters.BoolFilterOp_AND, tt.params...)
+		if err != nil {
+			t.Fatalf("%s: unexpected error building the filter: %s", tt.name, err)
+		}
+		assert.Equal(t, tt.pushable, isPushableFilter(f), tt.name)
+	}
+
+	assert.True(t, isPushableFilter(nil), "nil filter")
+}

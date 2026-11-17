@@ -275,8 +275,10 @@ func (b *ElasticSearchBackend) GetNodesFromIDs(identifiersList []Identifier, t C
 		}, false)...)
 	}
 
+	// At a time point keep the latest revision of EACH node.
+	// Returning nodes[len(nodes)-1] kept a single node for the whole list of IDs.
 	if len(nodes) > 1 && t.TimePoint {
-		return []*Node{nodes[len(nodes)-1]}
+		nodes = dedupNodes(nodes)
 	}
 
 	return nodes
