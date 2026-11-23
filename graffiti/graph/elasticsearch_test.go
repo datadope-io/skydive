@@ -87,6 +87,10 @@ func (f *fakeESClient) Search(query elastic.Query, fsq filters.SearchQuery, indi
 	f.searches = append(f.searches, query)
 	return &f.searchResult, nil
 }
+func (f *fakeESClient) SearchCollapsed(query elastic.Query, fsq filters.SearchQuery, collapseField string, indices ...string) (*elastic.SearchResult, error) {
+	f.searches = append(f.searches, query)
+	return &f.searchResult, nil
+}
 func (f *fakeESClient) Start() {
 }
 func (f *fakeESClient) AddEventListener(l storage.EventListener) {

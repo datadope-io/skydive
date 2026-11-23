@@ -1224,6 +1224,24 @@ func (g *Graph) GetNodesFromIDs(i []Identifier) []*Node {
 	return g.backend.GetNodesFromIDs(i, g.context)
 }
 
+// nodesOneRevisionGetter is implemented by the backends able to return a
+// single revision of each node of a list of identifiers
+type nodesOneRevisionGetter interface {
+	GetNodesOneRevision(i []Identifier, t Context) ([]*Node, bool)
+}
+
+// GetNodesOneRevision returns a single revision of each node of the list of
+// identifiers: the one the backend GetNode returns first (the latest one at a
+// time point, the oldest one within a time slice). ok is false if the backend
+// in use does not support it; the caller must then use another method.
+func (g *Graph) GetNodesOneRevision(i []Identifier) (nodes []*Node, ok bool) {
+	getter, found := g.backend.(nodesOneRevisionGetter)
+	if !found {
+		return nil, false
+	}
+	return getter.GetNodesOneRevision(i, g.context)
+}
+
 // CreateNode returns a new node not bound to a graph
 func CreateNode(i Identifier, m Metadata, t Time, h string, o string) *Node {
 	n := &Node{

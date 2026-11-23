@@ -80,6 +80,7 @@ type ClientInterface interface {
 	Delete(index Index, id string) (*elastic.DeleteResponse, error)
 	BulkDelete(index Index, id string) error
 	Search(query elastic.Query, pagination filters.SearchQuery, indices ...string) (*elastic.SearchResult, error)
+	SearchCollapsed(query elastic.Query, pagination filters.SearchQuery, collapseField string, indices ...string) (*elastic.SearchResult, error)
 	Scroll(hits chan<- *elastic.SearchHit, query elastic.Query, pagination filters.SearchQuery, indices ...string) error
 	Start()
 	AddEventListener(listener storage.EventListener)
@@ -551,6 +552,19 @@ func (c *Client) Scroll(hits chan<- *elastic.SearchHit, query elastic.Query, opt
 
 // Search an object. Maximum 10000 hits
 func (c *Client) Search(query elastic.Query, opts filters.SearchQuery, indices ...string) (*elastic.SearchResult, error) {
+	return c.search(query, opts, "", indices...)
+}
+
+// SearchCollapsed searches objects returning only the first hit, in sort
+// order, of each distinct value of collapseField. Maximum 10000 hits
+func (c *Client) SearchCollapsed(query elastic.Query, opts filters.SearchQuery, collapseField string, indices ...string) (*elastic.SearchResult, error) {
+	if collapseField == "" {
+		return nil, errors.New("SearchCollapsed requires a collapse field")
+	}
+	return c.search(query, opts, collapseField, indices...)
+}
+
+func (c *Client) search(query elastic.Query, opts filters.SearchQuery, collapseField string, indices ...string) (*elastic.SearchResult, error) {
 	searchQuery := c.esClient.
 		Search().
 		Index(indices...).
@@ -570,6 +584,10 @@ func (c *Client) Search(query elastic.Query, opts filters.SearchQuery, indices .
 			Ascending:    opts.SortOrder != filters.SortOrder_Descending,
 			UnmappedType: "date",
 		})
+	}
+
+	if collapseField != "" {
+		searchQuery = searchQuery.Collapse(elastic.NewCollapseBuilder(collapseField))
 	}
 
 	res, err := searchQuery.Do(context.Background())

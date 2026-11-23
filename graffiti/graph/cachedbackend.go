@@ -110,6 +110,24 @@ func (c *CachedBackend) GetNodesFromIDs(i []Identifier, t Context) []*Node {
 	return c.persistent.GetNodesFromIDs(i, t)
 }
 
+// GetNodesOneRevision retrieve a single revision of each node of the list from
+// the persistent backend within a time slice. ok is false if the request can
+// not be served that way (no time slice, cache only mode or a persistent
+// backend without support).
+func (c *CachedBackend) GetNodesOneRevision(i []Identifier, t Context) (nodes []*Node, ok bool) {
+	mode := c.cacheMode.Load()
+
+	if t.TimeSlice == nil || mode == CacheOnlyMode || c.persistent == nil {
+		return nil, false
+	}
+
+	if getter, found := c.persistent.(nodesOneRevisionGetter); found {
+		return getter.GetNodesOneRevision(i, t)
+	}
+
+	return nil, false
+}
+
 // GetNodeEdges retrieve a list of edges from a node within a time slice, matching metadata
 func (c *CachedBackend) GetNodeEdges(n *Node, t Context, m ElementMatcher) (edges []*Edge) {
 	mode := c.cacheMode.Load()

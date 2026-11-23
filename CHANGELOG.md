@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.28.0_datadope-28] - 2026-11-23
+### Fixed
+
+- `Descendants` step in history queries (`G.At(t, d)`): the children of every
+  node the walk can reach are fetched level by level, in batches, instead of one
+  `GetNodeEdges` plus two `GetNode` requests per edge, sequentially. With ~180
+  servers (dashboard "Singularity - SoftwareServer") that was ~1,400 Elasticsearch
+  requests and over 60s (502 behind the load balancer). Only one revision of each
+  child is fetched (new `GetNodesOneRevision`, collapse by ID), the one the step
+  used before, so results do not change. Edges batches reaching the 10000 hits
+  limit are split. Live queries and time points are not changed.
+
 ## [0.28.0_datadope-27] - 2026-11-17
 ### Fixed
 

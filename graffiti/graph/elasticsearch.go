@@ -383,23 +383,7 @@ func (b *ElasticSearchBackend) Query(typ string, tsq *TimedSearchQuery, scrollAP
 	// close the channel to notify the consumer that all data has been sent
 	defer close(hits)
 
-	fltrs := []elastic.Query{
-		es.FormatFilter(filters.NewTermStringFilter("_Type", typ), nil),
-	}
-
-	if tf := es.FormatFilter(tsq.TimeFilter, nil); tf != nil {
-		fltrs = append(fltrs, tf)
-	}
-
-	if f := es.FormatFilter(tsq.Filter, nil); f != nil {
-		fltrs = append(fltrs, f)
-	}
-
-	if mf := es.FormatFilter(tsq.ElementFilter, normalizeKey); mf != nil {
-		fltrs = append(fltrs, mf)
-	}
-
-	mustQuery := elastic.NewBoolQuery().Must(fltrs...)
+	mustQuery := b.buildQuery(typ, tsq)
 
 	if scrollAPI {
 		err := b.client.Scroll(hits, mustQuery, tsq.SearchQuery, b.liveIndex.Alias(b.indexPrefix), b.archiveIndex.IndexWildcard(b.indexPrefix))
@@ -417,6 +401,79 @@ func (b *ElasticSearchBackend) Query(typ string, tsq *TimedSearchQuery, scrollAP
 			hits <- h
 		}
 	}
+}
+
+// buildQuery returns the Elasticsearch query for the elements of type typ
+// matching the time, search and element filters
+func (b *ElasticSearchBackend) buildQuery(typ string, tsq *TimedSearchQuery) elastic.Query {
+	fltrs := []elastic.Query{
+		es.FormatFilter(filters.NewTermStringFilter("_Type", typ), nil),
+	}
+
+	if tf := es.FormatFilter(tsq.TimeFilter, nil); tf != nil {
+		fltrs = append(fltrs, tf)
+	}
+
+	if f := es.FormatFilter(tsq.Filter, nil); f != nil {
+		fltrs = append(fltrs, f)
+	}
+
+	if mf := es.FormatFilter(tsq.ElementFilter, normalizeKey); mf != nil {
+		fltrs = append(fltrs, mf)
+	}
+
+	return elastic.NewBoolQuery().Must(fltrs...)
+}
+
+// GetNodesOneRevision returns a single revision of each node of the list of
+// identifiers within a time slice: the one GetNode returns first, that is the
+// latest revision at a time point and the oldest one within a time slice.
+// Elasticsearch collapses the revisions by ID, so only one document per node
+// is transferred, whatever the number of revisions of the node.
+func (b *ElasticSearchBackend) GetNodesOneRevision(identifiersList []Identifier, t Context) ([]*Node, bool) {
+	nodes := []*Node{}
+	if len(identifiersList) == 0 {
+		return nodes, true
+	}
+
+	sortOrder := filters.SortOrder_Ascending
+	if t.TimePoint {
+		sortOrder = filters.SortOrder_Descending
+	}
+
+	for _, idList := range batchIdentifiers(identifiersList, maxClauseCount) {
+		identifiersFilter := make([]*filters.Filter, 0, len(idList))
+		for _, i := range idList {
+			identifiersFilter = append(identifiersFilter, filters.NewTermStringFilter("ID", string(i)))
+		}
+
+		tsq := &TimedSearchQuery{
+			SearchQuery: filters.SearchQuery{
+				Filter:    filters.NewOrFilter(identifiersFilter...),
+				Sort:      true,
+				SortBy:    "Revision",
+				SortOrder: sortOrder,
+			},
+			TimeFilter: getTimeFilter(t.TimeSlice),
+		}
+
+		out, err := b.client.SearchCollapsed(b.buildQuery(nodeType, tsq), tsq.SearchQuery, "ID", b.liveIndex.Alias(b.indexPrefix), b.archiveIndex.IndexWildcard(b.indexPrefix))
+		if err != nil {
+			b.logger.Errorf("Failed to query ElasticSearch Search API: %v", err)
+			continue
+		}
+
+		for _, h := range out.Hits.Hits {
+			var node Node
+			if err := json.Unmarshal(h.Source, &node); err != nil {
+				b.logger.Errorf("Failed to unmarshal node %s: %s", err, string(h.Source))
+				continue
+			}
+			nodes = append(nodes, &node)
+		}
+	}
+
+	return nodes, true
 }
 
 // searchNodes search nodes matching the query
