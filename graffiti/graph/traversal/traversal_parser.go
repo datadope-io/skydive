@@ -885,7 +885,12 @@ func (s *GremlinTraversalSequence) Exec(g *graph.Graph, lockGraph bool) (GraphTr
 	var last GraphTraversalStep
 	var err error
 
+	// Failed persistent backend requests (history queries) make the query
+	// fail, instead of returning a result built from missing data
+	queryErrors := &graph.QueryErrors{}
+
 	s.GraphTraversal = NewGraphTraversal(g, lockGraph)
+	s.GraphTraversal.queryErrors = queryErrors
 	last = s.GraphTraversal
 
 	for i := 0; i < len(s.steps); {
@@ -906,6 +911,10 @@ func (s *GremlinTraversalSequence) Exec(g *graph.Graph, lockGraph bool) (GraphTr
 		}
 
 		if err := last.Error(); err != nil {
+			return nil, err
+		}
+
+		if err := queryErrors.Err(); err != nil {
 			return nil, err
 		}
 	}

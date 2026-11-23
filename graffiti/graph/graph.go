@@ -149,6 +149,8 @@ type PersistentBackend interface {
 type Context struct {
 	TimeSlice *TimeSlice
 	TimePoint bool
+	// Errors, if not nil, collects the failed persistent backend requests
+	Errors *QueryErrors `json:"-"`
 }
 
 var liveContext = Context{TimePoint: true}

@@ -66,6 +66,9 @@ type GraphTraversal struct {
 	error     error
 	lockGraph bool
 	as        map[string]*GraphTraversalAs
+	// queryErrors collects the failed persistent backend requests of the
+	// history graphs (Context step) created from this traversal
+	queryErrors *graph.QueryErrors
 }
 
 // GraphTraversalV traversal steps on nodes
@@ -556,14 +559,16 @@ func (t *GraphTraversal) Context(s ...interface{}) *GraphTraversal {
 	g, err := t.Graph.CloneWithContext(graph.Context{
 		TimePoint: len(s) == 1,
 		TimeSlice: graph.NewTimeSlice(graph.Time(at.Add(-duration)).UnixMilli(), graph.Time(at).UnixMilli()),
+		Errors:    t.queryErrors,
 	})
 	if err != nil {
 		return &GraphTraversal{error: err}
 	}
 
 	return &GraphTraversal{
-		Graph: g,
-		as:    make(map[string]*GraphTraversalAs),
+		Graph:       g,
+		as:          make(map[string]*GraphTraversalAs),
+		queryErrors: t.queryErrors,
 	}
 }
 

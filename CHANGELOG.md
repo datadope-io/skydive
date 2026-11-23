@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file.
   child is fetched (new `GetNodesOneRevision`, collapse by ID), the one the step
   used before, so results do not change. Edges batches reaching the 10000 hits
   limit are split. Live queries and time points are not changed.
+- History queries answered 200 with an empty or partial result when an
+  Elasticsearch request failed (the error was only logged). Now the query fails
+  and the topology API answers 503 with the number of failed requests and the
+  first error.
 
 ## [0.28.0_datadope-27] - 2026-11-17
 ### Fixed

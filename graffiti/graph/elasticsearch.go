@@ -235,7 +235,7 @@ func (b *ElasticSearchBackend) GetNode(i Identifier, t Context) []*Node {
 			SortBy: "Revision",
 		},
 		TimeFilter: getTimeFilter(t.TimeSlice),
-	}, false)
+	}, false, t.Errors)
 
 	if len(nodes) > 1 && t.TimePoint {
 		return []*Node{nodes[len(nodes)-1]}
@@ -272,7 +272,7 @@ func (b *ElasticSearchBackend) GetNodesFromIDs(identifiersList []Identifier, t C
 				SortBy: "Revision",
 			},
 			TimeFilter: getTimeFilter(t.TimeSlice),
-		}, false)...)
+		}, false, t.Errors)...)
 	}
 
 	// At a time point keep the latest revision of EACH node.
@@ -335,7 +335,7 @@ func (b *ElasticSearchBackend) GetEdge(i Identifier, t Context) []*Edge {
 			SortBy: "Revision",
 		},
 		TimeFilter: getTimeFilter(t.TimeSlice),
-	}, false)
+	}, false, t.Errors)
 
 	if len(edges) > 1 && t.TimePoint {
 		return []*Edge{edges[len(edges)-1]}
@@ -379,7 +379,8 @@ func (b *ElasticSearchBackend) MetadataUpdated(i interface{}) error {
 // Query the database for a "node" or "edge"
 // Return a channel where the hits will be send.
 // Done channel indicates the query has finished
-func (b *ElasticSearchBackend) Query(typ string, tsq *TimedSearchQuery, scrollAPI bool, hits chan<- *elastic.SearchHit) {
+// Failed requests are logged and added to errs (if not nil).
+func (b *ElasticSearchBackend) Query(typ string, tsq *TimedSearchQuery, scrollAPI bool, hits chan<- *elastic.SearchHit, errs *QueryErrors) {
 	// close the channel to notify the consumer that all data has been sent
 	defer close(hits)
 
@@ -389,11 +390,13 @@ func (b *ElasticSearchBackend) Query(typ string, tsq *TimedSearchQuery, scrollAP
 		err := b.client.Scroll(hits, mustQuery, tsq.SearchQuery, b.liveIndex.Alias(b.indexPrefix), b.archiveIndex.IndexWildcard(b.indexPrefix))
 		if err != nil {
 			b.logger.Errorf("Failed to query ElasticSearch Scroll API: %v", err)
+			errs.Add(err)
 		}
 	} else {
 		out, err := b.client.Search(mustQuery, tsq.SearchQuery, b.liveIndex.Alias(b.indexPrefix), b.archiveIndex.IndexWildcard(b.indexPrefix))
 		if err != nil {
 			b.logger.Errorf("Failed to query ElasticSearch Search API: %v", err)
+			errs.Add(err)
 			return
 		}
 		// If the seach query is correct, send all the hits to the consumer
@@ -460,6 +463,7 @@ func (b *ElasticSearchBackend) GetNodesOneRevision(identifiersList []Identifier,
 		out, err := b.client.SearchCollapsed(b.buildQuery(nodeType, tsq), tsq.SearchQuery, "ID", b.liveIndex.Alias(b.indexPrefix), b.archiveIndex.IndexWildcard(b.indexPrefix))
 		if err != nil {
 			b.logger.Errorf("Failed to query ElasticSearch Search API: %v", err)
+			t.Errors.Add(err)
 			continue
 		}
 
@@ -477,12 +481,12 @@ func (b *ElasticSearchBackend) GetNodesOneRevision(identifiersList []Identifier,
 }
 
 // searchNodes search nodes matching the query
-func (b *ElasticSearchBackend) searchNodes(tsq *TimedSearchQuery, scrollAPI bool) (nodes []*Node) {
+func (b *ElasticSearchBackend) searchNodes(tsq *TimedSearchQuery, scrollAPI bool, errs *QueryErrors) (nodes []*Node) {
 	// Channel to get results from the query
 	hits := make(chan *elastic.SearchHit, 100)
 
 	// New goroutine to execute the get the data from ElasticSearch
-	go b.Query(nodeType, tsq, scrollAPI, hits)
+	go b.Query(nodeType, tsq, scrollAPI, hits, errs)
 
 	// Get all the hits till the channel is closed by the producer (elasticsearch client)
 	for d := range hits {
@@ -498,12 +502,12 @@ func (b *ElasticSearchBackend) searchNodes(tsq *TimedSearchQuery, scrollAPI bool
 }
 
 // searchEdges search edges matching the query
-func (b *ElasticSearchBackend) searchEdges(tsq *TimedSearchQuery, scrollAPI bool) (edges []*Edge) {
+func (b *ElasticSearchBackend) searchEdges(tsq *TimedSearchQuery, scrollAPI bool, errs *QueryErrors) (edges []*Edge) {
 	// Channel to get results from the query
 	hits := make(chan *elastic.SearchHit, 100)
 
 	// New goroutine to execute the get the data from ElasticSearch
-	go b.Query(edgeType, tsq, scrollAPI, hits)
+	go b.Query(edgeType, tsq, scrollAPI, hits, errs)
 
 	for d := range hits {
 		var edge Edge
@@ -544,7 +548,7 @@ func (b *ElasticSearchBackend) getEdges(t Context, m ElementMatcher, scrollAPI b
 		SearchQuery:   searchQuery,
 		TimeFilter:    getTimeFilter(t.TimeSlice),
 		ElementFilter: filter,
-	}, scrollAPI)
+	}, scrollAPI, t.Errors)
 
 	if t.TimePoint {
 		edges = dedupEdges(edges)
@@ -580,7 +584,7 @@ func (b *ElasticSearchBackend) getNodes(t Context, m ElementMatcher, scrollAPI b
 		SearchQuery:   searchQuery,
 		TimeFilter:    getTimeFilter(t.TimeSlice),
 		ElementFilter: filter,
-	}, scrollAPI)
+	}, scrollAPI, t.Errors)
 
 	if len(nodes) > 1 && t.TimePoint {
 		nodes = dedupNodes(nodes)
@@ -627,7 +631,7 @@ func (b *ElasticSearchBackend) GetNodeEdges(n *Node, t Context, m ElementMatcher
 		SearchQuery:   searchQuery,
 		TimeFilter:    getTimeFilter(t.TimeSlice),
 		ElementFilter: filter,
-	}, false)
+	}, false, t.Errors)
 
 	if len(edges) > 1 && t.TimePoint {
 		edges = dedupEdges(edges)
@@ -672,7 +676,7 @@ func (b *ElasticSearchBackend) GetNodesEdges(nodeList []*Node, t Context, m Elem
 			SearchQuery:   searchQuery,
 			TimeFilter:    getTimeFilter(t.TimeSlice),
 			ElementFilter: filter,
-		}, false)...)
+		}, false, t.Errors)...)
 
 	}
 

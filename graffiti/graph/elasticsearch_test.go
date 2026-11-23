@@ -19,7 +19,9 @@ package graph
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -38,6 +40,7 @@ type fakeESClient struct {
 	indices      map[string]*fakeESIndex
 	searches     []elastic.Query
 	searchResult elastic.SearchResult
+	searchErr    error
 }
 
 func (f *fakeESClient) Scroll(hits chan<- *elastic.SearchHit, query elastic.Query, pagination filters.SearchQuery, indices ...string) error {
@@ -85,10 +88,16 @@ func (f *fakeESClient) BulkDelete(index es.Index, id string) error {
 }
 func (f *fakeESClient) Search(query elastic.Query, fsq filters.SearchQuery, indices ...string) (*elastic.SearchResult, error) {
 	f.searches = append(f.searches, query)
+	if f.searchErr != nil {
+		return nil, f.searchErr
+	}
 	return &f.searchResult, nil
 }
 func (f *fakeESClient) SearchCollapsed(query elastic.Query, fsq filters.SearchQuery, collapseField string, indices ...string) (*elastic.SearchResult, error) {
 	f.searches = append(f.searches, query)
+	if f.searchErr != nil {
+		return nil, f.searchErr
+	}
 	return &f.searchResult, nil
 }
 func (f *fakeESClient) Start() {
@@ -394,5 +403,43 @@ func TestElasticsearchEdge(t *testing.T) {
 	archive = client.indices["topology_archive"].entries
 	if diff := deep.Equal(archive, expectedArchive); diff != nil {
 		t.Fatalf("Expected elasticsearch archived records not found: %s", diff)
+	}
+}
+
+// TestElasticsearchQueryErrors checks failed searches are added to the
+// context errors, so the query fails instead of returning an empty result
+func TestElasticsearchQueryErrors(t *testing.T) {
+	g, client := newElasticsearchGraph(t)
+	b := g.backend
+	client.searchErr = errors.New("connection refused")
+
+	errs := &QueryErrors{}
+	ctx := Context{TimeSlice: NewTimeSlice(0, 1000), Errors: errs}
+
+	if nodes := b.GetNodes(ctx, nil); len(nodes) != 0 {
+		t.Fatalf("expected no nodes, got %d", len(nodes))
+	}
+	b.GetNodeEdges(CreateNode("aaa", Metadata{}, Unix(1, 0), "host1", "graph-test.host1"), ctx, nil)
+	if _, ok := b.(*ElasticSearchBackend).GetNodesOneRevision([]Identifier{"aaa"}, ctx); !ok {
+		t.Fatal("GetNodesOneRevision must be supported")
+	}
+
+	err := errs.Err()
+	if !errors.Is(err, ErrBackendQuery) {
+		t.Fatalf("expected ErrBackendQuery, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "3 request(s) failed") || !strings.Contains(err.Error(), "connection refused") {
+		t.Fatalf("unexpected error message: %v", err)
+	}
+
+	// without collector (live context, Sync...) errors are only logged
+	b.GetNodes(Context{TimeSlice: NewTimeSlice(0, 1000)}, nil)
+
+	// no error when the searches succeed
+	client.searchErr = nil
+	errs = &QueryErrors{}
+	b.GetNodes(Context{TimeSlice: NewTimeSlice(0, 1000), Errors: errs}, nil)
+	if err := errs.Err(); err != nil {
+		t.Fatalf("expected no error, got %v", err)
 	}
 }

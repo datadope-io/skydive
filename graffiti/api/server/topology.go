@@ -20,6 +20,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -104,7 +105,13 @@ func (t *TopologyAPI) topologySearch(w http.ResponseWriter, r *auth.Authenticate
 
 	res, err := ts.Exec(t.graph, true)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		status := http.StatusBadRequest
+		if errors.Is(err, graph.ErrBackendQuery) {
+			// the history backend (Elasticsearch) failed: not a client error
+			status = http.StatusServiceUnavailable
+			logging.GetLogger().Errorf("Gremlin query failed, %s: %s", err, resource.GremlinQuery)
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
 
